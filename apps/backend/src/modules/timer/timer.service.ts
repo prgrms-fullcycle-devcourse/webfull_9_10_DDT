@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { CreateTimerDto } from './dto/create-timer.dto';
 import { UpdateTimerDto } from './dto/update-timer.dto';

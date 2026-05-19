@@ -10,4 +10,4 @@ async function bootstrap() {
   
   Logger.log(`백엔드 주소 : http://localhost:${port}`, 'Bootstrap');
 }
-bootstrap();
+void bootstrap();
