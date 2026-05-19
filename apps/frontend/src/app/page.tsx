@@ -9,7 +9,8 @@ export default function Home() {
 
   useEffect(() => {
     // 1. 소켓 연결
-    socketRef.current = io('http://localhost:8080');
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
+    socketRef.current = io(socketUrl); 
 
     // 2. 이벤트 리스너 등록 
     socketRef.current.on('welcome', (data) => setMessage(data.message));
