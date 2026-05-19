@@ -1,4 +1,3 @@
-// apps/backend/src/socket.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -9,8 +8,15 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
-// 프론트엔드에서 오는 요청을 허용합니다 (CORS)
-@WebSocketGateway({ cors: { origin: process.env.FRONTEND_URL || 'http://localhost:3000' } })
+@WebSocketGateway({ 
+  cors: { 
+    origin: [
+      'http://localhost:3000', 
+      'https://webfull-9-10-ddt-frontend.vercel.app'
+    ],
+    credentials: true,
+  } 
+})
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
