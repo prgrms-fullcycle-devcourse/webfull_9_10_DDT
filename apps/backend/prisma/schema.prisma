@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 1. 방 정보 (타이머 설정, 벌칙 내용 등)
+model Room {
+  id           String    @id @default(uuid())
+  title        String    // 방 이름
+  password     String?   // 비밀번호 (선택)
+  focusMinutes Int       // 집중 시간 (M분)
+  restMinutes  Int       // 휴식 시간 (N분)
+  penaltyRule  String    // 벌칙 룰 (예: 랜덤 1명, 전원 등)
+  createdAt    DateTime  @default(now())
+  
+  users        User[]    // 방에 속한 유저들
+}
+
+// 2. 유저 정보 (임시 닉네임, 방장 여부)
+model User {
+  id        String    @id @default(uuid())
+  nickname  String
+  isHost    Boolean   @default(false)
+  roomId    String
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  escapes   EscapeLog[] // 이탈 기록들
+}
+
+// 3. 이탈 기록 (이탈 시간, 복귀 시간 계산용)
+model EscapeLog {
+  id         Int       @id @default(autoincrement())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  escapedAt  DateTime  @default(now()) // 이탈한 시간
+  returnedAt DateTime? // 복귀한 시간 (null이면 아직 안 돌아옴)
+}
