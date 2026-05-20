@@ -10,38 +10,45 @@ ddt-workspace/
 │       └── ci.yml                  # PR 생성 시 실행될 CI 파이프라인
 │
 ├── apps/
-│   ├── backend/                    # (NestJS + Prisma + Redis + Socket.IO)
+│   ├── backend/                    # NestJS + Prisma + Redis + Socket.IO + Sentry
 │   │   ├── prisma/
-│   │   │   └── schema.prisma       # Supabase 연결 및 스키마 정의
+│   │   │   └── schema.prisma       
 │   │   ├── src/
-│   │   │   ├── common/             # Sentry 인터셉터, 글로벌 예외 처리
-│   │   │   ├── modules/            # 도메인별 모듈 (auth, rooms, timer 등)
+│   │   │   ├── common/             
+│   │   │   ├── modules/            
+│   │   │   ├── instrument.ts       # Sentry 초기화 설정 파일 (최상단 실행)
 │   │   │   └── main.ts
+│   │   ├── .env                    # 로컬용 환경변수 (SENTRY_DSN 등)
+│   │   ├── .env.example            # 팀원 공유용 빈 환경변수 템플릿
 │   │   └── package.json
 │   │
-│   └── frontend/                   # (Next.js + Zustand + Tailwind + Orval)
+│   └── frontend/                   # Next.js + Zustand + Tailwind + Orval + Sentry
 │       ├── public/
 │       ├── src/
-│       │   ├── app/                # Next.js App Router (layout, page)
-│       │   ├── components/         # UI 컴포넌트
-│       │   ├── hooks/              # 커스텀 훅 (useSocket 등)
-│       │   ├── store/              # Zustand 스토어
-│       │   └── api/                # Orval이 자동 생성할 API 클라이언트 및 타입
-│       ├── orval.config.js         # Orval 설정 파일
+│       │   ├── app/                
+│       │   ├── components/         
+│       │   ├── hooks/              
+│       │   ├── store/              
+│       │   └── api/                
+│       ├── orval.config.ts         # js 대신 ts로 설정 (TypeScript 환경 통일)
+│       ├── sentry.client.config.ts # Sentry 클라이언트(브라우저) 설정
+│       ├── sentry.server.config.ts # Sentry 서버(Next.js SSR) 설정
+│       ├── instrumentation.ts      # Next.js 서버 모니터링 훅
 │       ├── tailwind.config.ts
+│       ├── .env.local              # 로컬용 환경변수 
 │       └── package.json
 │
 ├── packages/
 │   ├── shared/                     # (프론트/백엔드 공통 구역)
 │   │   ├── src/
 │   │   │   ├── constants/          # Socket 이벤트명 ('JOIN_ROOM' 등)
-│   │   │   └── types/              # 공통 타입 및 인터페이스
-│   │   ├── package.json            # name: "@ddt/shared"
+│   │   │   └── types/              # HTTP 타입은 Orval이 자동 생성하므로, 여기엔 'Socket 통신용 페이로드 타입' 위주로 작성!
+│   │   ├── package.json            
 │   │   └── tsconfig.json
 │   │
-│   ├── eslint-config/              # 워크스페이스 공통 ESLint 설정
-│   └── typescript-config/          # 워크스페이스 공통 TS 설정 (Base)
+│   ├── eslint-config/              
+│   └── typescript-config/          
 │
-├── package.json                    # 루트 의존성 (husky, turbo 등)
-├── pnpm-workspace.yaml             # 모노레포 패키지 바인딩
-└── turbo.json                      # build, lint, typecheck 캐싱 파이프라인
+├── package.json                    
+├── pnpm-workspace.yaml             
+└── turbo.json
