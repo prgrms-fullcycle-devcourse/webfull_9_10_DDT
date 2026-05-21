@@ -10,7 +10,10 @@ import { CenterLayout } from '@/components/layout/centerLayout';
 
 const RoomPage = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return typeof document !== 'undefined' && document.cookie.includes('accessToken=');
+    return (
+      typeof document !== 'undefined' &&
+      document.cookie.includes('accessToken=')
+    );
   });
 
   useEffect(() => {
@@ -24,8 +27,12 @@ const RoomPage = () => {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const handleGoogleLogin = () => {
-    window.open('/auth/google', 'Google Login', 'width=500,height=600');
+  const handleOpenTerms = () => {
+    window.open(
+      '/terms',
+      'Terms Agreement',
+      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no, location=no',
+    );
   };
 
   return (
@@ -40,7 +47,7 @@ const RoomPage = () => {
             <Link href='/mypage'>마이페이지</Link>
           </Button>
         ) : (
-          <Button variant='outline' onClick={handleGoogleLogin}>
+          <Button variant='outline' onClick={handleOpenTerms}>
             로그인
           </Button>
         )}
@@ -65,10 +72,13 @@ const RoomPage = () => {
         <p className='text-xl md:text-2xl leading-relaxed'>
           남들이 딴짓할 때,
           <br className='md:hidden' /> 우리는{' '}
-          <span className='text-third font-semibold'>서로를 가두고 <br className='md:hidden' /> 집중한다.</span>
+          <span className='text-third font-semibold'>
+            서로를 가두고 <br className='md:hidden' /> 집중한다.
+          </span>
         </p>
         <p className='text-sm md:text-base text-gray-400 mb-2'>
-          계약하고, 집중하고, <br className='md:hidden' />벌칙으로 완성하자.
+          계약하고, 집중하고, <br className='md:hidden' />
+          벌칙으로 완성하자.
         </p>
       </div>
 
@@ -80,11 +90,7 @@ const RoomPage = () => {
         <Button variant='default' size='main' className='w-full'>
           <Lock className='mr-2 h-4 w-4' /> 방 만들기
         </Button>
-        <Button
-          variant='outline'
-          size='main'
-          className='w-full bg-transparent'
-        >
+        <Button variant='outline' size='main' className='w-full bg-transparent'>
           코드로 입장하기
         </Button>
       </div>
