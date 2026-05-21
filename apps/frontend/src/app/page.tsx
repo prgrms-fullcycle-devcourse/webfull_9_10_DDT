@@ -1,42 +1,112 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Button } from '@/components/ui/button';
+import { Lock, Timer, Gavel } from 'lucide-react';
+import Image from 'next/image';
+import { TextIcon } from '@/components/features/textIcon';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
-export default function Home() {
-  const socketRef = useRef<Socket | null>(null);
-  const [message, setMessage] = useState('서버 연결 대기 중...');
+const RoomPage = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return typeof document !== 'undefined' && document.cookie.includes('accessToken=');
+  });
 
   useEffect(() => {
-    // 1. 소켓 연결
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080';
-    socketRef.current = io(socketUrl); 
-
-    // 2. 이벤트 리스너 등록 
-    socketRef.current.on('welcome', (data) => setMessage(data.message));
-    socketRef.current.on('pong', (data) => alert(data));
-
-    // 3. 컴포넌트 언마운트 시 소켓 닫기
-    return () => {
-      socketRef.current?.disconnect();
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data === 'login-success') {
+        setIsLoggedIn(true);
+      }
     };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const sendPing = () => {
-    socketRef.current?.emit('ping', '프론트가 찌릅니다!'); 
+  const handleGoogleLogin = () => {
+    window.open('/auth/google', 'Google Login', 'width=500,height=600');
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-zinc-900 text-white">
-      <h1 className="text-4xl font-bold mb-4">DDT V2 실시간 소켓 테스트</h1>
-      <p className="text-xl mb-8 text-green-400">{message}</p>
-      
-      <button 
-        onClick={sendPing}
-        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
-      >
-        서버 찌르기 (Ping 쏘기)
-      </button>
-    </main>
+    <div className='relative min-h-screen w-full flex flex-col items-center justify-center p-6 text-white'>
+      <div
+        className='absolute inset-0 bg-cover bg-center bg-no-repeat -z-10'
+        style={{ backgroundImage: "url('/images/backgroundMain.webp')" }}
+      />
+      <div className='absolute inset-0 bg-black/60 -z-10' />
+
+      <div className='absolute top-0 right-0 p-6'>
+        {isLoggedIn ? (
+          <Button variant='outline' asChild>
+            <Link href='/my-page'>마이페이지</Link>
+          </Button>
+        ) : (
+          <Button variant='outline' onClick={handleGoogleLogin}>
+            로그인
+          </Button>
+        )}
+      </div>
+
+      <div className='flex flex-col w-full max-w-xs gap-8'>
+        <div className='text-left space-y-4'>
+          <div className='mb-14'>
+            <Image
+              src='/images/logo.webp'
+              alt='감옥 로고'
+              width={150}
+              height={60}
+            />
+          </div>
+
+          <p className='text-xl leading-relaxed'>
+            남들이 딴짓할 때,
+            <br />
+            우리는{' '}
+            <span className='text-third font-semibold'>
+              서로를 가두고
+              <br />
+              집중한다.
+            </span>
+          </p>
+          <p className='text-sm text-gray-400 mb-2'>
+            계약하고, 집중하고,
+            <br /> 벌칙으로 완성하자.
+          </p>
+        </div>
+
+        <div className='flex flex-col gap-3 items-center'>
+          <Button variant='default' size='main' className='w-full'>
+            <Lock className='mr-2 h-4 w-4' /> 방 만들기
+          </Button>
+          <Button
+            variant='outline'
+            size='main'
+            className='w-full bg-transparent border-primary'
+          >
+            코드로 입장하기
+          </Button>
+        </div>
+
+        <div className='grid grid-cols-3 gap-4 w-full border-t border-white/10 pt-8 text-third'>
+          <TextIcon
+            icon={<Lock className='h-8 w-8 text-third' />}
+            title='서로를 감시'
+            desc='이탈은 기록되고 투명하게 공개돼요.'
+          />
+          <TextIcon
+            icon={<Timer className='h-8 w-8 text-third' />}
+            title='집중 타이머'
+            desc='공정한 타이머로 함께 집중해요.'
+          />
+          <TextIcon
+            icon={<Gavel className='h-8 w-8 text-third' />}
+            title='벌칙은 확실하게'
+            desc='계약한 벌칙은 끝까지 책임져요.'
+          />
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default RoomPage;
