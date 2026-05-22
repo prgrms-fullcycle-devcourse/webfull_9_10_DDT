@@ -6,35 +6,132 @@ datasource db {
   provider = "postgresql"
 }
 
-// 1. 방 정보 (타이머 설정, 벌칙 내용 등)
-model Room {
-  id           String    @id @default(uuid())
-  title        String    // 방 이름
-  password     String?   // 비밀번호 (선택)
-  focusMinutes Int       // 집중 시간 (M분)
-  restMinutes  Int       // 휴식 시간 (N분)
-  penaltyRule  String    // 벌칙 룰 (예: 랜덤 1명, 전원 등)
-  createdAt    DateTime  @default(now())
-  
-  users        User[]    // 방에 속한 유저들
-}
-
-// 2. 유저 정보 (임시 닉네임, 방장 여부)
 model User {
-  id        String    @id @default(uuid())
-  nickname  String
-  isHost    Boolean   @default(false)
-  roomId    String
-  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  
-  escapes   EscapeLog[] // 이탈 기록들
+  id           String         @id @default(uuid())
+  nickname     String
+  email        String
+  provider     String         @default("google")
+  providerId   String         @map("provider_id")
+  profileImage String         @map("profile_image")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  ruleTemplates RuleTemplate[]
+  rooms         Room[]
+  roomMembers   RoomMember[]
+
+  @@unique([provider, providerId])
+  @@map("USER")
 }
 
-// 3. 이탈 기록 (이탈 시간, 복귀 시간 계산용)
+model RuleTemplate {
+  id         String        @id @default(uuid())
+  userId     String?       @map("user_id")
+  title      String?      
+  isSaved    Boolean       @default(false) @map("is_saved")
+  focusMin   Int           @map("focus_min")
+  breakMin   Int           @map("break_min")
+  rounds     Int
+  tierConfig Json          @map("tier_config")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  user       User?         @relation(fields: [userId], references: [id])
+  penalties  PenaltyItem[]
+  rooms      Room[]
+
+  @@unique([userId, title])
+  @@map("RULE_TEMPLATE")
+}
+
+model PenaltyItem {
+  id         String       @id @default(uuid())
+  templateId String       @map("template_id")
+  content    String
+
+  template   RuleTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("PENALTY_ITEM")
+}
+
+model Room {
+  id           String        @id @default(uuid())
+  code         String        @unique
+  title        String
+  hostId       String        @map("host_id")
+  templateId   String?       @map("template_id")
+  passwordHash String        @map("password_hash")
+  phase        String
+  status       String?
+  startedAt    DateTime?     @map("started_at")
+  endedAt      DateTime?     @map("ended_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  closedAt     DateTime?     @map("closed_at")
+
+  host         User          @relation(fields: [hostId], references: [id])
+  template     RuleTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  roomMembers  RoomMember[]
+  roomResults  RoomResult[]
+
+  @@map("ROOM")
+}
+
+model RoomMember {
+  id           String       @id @default(uuid())
+  roomId       String       @map("room_id")
+  userId       String?      @map("user_id")
+  guestToken   String?      @map("guest_token")
+  nickname     String
+  profileImage String?      @map("profile_image")
+  isHost       Boolean      @default(false) @map("is_host")
+  isLoggedIn   Boolean      @map("is_logged_in")
+  joinedAt     DateTime     @default(now()) @map("joined_at")
+  gaveUpAt     DateTime?    @map("gave_up_at")
+
+  room         Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id])
+  escapeLogs   EscapeLog[]
+  result       RoomResult?
+
+  @@unique([roomId, userId]) 
+  @@map("ROOM_MEMBER")
+}
+
 model EscapeLog {
-  id         Int       @id @default(autoincrement())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  escapedAt  DateTime  @default(now()) // 이탈한 시간
-  returnedAt DateTime? // 복귀한 시간 (null이면 아직 안 돌아옴)
+  id           String     @id @default(uuid())
+  roomMemberId String     @map("room_member_id")
+  escapedAt    DateTime   @map("escaped_at")
+  returnedAt   DateTime?  @map("returned_at")
+  durationMs   Int?       @map("duration_ms")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  roomMember   RoomMember @relation(fields: [roomMemberId], references: [id], onDelete: Restrict)
+
+  @@map("ESCAPE_LOG")
+}
+
+model RoomResult {
+  roomMemberId  String          @id @map("room_member_id")
+  roomId        String          @map("room_id")
+  totalEscapeMs Int             @map("total_escape_ms")
+  penaltyTier   Int             @map("penalty_tier")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  roomMember    RoomMember      @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
+  room          Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  penalties     ResultPenalty[]
+
+  @@map("ROOM_RESULT")
+}
+
+model ResultPenalty {
+  roomMemberId String     @map("room_member_id")
+  content      String
+  count        Int        @default(1)
+  isRevealed   Boolean    @default(false) @map("is_revealed")
+
+  roomResult   RoomResult @relation(fields: [roomMemberId], references: [roomMemberId], onDelete: Cascade)
+
+  @@id([roomMemberId, content])
+  @@map("RESULT_PENALTY")
 }
