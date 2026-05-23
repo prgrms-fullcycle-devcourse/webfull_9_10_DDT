@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AgreeTermsDto } from './dto/agree-terms.dto';
@@ -21,7 +22,10 @@ import { AgreeTermsDto } from './dto/agree-terms.dto';
 @ApiTags('인증(Auth) API')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService
+  ) {}
 
   @ApiOperation({ 
     summary: '구글 소셜 로그인 진입점', 
@@ -42,8 +46,7 @@ export class AuthController {
     const googleProfile = req.user;
     const user = await this.authService.validateOAuthLogin(googleProfile);
     const token = this.authService.generateJwt(user);
-
-    const frontendUrl = process.env.FRONTEND_URL as string;
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
 
     const htmlResponse = `
       <html>
