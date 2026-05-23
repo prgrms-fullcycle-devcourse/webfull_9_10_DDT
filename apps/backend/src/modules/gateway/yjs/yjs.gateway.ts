@@ -43,7 +43,14 @@ export class YjsGateway implements OnModuleDestroy {
     const raw = await this.redis.instance.get(`room:state:${roomId}`);
     const state = raw ? (JSON.parse(raw) as RoomState) : null;
 
+    if (!raw) {
+      this.logger.warn(`방 정보를 찾을 수 없음: ${roomId}`);
+      ws.close(1008, 'Room not found');
+      return;
+    }
+
     if (state?.phase === 'timer') {
+      this.logger.log(`연결 종료(타이머 페이즈): ${roomId}`);
       ws.close();
       return;
     }
@@ -79,7 +86,9 @@ export class YjsGateway implements OnModuleDestroy {
   }
 
   private getRoomId(req: IncomingMessage): string {
-    const { searchParams } = new URL(req.url ?? '', 'http://localhost');
-    return searchParams.get('roomId') ?? '';
+    const url = new URL(req.url ?? '', 'http://localhost');
+    const roomId = url.searchParams.get('roomId');
+    // 끝에 슬래시 제거
+    return roomId ? roomId.replace(/\/$/, '') : '';
   }
 }
