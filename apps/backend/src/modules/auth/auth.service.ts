@@ -1,28 +1,46 @@
-import { 
-  Injectable, 
-  BadRequestException, 
-  ConflictException, 
-  UnauthorizedException 
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
-import { RedisService } from '@liaoliaots/nestjs-redis'; 
-import Redis from 'ioredis';
+import { RedisService } from '../../common/redis/redis.service';
+import { User } from '@prisma/client';
+
+interface GoogleProfile {
+  id: string;
+  email: string;
+  nickname: string;
+}
+
+interface JwtPayload {
+  sub: string;
+  exp: number;
+}
+
+interface AgreeTermsDto {
+  termsOfService: boolean;
+  privacyPolicy: boolean;
+  ageVerification: boolean;
+}
+
+interface GuestTokenResult {
+  accessToken: string;
+  guestToken: string;
+}
 
 @Injectable()
 export class AuthService {
-  private readonly redis: Redis; 
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly redisService: RedisService 
-  ) {
-    this.redis = this.redisService.getOrThrow();
-  }
+    private readonly redisService: RedisService,
+  ) {}
 
-  async validateOAuthLogin(profile: any) {
+  async validateOAuthLogin(profile: GoogleProfile): Promise<User> {
     const { id, email, nickname } = profile;
 
     let user = await this.prisma.user.findFirst({
@@ -32,11 +50,11 @@ export class AuthService {
     if (!user) {
       user = await this.prisma.user.create({
         data: {
-          email: email,
+          email,
           nickname: nickname || '수감자',
           provider: 'google',
           providerId: id,
-          profileImage: 'DEFAULT_PROFILE_1', 
+          profileImage: 'DEFAULT_PROFILE_1',
           isTermsAgreed: false,
         },
       });
@@ -45,22 +63,30 @@ export class AuthService {
     return user;
   }
 
-  generateJwt(user: any) {
-    const payload = { sub: user.id, email: user.email, role: 'user' };
+  generateJwt(user: User): string {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: 'user',
+      isTermsAgreed: user.isTermsAgreed,
+    };
     return this.jwtService.sign(payload);
   }
 
-  generateGuestToken() {
+  generateGuestToken(): GuestTokenResult {
     const guestId = `guest_${uuidv4()}`;
     const payload = { sub: guestId, role: 'guest' };
-    
+
     return {
       accessToken: this.jwtService.sign(payload),
-      guestToken: guestId, 
+      guestToken: guestId,
     };
   }
 
-  async agreeTerms(userId: string, termsDto: any) {
+  async agreeTerms(
+    userId: string,
+    termsDto: AgreeTermsDto,
+  ): Promise<{ success: boolean }> {
     const { termsOfService, privacyPolicy, ageVerification } = termsDto;
 
     if (!termsOfService || !privacyPolicy || !ageVerification) {
@@ -84,18 +110,32 @@ export class AuthService {
     return { success: true };
   }
 
-  async logout(token: string) {
+  async logout(token: string): Promise<{ success: boolean }> {
     try {
-      const decoded: any = this.jwtService.decode(token);
-      if (!decoded || !decoded.exp) throw new UnauthorizedException();
+      const decoded: unknown = this.jwtService.decode(token);
 
-      const expirationTime = decoded.exp - Math.floor(Date.now() / 1000);
-      
+      if (
+        !decoded ||
+        typeof decoded !== 'object' ||
+        !('exp' in decoded) ||
+        typeof (decoded as Record<string, unknown>).exp !== 'number'
+      ) {
+        throw new UnauthorizedException();
+      }
+
+      const exp = (decoded as JwtPayload).exp;
+      const expirationTime = exp - Math.floor(Date.now() / 1000);
+
       if (expirationTime > 0) {
-        await this.redis.set(`blacklist:${token}`, 'logout', 'EX', expirationTime);
+        await this.redisService.instance.set(
+          `blacklist:${token}`,
+          'logout',
+          'EX',
+          expirationTime,
+        );
       }
       return { success: true };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('유효하지 않은 인증 토큰입니다.');
     }
   }

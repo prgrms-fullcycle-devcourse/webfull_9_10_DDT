@@ -1,12 +1,25 @@
-import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service'; 
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PrismaService } from '../../common/prisma.service';
 
 @Injectable()
 export class UsersService {
   private readonly validProfileImages = new Set([
-    'basic_image_key_01', 'basic_image_key_02', 'basic_image_key_03', 'basic_image_key_04', 'basic_image_key_05',
-    'basic_image_key_06', 'basic_image_key_07', 'basic_image_key_08', 'basic_image_key_09', 'basic_image_key_10'
+    'basic_image_key_01',
+    'basic_image_key_02',
+    'basic_image_key_03',
+    'basic_image_key_04',
+    'basic_image_key_05',
+    'basic_image_key_06',
+    'basic_image_key_07',
+    'basic_image_key_08',
+    'basic_image_key_09',
+    'basic_image_key_10',
   ]);
 
   constructor(private readonly prisma: PrismaService) {}
@@ -75,7 +88,7 @@ export class UsersService {
         userId,
         room: {
           phase: {
-            notIn: ['done', 'closed'], 
+            notIn: ['done', 'closed'],
           },
         },
       },
@@ -176,12 +189,12 @@ export class UsersService {
       },
       include: {
         room: {
-          select: { startedAt: true, endedAt: true }
+          select: { startedAt: true, endedAt: true },
         },
         result: {
-          select: { totalEscapeMs: true }
-        }
-      }
+          select: { totalEscapeMs: true },
+        },
+      },
     });
 
     let totalFocusMs = 0;
@@ -190,7 +203,8 @@ export class UsersService {
     roomMembers.forEach((m) => {
       totalEscapeMs += m.result?.totalEscapeMs || 0;
       if (m.room.startedAt && m.room.endedAt) {
-        const sessionDuration = m.room.endedAt.getTime() - m.room.startedAt.getTime();
+        const sessionDuration =
+          m.room.endedAt.getTime() - m.room.startedAt.getTime();
         const effectiveFocus = sessionDuration - (m.result?.totalEscapeMs || 0);
         totalFocusMs += effectiveFocus > 0 ? effectiveFocus : 0;
       }

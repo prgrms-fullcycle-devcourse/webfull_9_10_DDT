@@ -44,10 +44,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleJoinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { roomId: string },
-  ): Promise<{ ok: true; roomId: string }> {
+  ) {
     await client.join(body.roomId);
+    //client.data.roomId = body.roomId; // 이 줄 추가
     client.to(body.roomId).emit('room:user-joined', { socketId: client.id });
-
     return { ok: true, roomId: body.roomId };
   }
 }

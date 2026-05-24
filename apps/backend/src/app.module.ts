@@ -12,25 +12,17 @@ import { GatewayModule } from './modules/gateway/gateway.module';
 import { PrismaModule } from './common/prisma.module';
 
 import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
-import { RedisModule as NestjsRedisModule } from '@liaoliaots/nestjs-redis';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, 
+      isGlobal: true,
       envFilePath: '.env',
     }),
-    
-    NestjsRedisModule.forRoot({
-      config: {
-        url: process.env.REDIS_URL,
-      },
-    }),
-
-    PrismaModule, 
+    PrismaModule,
     AuthModule,
-    RoomModule, 
-    UserModule, 
+    RoomModule,
+    UserModule,
     TimerModule,
     SentryModule.forRoot(),
     CustomRedisModule,
