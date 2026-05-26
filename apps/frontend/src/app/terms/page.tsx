@@ -27,7 +27,6 @@ const TermsPage = () => {
   return (
     <CenterLayout maxWidthClass='md:max-w-md'>
       <div className='w-full flex items-center mb-10'>
-        <button className='text-white' onClick={() => window.close()}>X</button>
         <h1 className='flex-1 text-center font-bold'>약관 동의</h1>
       </div>
 

@@ -18,6 +18,8 @@ const RoomPage = () => {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+
       if (event.data === 'login-success') {
         setIsLoggedIn(true);
       }
