@@ -10,6 +10,8 @@ import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { APP_FILTER } from '@nestjs/core';
 import { GatewayModule } from './modules/gateway/gateway.module';
 import { PrismaModule } from './common/prisma.module';
+import { ResultModule } from './modules/result/result.module';
+import { RouletteModule } from './modules/roulette/roulette.module';
 
 import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
 
@@ -27,6 +29,8 @@ import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
     SentryModule.forRoot(),
     CustomRedisModule,
     GatewayModule,
+    ResultModule,
+    RouletteModule,
   ],
   controllers: [AppController],
   providers: [
