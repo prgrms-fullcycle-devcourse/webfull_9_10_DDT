@@ -6,4 +6,9 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface UpdateUserDto { [key: string]: unknown }
+export interface UpdateUserDto {
+  /** 변경할 닉네임 (2자 이상 20자 이하) */
+  nickname?: string;
+  /** 서비스 제공 기본 이미지 셋 키값 (업로드 불가) */
+  profileImage?: string;
+}

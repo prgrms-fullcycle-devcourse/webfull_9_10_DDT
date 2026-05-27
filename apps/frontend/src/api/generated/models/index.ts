@@ -6,9 +6,13 @@
  * OpenAPI spec version: 1.0
  */
 
+export * from './agreeTermsDto';
 export * from './createRoomDto';
-export * from './createTimerDto';
-export * from './createUserDto';
+export * from './createRoomRuleDto';
+export * from './saveRuleTemplateDto';
+export * from './spinRouletteDto';
+export * from './tierConfigDto';
+export * from './tierDto';
 export * from './updateRoomDto';
-export * from './updateTimerDto';
 export * from './updateUserDto';
+export * from './usersControllerGetMyHistoryParams';

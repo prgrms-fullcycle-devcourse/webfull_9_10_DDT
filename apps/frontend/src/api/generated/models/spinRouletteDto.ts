@@ -6,4 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface UpdateTimerDto { [key: string]: unknown }
+export interface SpinRouletteDto {
+  /** 스핀할 룰렛의 인덱스 (1부터 시작) */
+  spinIndex: number;
+}

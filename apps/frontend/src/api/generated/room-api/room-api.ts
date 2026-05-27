@@ -20,10 +20,13 @@ import type {
 
 
 
-  export const getRoom = (axiosInstance: AxiosInstance = axios) => {
+  export const getRoomApi = (axiosInstance: AxiosInstance = axios) => {
+/**
+ * @summary 방 생성 (로그인 유저만)
+ */
 const roomControllerCreate = (
     createRoomDto: CreateRoomDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
       `/room`,
       createRoomDto,options
@@ -60,7 +63,7 @@ const roomControllerRemove = (
     );
   }
 return {roomControllerCreate,roomControllerFindAll,roomControllerFindOne,roomControllerUpdate,roomControllerRemove}};
-export type RoomControllerCreateResult = AxiosResponse<void>
+export type RoomControllerCreateResult = AxiosResponse<unknown>
 export type RoomControllerFindAllResult = AxiosResponse<void>
 export type RoomControllerFindOneResult = AxiosResponse<void>
 export type RoomControllerUpdateResult = AxiosResponse<void>
