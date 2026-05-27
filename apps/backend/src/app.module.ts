@@ -12,6 +12,7 @@ import { GatewayModule } from './modules/gateway/gateway.module';
 import { PrismaModule } from './common/prisma.module';
 import { ResultModule } from './modules/result/result.module';
 import { RouletteModule } from './modules/roulette/roulette.module';
+import { RuleModule } from './modules/rule/rule.module';
 
 import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
 
@@ -29,6 +30,7 @@ import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
     SentryModule.forRoot(),
     CustomRedisModule,
     GatewayModule,
+    RuleModule,
     ResultModule,
     RouletteModule,
   ],
