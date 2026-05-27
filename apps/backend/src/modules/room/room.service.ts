@@ -21,6 +21,7 @@ interface RoomMember {
   isHost: boolean;
   connected: boolean;
   profileImage: string;
+  socketId?: string;
 }
 
 interface RoomState {
@@ -323,6 +324,7 @@ export class RoomService {
     id: string,
     userId: string,
     connected: boolean,
+    socketId?: string,
   ): Promise<void> {
     const raw = await this.redisService.instance.get(`room:state:${id}`);
     if (!raw) {
@@ -338,6 +340,13 @@ export class RoomService {
 
     if (state.members[userId]) {
       state.members[userId].connected = connected;
+
+      if (connected && socketId) {
+        state.members[userId].socketId = socketId;
+      } else if (!connected) {
+        state.members[userId].socketId = undefined;
+      }
+
       await this.redisService.instance.set(
         `room:state:${id}`,
         JSON.stringify(state),

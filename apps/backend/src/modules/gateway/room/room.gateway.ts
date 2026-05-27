@@ -47,6 +47,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
+  private cleanupTimers = new Map<string, NodeJS.Timeout>();
   private readonly logger = new Logger(RoomGateway.name);
 
   async handleConnection(client: RoomSocket): Promise<void> {
@@ -82,6 +83,23 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    const existingSocketId = roomState.members[client.data.userId]?.socketId;
+
+    if (existingSocketId) {
+      const sockets = await this.server.in(roomId).fetchSockets();
+      const duplicate = sockets.find((s) => s.id === existingSocketId);
+
+      if (duplicate) {
+        duplicate.emit('force-disconnect', { reason: 'duplicate-connection' });
+        duplicate.disconnect();
+      }
+    }
+
+    if (this.cleanupTimers.has(roomId)) {
+      clearTimeout(this.cleanupTimers.get(roomId));
+      this.cleanupTimers.delete(roomId);
+    }
+
     client.data.roomId = roomId;
     await client.join(roomId);
     await this.updateMemberConnection(client, true);
@@ -99,15 +117,30 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const onlineMembersCount =
-      await this.roomService.countConnectedMembers(roomId);
+    const roomState = await this.roomService.getRoomState(roomId);
 
-    if (!onlineMembersCount) {
-      this.logger.log(`${client.data.roomId}가 10초 뒤에 닫힙니다.`);
+    if (roomState?.members[userId]?.socketId === client.id) {
+      await this.roomService.setConnected(roomId, userId, false);
 
-      setTimeout(() => {
-        void this.handleRoomCleanup(client.data.roomId);
-      }, 10000);
+      const onlineMembersCount =
+        await this.roomService.countConnectedMembers(roomId);
+
+      if (!onlineMembersCount) {
+        if (this.cleanupTimers.has(roomId)) {
+          clearTimeout(this.cleanupTimers.get(roomId));
+        }
+        const timer = setTimeout(() => {
+          void this.handleRoomCleanup(roomId).finally(() => {
+            this.cleanupTimers.delete(roomId);
+          });
+        }, 10000);
+        this.cleanupTimers.set(roomId, timer);
+      } else {
+        if (this.cleanupTimers.has(roomId)) {
+          clearTimeout(this.cleanupTimers.get(roomId));
+          this.cleanupTimers.delete(roomId);
+        }
+      }
     }
   }
 
@@ -140,6 +173,8 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const { roomId, userId } = client.data;
 
+    if (userId === body.targetId) return;
+
     const roomState = await this.roomService.getRoomState(roomId);
 
     if (!roomState) {
@@ -161,7 +196,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (targetSocket) {
       targetSocket.emit('kicked');
-      targetSocket.disconnect();
+      setTimeout(() => targetSocket.disconnect(), 100);
 
       this.server.to(roomId).emit('member:kicked', { targetId: body.targetId });
     }
