@@ -3,6 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiBody } 
 import { UsersService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthGuard } from '@nestjs/passport';
+import type { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user: { id: string };
+}
 
 @ApiTags('Users (사용자)')
 @ApiBearerAuth()
@@ -30,7 +35,7 @@ export class UsersController {
   })
   @ApiResponse({ status: 401, description: '유효하지 않은 인증 토큰입니다.' })
   @ApiResponse({ status: 404, description: '존재하지 않는 사용자입니다.' })
-  async getMe(@Req() req) {
+  async getMe(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const data = await this.usersService.getMe(userId);
     return { message: '내 정보를 조회했습니다.', data };
@@ -54,7 +59,7 @@ export class UsersController {
     }
   })
   @ApiResponse({ status: 400, description: '유효하지 않은 프로필 이미지입니다.' })
-  async updateMe(@Req() req, @Body() updateUserDto: UpdateUserDto) {
+  async updateMe(@Req() req: AuthenticatedRequest, @Body() updateUserDto: UpdateUserDto) {
     const userId = req.user.id;
     const data = await this.usersService.updateMe(userId, updateUserDto);
     return { message: '내 정보가 수정되었습니다.', data };
@@ -74,7 +79,7 @@ export class UsersController {
     }
   })
   @ApiResponse({ status: 400, description: '방 참여 중에는 탈퇴할 수 없습니다.' })
-  async deleteMe(@Req() req) {
+  async deleteMe(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const data = await this.usersService.deleteMe(userId);
     return { message: '회원 탈퇴가 완료되었습니다.', data };
@@ -109,7 +114,7 @@ export class UsersController {
     }
   })
   async getMyHistory(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
@@ -137,7 +142,7 @@ export class UsersController {
       }
     }
   })
-  async getMyStats(@Req() req) {
+  async getMyStats(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
     const data = await this.usersService.getMyStats(userId);
     return { message: '통계를 조회했습니다.', data };

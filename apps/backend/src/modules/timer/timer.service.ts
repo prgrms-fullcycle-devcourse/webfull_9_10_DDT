@@ -23,8 +23,8 @@ export class TimerService {
 
     const rawState = await this.redis.instance.get(`room:state:${roomId}`);
     if (rawState) {
-      const state = JSON.parse(rawState);
-      const unsignedExists = Object.values(state.members || {}).some((m: any) => !m.isSigned);
+      const state = JSON.parse(rawState) as { members?: Record<string, { isSigned?: boolean }> };
+      const unsignedExists = Object.values(state.members || {}).some(m => !m.isSigned);
       if (unsignedExists) {
         throw new BadRequestException('아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.');
       }

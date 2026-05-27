@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Body, UseGuards, Req, Headers } from '@nestjs/common';
+import { Controller, Post, Param, Body, Req, Headers } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RouletteService } from './roulette.service';
 import { SpinRouletteDto } from './dto/roulette.dto';

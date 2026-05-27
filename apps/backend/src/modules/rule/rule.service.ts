@@ -16,7 +16,7 @@ export class RuleService {
   }
 
   // 티어 연속성 검증
-  private validateTiers(tiers: any[]) {
+  private validateTiers(tiers: { minPct: number; maxPct?: number | null }[]) {
     for (let i = 0; i < tiers.length - 1; i++) {
       if (tiers[i].maxPct !== tiers[i + 1].minPct) {
         throw new BadRequestException('벌칙 티어 구간이 연속적이지 않습니다.');
@@ -37,7 +37,7 @@ export class RuleService {
         focusMin: dto.focusMin,
         breakMin: dto.breakMin,
         rounds: dto.rounds,
-        tierConfig: dto.tierConfig as any,
+        tierConfig: dto.tierConfig as unknown as object,
         penalties: {
           create: dto.penalties.map(content => ({ content }))
         }
@@ -99,7 +99,7 @@ export class RuleService {
         focusMin: dto.focusMin,
         breakMin: dto.breakMin,
         rounds: dto.rounds,
-        tierConfig: dto.tierConfig as any,
+        tierConfig: dto.tierConfig as unknown as object,
         penalties: { create: dto.penalties.map(content => ({ content })) }
       }
     });
@@ -128,7 +128,7 @@ export class RuleService {
           focusMin: dto.focusMin,
           breakMin: dto.breakMin,
           rounds: dto.rounds,
-          tierConfig: dto.tierConfig as any,
+          tierConfig: dto.tierConfig as unknown as object,
           penalties: { create: dto.penalties.map(content => ({ content })) }
         }
       });

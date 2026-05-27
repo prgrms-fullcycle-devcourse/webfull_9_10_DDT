@@ -37,7 +37,7 @@ async function bootstrap() {
     'redis://localhost:6379',
   );
   const redisIoAdapter = new RedisIoAdapter(app, redisUrl);
-  await redisIoAdapter.connectToRedis();
+  redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
 
   const httpServer = app.getHttpServer() as Server;
