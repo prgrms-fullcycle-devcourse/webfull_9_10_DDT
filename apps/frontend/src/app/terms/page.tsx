@@ -1,16 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { CenterLayout } from '@/components/layout/centerLayout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronRight } from 'lucide-react';
 import Image from 'next/image';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const TermsPage = () => {
+  const router = useRouter();
+  const { checkLoginStatus } = useAuthStore();
+
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   const [isOver14, setIsOver14] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   const allChecked = terms && privacy && isOver14;
 
   const handleAllCheck = () => {
@@ -20,8 +27,56 @@ const TermsPage = () => {
     setIsOver14(newState);
   };
 
+  useEffect(() => {
+    const receiveMessage = async (event: MessageEvent) => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+      if (event.data?.type === 'OAUTH_SUCCESS') {
+        const token = event.data.token;
+
+        document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24}`;
+        checkLoginStatus();
+
+        try {
+          setIsLoading(true);
+          const response = await fetch(`${apiUrl}/auth/terms`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              termsOfService: terms,
+              privacyPolicy: privacy,
+              ageVerification: isOver14,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('약관 동의 처리에 실패했습니다.');
+          }
+
+          router.push('/');
+        } catch (error) {
+          console.error('Terms Agreement Error:', error);
+          alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    window.addEventListener('message', receiveMessage);
+    return () => window.removeEventListener('message', receiveMessage);
+  }, [terms, privacy, isOver14, router, checkLoginStatus]);
+
   const handleGoogleLogin = () => {
-    window.location.href = '/auth/google';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    window.open(
+      `${apiUrl}/auth/google`,
+      'Google Login',
+      'width=500,height=600,left=200,top=200'
+    );
   };
 
   return (
@@ -104,10 +159,11 @@ const TermsPage = () => {
 
       <Button
         className='w-full h-14 bg-[#5F63F2] hover:bg-[#5F63F2]/90 text-lg font-semibold'
-        disabled={!allChecked}
+        disabled={!allChecked || isLoading}
         onClick={handleGoogleLogin}
       >
-        <span className='mr-2'>G</span> Google로 계속하기
+        <span className='mr-2'>G</span> 
+        {isLoading ? '처리 중...' : 'Google로 계속하기'}
       </Button>
 
       <p className='text-center text-xs text-gray-500 mt-6 flex items-center justify-center gap-1'>
