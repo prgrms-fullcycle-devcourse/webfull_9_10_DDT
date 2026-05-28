@@ -6,4 +6,9 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface CreateRoomDto { [key: string]: unknown }
+export interface CreateRoomDto {
+  /** 방 이름 */
+  title: string;
+  /** 비밀번호 */
+  password: string;
+}

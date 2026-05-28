@@ -6,4 +6,10 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface CreateUserDto { [key: string]: unknown }
+export interface TierDto {
+  tier: number;
+  minPct: number;
+  /** @nullable */
+  maxPct?: number | null;
+  count: number;
+}

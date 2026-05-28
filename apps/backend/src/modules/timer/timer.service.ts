@@ -30,9 +30,11 @@ export class TimerService {
 
     const rawState = await this.redis.instance.get(`room:state:${roomId}`);
     if (rawState) {
-      const state = JSON.parse(rawState);
+      const state = JSON.parse(rawState) as {
+        members?: Record<string, { isSigned?: boolean }>;
+      };
       const unsignedExists = Object.values(state.members || {}).some(
-        (m: any) => !m.isSigned,
+        (m) => !m.isSigned,
       );
       if (unsignedExists) {
         throw new BadRequestException(

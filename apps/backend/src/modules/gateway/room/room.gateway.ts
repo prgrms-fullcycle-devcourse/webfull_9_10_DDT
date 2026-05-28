@@ -105,7 +105,19 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.updateMemberConnection(client, true);
     this.logger.log(`클라이언트 연결됨: ${client.id} 방: ${roomId}`);
 
-    client.emit('room:state', roomState);
+    const updated = await this.roomService.transitionToContract(roomId);
+
+    const { nickname, profileImage, isHost } =
+      roomState.members[client.data.userId];
+
+    client.emit('room:state', updated ?? roomState);
+
+    client.to(roomId).emit('member:joined', {
+      userId: client.data.userId,
+      nickname,
+      profileImage,
+      isHost,
+    });
   }
 
   async handleDisconnect(client: RoomSocket): Promise<void> {
@@ -121,6 +133,8 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (roomState?.members[userId]?.socketId === client.id) {
       await this.roomService.setConnected(roomId, userId, false);
+
+      client.to(roomId).emit('member:left', { userId });
 
       const onlineMembersCount =
         await this.roomService.countConnectedMembers(roomId);
@@ -156,7 +170,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<void> {
     const { roomId, userId } = client.data;
 
-    await this.roomService.setConnected(roomId, userId, connected);
+    await this.roomService.setConnected(
+      roomId,
+      userId,
+      connected,
+      connected ? client.id : undefined,
+    );
   }
 
   private async handleRoomCleanup(roomId: string): Promise<void> {
@@ -164,6 +183,32 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (currentCount === 0) {
       await this.roomService.deleteRoom(roomId);
     }
+  }
+
+  @SubscribeMessage('member:sign')
+  async handleSign(
+    @ConnectedSocket() client: RoomSocket,
+    @MessageBody() body: { signed: boolean },
+  ) {
+    const { roomId, userId } = client.data;
+
+    const result = await this.roomService.setSigned(
+      roomId,
+      userId,
+      body.signed,
+    );
+
+    if (!result) {
+      return;
+    }
+
+    this.server.to(roomId).emit('sign:updated', {
+      userId,
+      signed: body.signed,
+      signedCount: result.signedCount,
+      totalCount: result.totalCount,
+      allSigned: result.allSigned,
+    });
   }
 
   @SubscribeMessage('member:kick')
@@ -200,5 +245,20 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.server.to(roomId).emit('member:kicked', { targetId: body.targetId });
     }
+  }
+
+  @SubscribeMessage('contract:edited')
+  async handleContractEdited(@ConnectedSocket() client: RoomSocket) {
+    const { userId, roomId } = client.data;
+
+    const result = await this.roomService.resetAllSigns(roomId);
+
+    if (!result) {
+      return;
+    }
+
+    this.server.to(roomId).emit('sign:reset', {
+      userId,
+    });
   }
 }

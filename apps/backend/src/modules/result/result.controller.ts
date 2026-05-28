@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  UseGuards,
-  Req,
-  Headers,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller, Get, Param, Req, Headers } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiHeader,

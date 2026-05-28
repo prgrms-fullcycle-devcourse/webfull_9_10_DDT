@@ -22,6 +22,7 @@ interface RoomMember {
   connected: boolean;
   profileImage: string;
   socketId?: string;
+  isSigned?: boolean;
 }
 
 interface RoomState {
@@ -30,6 +31,12 @@ interface RoomState {
   hostId: string;
   phase: string;
   members: Record<string, RoomMember>;
+}
+
+interface SignedStatus {
+  allSigned: boolean;
+  signedCount: number;
+  totalCount: number;
 }
 
 export interface CreateRoomResult {
@@ -282,6 +289,34 @@ export class RoomService {
     return { id: room.id, isReturning };
   }
 
+  async transitionToContract(id: string): Promise<RoomState | null> {
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raw) {
+      return null;
+    }
+
+    const state = JSON.parse(raw) as RoomState;
+
+    if (state.phase !== 'lobby') {
+      return null;
+    }
+
+    state.phase = 'contract';
+
+    await Promise.all([
+      this.redisService.instance.set(
+        `room:state:${id}`,
+        JSON.stringify(state),
+        'EX',
+        7200,
+      ),
+      this.updatePhase(id, 'contract'),
+    ]);
+
+    return state;
+  }
+
   async countConnectedMembers(id: string): Promise<number> {
     const raw = await this.redisService.instance.get(`room:state:${id}`);
     if (!raw) {
@@ -383,5 +418,76 @@ export class RoomService {
       'EX',
       7200,
     );
+  }
+
+  async setSigned(
+    id: string,
+    userId: string,
+    signed: boolean,
+  ): Promise<SignedStatus | undefined> {
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raw) {
+      return;
+    }
+
+    const state = JSON.parse(raw) as RoomState;
+
+    if (!state.members[userId]) {
+      return;
+    }
+
+    if (state.phase !== 'contract' && state.phase !== 'lobby') {
+      return;
+    }
+
+    state.members[userId].isSigned = signed;
+
+    await this.redisService.instance.set(
+      `room:state:${id}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+
+    const members = Object.values(state.members);
+    const signedCount = members.filter((m) => m.isSigned).length;
+    const totalCount = members.length;
+
+    return {
+      allSigned: signedCount === totalCount,
+      signedCount,
+      totalCount,
+    };
+  }
+
+  async resetAllSigns(id: string): Promise<{ totalCount: number } | null> {
+    const raws = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raws) {
+      return null;
+    }
+
+    const state = JSON.parse(raws) as RoomState;
+
+    if (state.phase !== 'contract' && state.phase !== 'lobby') {
+      return null;
+    }
+
+    const members = Object.values(state.members);
+
+    const anySigned = members.some((m) => m.isSigned);
+    if (!anySigned) return null;
+
+    members.forEach((m) => (m.isSigned = false));
+
+    await this.redisService.instance.set(
+      `room:state:${id}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+
+    return { totalCount: members.length };
   }
 }

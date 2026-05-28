@@ -5,5 +5,8 @@
  * DDT 프로젝트의 백엔드 API 문서입니다.
  * OpenAPI spec version: 1.0
  */
+import type { TierDto } from './tierDto';
 
-export interface CreateTimerDto { [key: string]: unknown }
+export interface TierConfigDto {
+  tiers: TierDto[];
+}
