@@ -15,6 +15,7 @@ import { RouletteModule } from './modules/roulette/roulette.module';
 import { RuleModule } from './modules/rule/rule.module';
 
 import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
     RuleModule,
     ResultModule,
     RouletteModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

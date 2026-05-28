@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,7 +9,26 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { DefaultEventsMap, Server, Socket } from 'socket.io';
+import { RoomService } from '../../room/room.service';
+
+interface SocketData {
+  roomId: string;
+  userId: string;
+  role: string;
+}
+
+type RoomSocket = Socket<
+  DefaultEventsMap, // ClientToServer 이벤트
+  DefaultEventsMap, // ServerToClient 이벤트
+  DefaultEventsMap, // InterServer 이벤트
+  SocketData
+>;
+
+interface JwtPayload {
+  sub: string;
+  role: string;
+}
 
 @WebSocketGateway({
   cors: {
@@ -20,18 +40,122 @@ import { Server, Socket } from 'socket.io';
   },
 })
 export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly roomService: RoomService,
+  ) {}
   @WebSocketServer()
   server!: Server;
 
+  private cleanupTimers = new Map<string, NodeJS.Timeout>();
   private readonly logger = new Logger(RoomGateway.name);
 
-  handleConnection(client: Socket): void {
-    this.logger.log(`클라이언트 연결됨: ${client.id}`);
-    client.emit('welcome', { message: 'DDT 서버에 오신 것을 환영합니다!' });
+  async handleConnection(client: RoomSocket): Promise<void> {
+    const token =
+      (client.handshake.auth.token as string) ??
+      (client.handshake.query.token as string) ??
+      client.handshake.headers.authorization?.replace('Bearer ', '');
+    const roomId = client.handshake.query.roomId as string;
+
+    if (!token) {
+      client.disconnect();
+      return;
+    }
+
+    try {
+      const payload = this.jwtService.verify(token) as unknown as JwtPayload;
+      client.data.userId = payload.sub;
+      client.data.role = payload.role;
+    } catch {
+      client.disconnect();
+      return;
+    }
+
+    if (!roomId) {
+      client.disconnect();
+      return;
+    }
+
+    const roomState = await this.roomService.getRoomState(roomId);
+
+    if (!roomState) {
+      client.disconnect();
+      return;
+    }
+
+    const existingSocketId = roomState.members[client.data.userId]?.socketId;
+
+    if (existingSocketId) {
+      const sockets = await this.server.in(roomId).fetchSockets();
+      const duplicate = sockets.find((s) => s.id === existingSocketId);
+
+      if (duplicate) {
+        duplicate.emit('force-disconnect', { reason: 'duplicate-connection' });
+        duplicate.disconnect();
+      }
+    }
+
+    if (this.cleanupTimers.has(roomId)) {
+      clearTimeout(this.cleanupTimers.get(roomId));
+      this.cleanupTimers.delete(roomId);
+    }
+
+    client.data.roomId = roomId;
+    await client.join(roomId);
+    await this.updateMemberConnection(client, true);
+    this.logger.log(`클라이언트 연결됨: ${client.id} 방: ${roomId}`);
+
+    const updated = await this.roomService.transitionToContract(roomId);
+
+    const { nickname, profileImage, isHost } =
+      roomState.members[client.data.userId];
+
+    client.emit('room:state', updated ?? roomState);
+
+    client.to(roomId).emit('member:joined', {
+      userId: client.data.userId,
+      nickname,
+      profileImage,
+      isHost,
+    });
   }
 
-  handleDisconnect(client: Socket): void {
+  async handleDisconnect(client: RoomSocket): Promise<void> {
     this.logger.log(`클라이언트 연결 끊김: ${client.id}`);
+
+    const { roomId, userId } = client.data;
+
+    if (!roomId || !userId) {
+      return;
+    }
+
+    const roomState = await this.roomService.getRoomState(roomId);
+
+    if (roomState?.members[userId]?.socketId === client.id) {
+      await this.roomService.setConnected(roomId, userId, false);
+
+      client.to(roomId).emit('member:left', { userId });
+
+      const onlineMembersCount =
+        await this.roomService.countConnectedMembers(roomId);
+
+      if (!onlineMembersCount) {
+        if (this.cleanupTimers.has(roomId)) {
+          clearTimeout(this.cleanupTimers.get(roomId));
+        }
+        const timer = setTimeout(() => {
+          void this.handleRoomCleanup(roomId).finally(() => {
+            this.cleanupTimers.delete(roomId);
+          });
+        }, 10000);
+        this.cleanupTimers.set(roomId, timer);
+      } else {
+        if (this.cleanupTimers.has(roomId)) {
+          clearTimeout(this.cleanupTimers.get(roomId));
+          this.cleanupTimers.delete(roomId);
+        }
+      }
+    }
   }
 
   @SubscribeMessage('ping')
@@ -40,14 +164,101 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { event: 'pong', data: '백엔드에서 답장 보냄!' };
   }
 
-  @SubscribeMessage('room:join')
-  async handleJoinRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: { roomId: string },
+  private async updateMemberConnection(
+    client: RoomSocket,
+    connected: boolean,
+  ): Promise<void> {
+    const { roomId, userId } = client.data;
+
+    await this.roomService.setConnected(
+      roomId,
+      userId,
+      connected,
+      connected ? client.id : undefined,
+    );
+  }
+
+  private async handleRoomCleanup(roomId: string): Promise<void> {
+    const currentCount = await this.roomService.countConnectedMembers(roomId);
+    if (currentCount === 0) {
+      await this.roomService.deleteRoom(roomId);
+    }
+  }
+
+  @SubscribeMessage('member:sign')
+  async handleSign(
+    @ConnectedSocket() client: RoomSocket,
+    @MessageBody() body: { signed: boolean },
   ) {
-    await client.join(body.roomId);
-    //client.data.roomId = body.roomId; // 이 줄 추가
-    client.to(body.roomId).emit('room:user-joined', { socketId: client.id });
-    return { ok: true, roomId: body.roomId };
+    const { roomId, userId } = client.data;
+
+    const result = await this.roomService.setSigned(
+      roomId,
+      userId,
+      body.signed,
+    );
+
+    if (!result) {
+      return;
+    }
+
+    this.server.to(roomId).emit('sign:updated', {
+      userId,
+      signed: body.signed,
+      signedCount: result.signedCount,
+      totalCount: result.totalCount,
+      allSigned: result.allSigned,
+    });
+  }
+
+  @SubscribeMessage('member:kick')
+  async handleKick(
+    @ConnectedSocket() client: RoomSocket,
+    @MessageBody() body: { targetId: string },
+  ) {
+    const { roomId, userId } = client.data;
+
+    if (userId === body.targetId) return;
+
+    const roomState = await this.roomService.getRoomState(roomId);
+
+    if (!roomState) {
+      return;
+    }
+
+    const isHost = roomState.members[userId]?.isHost;
+
+    if (!isHost) {
+      return;
+    }
+
+    await this.roomService.kickMember(roomId, body.targetId);
+
+    const sockets = await this.server.in(roomId).fetchSockets();
+    const targetSocket = sockets.find(
+      (s) => (s.data as RoomSocket).data.userId === body.targetId,
+    );
+
+    if (targetSocket) {
+      targetSocket.emit('kicked');
+      setTimeout(() => targetSocket.disconnect(), 100);
+
+      this.server.to(roomId).emit('member:kicked', { targetId: body.targetId });
+    }
+  }
+
+  @SubscribeMessage('contract:edited')
+  async handleContractEdited(@ConnectedSocket() client: RoomSocket) {
+    const { userId, roomId } = client.data;
+
+    const result = await this.roomService.resetAllSigns(roomId);
+
+    if (!result) {
+      return;
+    }
+
+    this.server.to(roomId).emit('sign:reset', {
+      userId,
+    });
   }
 }

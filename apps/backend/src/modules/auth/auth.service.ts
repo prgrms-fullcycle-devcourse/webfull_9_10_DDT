@@ -27,7 +27,7 @@ interface AgreeTermsDto {
   ageVerification: boolean;
 }
 
-interface GuestTokenResult {
+export interface GuestTokenResult {
   accessToken: string;
   guestToken: string;
 }
