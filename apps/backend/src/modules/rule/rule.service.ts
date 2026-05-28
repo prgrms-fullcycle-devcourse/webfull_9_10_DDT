@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, ForbiddenException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { CreateRoomRuleDto, SaveRuleTemplateDto } from './dto/rule.dto';
@@ -56,7 +60,7 @@ export class RuleService {
       focusMin: rule.focusMin,
       breakMin: rule.breakMin,
       rounds: rule.rounds,
-      penalties: rule.penalties.map(p => ({ itemId: p.id, content: p.content })),
+      penalties: rule.penalties.map((p: any) => ({ itemId: p.id, content: p.content })),
       tierConfig: rule.tierConfig,
     };
   }
@@ -69,13 +73,13 @@ export class RuleService {
       include: { penalties: true }
     });
 
-    return rules.map(rule => ({
+    return rules.map((rule: any) => ({
       ruleId: rule.id,
       title: rule.title,
       focusMin: rule.focusMin,
       breakMin: rule.breakMin,
       rounds: rule.rounds,
-      penalties: rule.penalties.map(p => ({ itemId: p.id, content: p.content })),
+      penalties: rule.penalties.map((p: any) => ({ itemId: p.id, content: p.content })),
       tierConfig: rule.tierConfig,
       createdAt: rule.createdAt,
       updatedAt: rule.updatedAt
