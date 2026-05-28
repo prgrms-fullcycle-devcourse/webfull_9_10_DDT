@@ -38,28 +38,14 @@ export class RuleController {
       req.user!.id,
       dto,
     );
-    return {
-      statusCode: 200,
-      timestamp: new Date().toISOString(),
-      path: `/rooms/${roomId}/rule`,
-      message: '계약서가 확정되었습니다.',
-      data,
-      error: null,
-    };
+    return { message: '계약서가 확정되었습니다.', data };
   }
 
   @ApiOperation({ summary: '저장된 계약서 조회' })
   @Get('rules/saved')
   async getSavedRules(@Req() req: AuthenticatedRequest) {
     const data = await this.ruleService.getSavedRules(req.user!.id);
-    return {
-      statusCode: 200,
-      timestamp: new Date().toISOString(),
-      path: '/rules/saved',
-      message: '계약서를 조회했습니다.',
-      data,
-      error: null,
-    };
+    return { message: '계약서를 조회했습니다.', data };
   }
 
   @ApiOperation({ summary: '계약서 템플릿 저장' })
@@ -69,14 +55,7 @@ export class RuleController {
     @Req() req: AuthenticatedRequest,
   ) {
     const data = await this.ruleService.saveRuleTemplate(req.user!.id, dto);
-    return {
-      statusCode: 201,
-      timestamp: new Date().toISOString(),
-      path: '/rules/saved',
-      message: '계약서가 저장되었습니다.',
-      data,
-      error: null,
-    };
+    return { message: '계약서가 저장되었습니다.', data };
   }
 
   @ApiOperation({ summary: '계약서 덮어쓰기' })
@@ -91,14 +70,7 @@ export class RuleController {
       ruleId,
       dto,
     );
-    return {
-      statusCode: 200,
-      timestamp: new Date().toISOString(),
-      path: `/rules/saved/${ruleId}`,
-      message: '계약서가 수정되었습니다.',
-      data,
-      error: null,
-    };
+    return { message: '계약서가 수정되었습니다.', data };
   }
 
   @ApiOperation({ summary: '계약서 삭제' })
@@ -108,13 +80,6 @@ export class RuleController {
     @Req() req: AuthenticatedRequest,
   ) {
     await this.ruleService.deleteRuleTemplate(req.user!.id, ruleId);
-    return {
-      statusCode: 200,
-      timestamp: new Date().toISOString(),
-      path: `/rules/saved/${ruleId}`,
-      message: '계약서가 삭제되었습니다.',
-      data: null,
-      error: null,
-    };
+    return { message: '계약서가 삭제되었습니다.', data: null };
   }
 }

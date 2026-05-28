@@ -9,7 +9,7 @@ import { PrismaService } from '../../common/prisma.service';
 export class ResultService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getResult(roomId: string, userId?: string, guestToken?: string) {
+  async getResult(roomId: string, _userId?: string, _guestToken?: string) {
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
       include: {
