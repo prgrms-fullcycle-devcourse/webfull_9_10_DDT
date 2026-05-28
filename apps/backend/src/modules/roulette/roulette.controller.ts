@@ -9,9 +9,7 @@ import { RouletteService } from './roulette.service';
 import { SpinRouletteDto } from './dto/roulette.dto';
 import type { Request } from 'express';
 
-interface AuthenticatedRequest extends Request {
-  user?: { id: string };
-}
+interface AuthenticatedRequest extends Request { user?: { id: string }; }
 
 @ApiTags('Roulette API (벌칙 룰렛)')
 @Controller('rooms')
@@ -28,21 +26,13 @@ export class RouletteController {
     @Req() req: AuthenticatedRequest,
     @Headers('x-guest-token') guestToken?: string,
   ) {
-    const userId = req.user?.id;
     const data = await this.rouletteService.spinRoulette(
       roomId,
       dto.spinIndex,
-      userId,
+      req.user?.id,
       guestToken,
     );
-    return {
-      statusCode: 200,
-      timestamp: new Date().toISOString(),
-      path: `/rooms/${roomId}/roulette/spin`,
-      message: '룰렛이 스핀되었습니다.',
-      data,
-      error: null,
-    };
+    return { message: '룰렛이 스핀되었습니다.', data };
   }
 
   @ApiBearerAuth()
@@ -54,19 +44,11 @@ export class RouletteController {
     @Req() req: AuthenticatedRequest,
     @Headers('x-guest-token') guestToken?: string,
   ) {
-    const userId = req.user?.id;
     const data = await this.rouletteService.exitRoulette(
       roomId,
-      userId,
+      req.user?.id,
       guestToken,
     );
-    return {
-      statusCode: 200,
-      timestamp: new Date().toISOString(),
-      path: `/rooms/${roomId}/roulette/exit`,
-      message: '룰렛이 처리되었습니다.',
-      data,
-      error: null,
-    };
+    return { message: '룰렛이 처리되었습니다.', data };
   }
 }
