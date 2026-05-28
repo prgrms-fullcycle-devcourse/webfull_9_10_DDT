@@ -21,5 +21,9 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+      
+      - name: Generate Prisma Client
+        run: pnpm --filter backend exec prisma generate
+      
 
       - run: pnpm turbo run lint typecheck

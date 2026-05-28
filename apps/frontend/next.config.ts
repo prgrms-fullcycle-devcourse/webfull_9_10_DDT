@@ -1,9 +1,11 @@
 import { withSentryConfig } from "@sentry/nextjs";
-console.log('프론트엔드 주소: http://localhost:3000');
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: {
+    root: path.resolve(process.cwd(), "../.."),
+  },
 };
 
 export default withSentryConfig(nextConfig, {
