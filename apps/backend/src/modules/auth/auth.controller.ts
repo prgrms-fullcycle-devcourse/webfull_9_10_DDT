@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Req, Res, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -67,5 +67,21 @@ export class AuthController {
 
     const data = await this.authService.logout(token);
     return { message: '로그아웃이 완료되었습니다.', data };
+  }
+
+  @Get('test-token')
+  testToken() {
+    const fakeUser = {
+      id: 'test-user-id-1234',
+      nickname: 'fakeUser',
+      email: 'test@test.com',
+      isTermsAgreed: true,
+      provider: '',
+      providerId: '',
+      profileImage: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return { token: this.authService.generateJwt(fakeUser) };
   }
 }

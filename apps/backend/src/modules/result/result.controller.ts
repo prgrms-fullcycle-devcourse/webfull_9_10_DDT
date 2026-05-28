@@ -1,5 +1,10 @@
 import { Controller, Get, Param, Req, Headers } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ResultService } from './result.service';
 import type { Request } from 'express';
 

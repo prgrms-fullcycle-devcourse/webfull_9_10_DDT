@@ -15,4 +15,12 @@ export class CreateRoomDto {
   @MinLength(4)
   @MaxLength(20)
   password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  nickname!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  profileImage!: string;
 }
