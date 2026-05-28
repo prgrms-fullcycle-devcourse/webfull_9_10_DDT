@@ -1,4 +1,10 @@
-import { Injectable, ForbiddenException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
@@ -14,7 +20,8 @@ export class TimerService {
   private async verifyHost(roomId: string, userId: string) {
     const room = await this.prisma.room.findUnique({ where: { id: roomId } });
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
-    if (room.hostId !== userId) throw new ForbiddenException('방장 권한이 필요합니다.');
+    if (room.hostId !== userId)
+      throw new ForbiddenException('방장 권한이 필요합니다.');
     return room;
   }
 
@@ -23,22 +30,31 @@ export class TimerService {
 
     const rawState = await this.redis.instance.get(`room:state:${roomId}`);
     if (rawState) {
-      const state = JSON.parse(rawState) as { members?: Record<string, { isSigned?: boolean }> };
-      const unsignedExists = Object.values(state.members || {}).some(m => !m.isSigned);
+      const state = JSON.parse(rawState) as {
+        members?: Record<string, { isSigned?: boolean }>;
+      };
+      const unsignedExists = Object.values(state.members || {}).some(
+        (m) => !m.isSigned,
+      );
       if (unsignedExists) {
-        throw new BadRequestException('아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.');
+        throw new BadRequestException(
+          '아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.',
+        );
       }
     }
 
     const now = new Date();
-    await this.prisma.room.update({ where: { id: roomId }, data: { phase: 'timer', startedAt: now } });
+    await this.prisma.room.update({
+      where: { id: roomId },
+      data: { phase: 'timer', startedAt: now },
+    });
 
     const responseData = {
       startedAt: now,
       currentPhase: 'focus',
       currentRound: 1,
-      totalRounds: 4, 
-      phaseEndsAt: new Date(now.getTime() + 25 * 60000), 
+      totalRounds: 4,
+      phaseEndsAt: new Date(now.getTime() + 25 * 60000),
       serverTime: now,
     };
 
@@ -52,7 +68,10 @@ export class TimerService {
     const kickedMemberIds: string[] = []; // Redis 기반 미서명자 추출 로직 추가 필요
 
     const now = new Date();
-    await this.prisma.room.update({ where: { id: roomId }, data: { phase: 'timer', startedAt: now } });
+    await this.prisma.room.update({
+      where: { id: roomId },
+      data: { phase: 'timer', startedAt: now },
+    });
 
     const responseData = {
       kickedMemberIds,
@@ -70,15 +89,16 @@ export class TimerService {
 
   async giveUp(roomId: string, userId: string) {
     const room = await this.verifyHost(roomId, userId);
-    
-    if (room.phase !== 'timer') throw new ConflictException('집중 진행 중에만 강제 종료할 수 있습니다.');
+
+    if (room.phase !== 'timer')
+      throw new ConflictException('집중 진행 중에만 강제 종료할 수 있습니다.');
 
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
       await tx.escapeLog.updateMany({
         where: { roomMember: { roomId }, returnedAt: null },
-        data: { returnedAt: now }, 
+        data: { returnedAt: now },
       });
 
       await tx.room.update({

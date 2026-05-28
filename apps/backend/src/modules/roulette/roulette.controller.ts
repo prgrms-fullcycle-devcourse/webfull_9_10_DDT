@@ -1,5 +1,10 @@
 import { Controller, Post, Param, Body, Req, Headers } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { RouletteService } from './roulette.service';
 import { SpinRouletteDto } from './dto/roulette.dto';
 import type { Request } from 'express';
@@ -24,7 +29,12 @@ export class RouletteController {
     @Headers('x-guest-token') guestToken?: string,
   ) {
     const userId = req.user?.id;
-    const data = await this.rouletteService.spinRoulette(roomId, dto.spinIndex, userId, guestToken);
+    const data = await this.rouletteService.spinRoulette(
+      roomId,
+      dto.spinIndex,
+      userId,
+      guestToken,
+    );
     return {
       statusCode: 200,
       timestamp: new Date().toISOString(),
@@ -45,7 +55,11 @@ export class RouletteController {
     @Headers('x-guest-token') guestToken?: string,
   ) {
     const userId = req.user?.id;
-    const data = await this.rouletteService.exitRoulette(roomId, userId, guestToken);
+    const data = await this.rouletteService.exitRoulette(
+      roomId,
+      userId,
+      guestToken,
+    );
     return {
       statusCode: 200,
       timestamp: new Date().toISOString(),

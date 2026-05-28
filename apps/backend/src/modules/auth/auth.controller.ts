@@ -230,4 +230,19 @@ export class AuthController {
       );
     }
   }
+  @Get('test-token')
+  testToken() {
+    const fakeUser = {
+      id: 'test-user-id-1234',
+      nickname: 'fakeUser',
+      email: 'test@test.com',
+      isTermsAgreed: true,
+      provider: '',
+      providerId: '',
+      profileImage: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return { token: this.authService.generateJwt(fakeUser) };
+  }
 }

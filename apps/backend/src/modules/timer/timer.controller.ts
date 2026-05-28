@@ -17,7 +17,10 @@ export class TimerController {
   @ApiOperation({ summary: '방 정상 시작 (방장 전용)' })
   @UseGuards(AuthGuard('jwt'))
   @Post(':roomId/timer/start')
-  async startTimer(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+  async startTimer(
+    @Param('roomId') roomId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const data = await this.timerService.startTimer(roomId, req.user!.id);
     return {
       statusCode: 200,
@@ -33,7 +36,10 @@ export class TimerController {
   @ApiOperation({ summary: '타이머 강제 시작 (미서명 인원 강퇴)' })
   @UseGuards(AuthGuard('jwt'))
   @Post(':roomId/timer/force-start')
-  async forceStartTimer(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+  async forceStartTimer(
+    @Param('roomId') roomId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const data = await this.timerService.forceStartTimer(roomId, req.user!.id);
     return {
       statusCode: 200,
@@ -49,7 +55,10 @@ export class TimerController {
   @ApiOperation({ summary: '중도 포기 (세션 강제 종료)' })
   @UseGuards(AuthGuard('jwt'))
   @Post(':roomId/give-up')
-  async giveUp(@Param('roomId') roomId: string, @Req() req: AuthenticatedRequest) {
+  async giveUp(
+    @Param('roomId') roomId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const data = await this.timerService.giveUp(roomId, req.user!.id);
     return {
       statusCode: 200,
