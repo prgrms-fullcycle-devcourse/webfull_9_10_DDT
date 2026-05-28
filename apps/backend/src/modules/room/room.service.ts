@@ -23,6 +23,7 @@ interface RoomMember {
   profileImage: string;
   socketId?: string;
   isSigned?: boolean;
+  canEdit?: boolean;
 }
 
 interface RoomState {
@@ -96,6 +97,7 @@ export class RoomService {
           isHost: true,
           connected: false,
           profileImage,
+          canEdit: true,
         },
       },
     };
@@ -462,13 +464,13 @@ export class RoomService {
   }
 
   async resetAllSigns(id: string): Promise<{ totalCount: number } | null> {
-    const raws = await this.redisService.instance.get(`room:state:${id}`);
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
 
-    if (!raws) {
+    if (!raw) {
       return null;
     }
 
-    const state = JSON.parse(raws) as RoomState;
+    const state = JSON.parse(raw) as RoomState;
 
     if (state.phase !== 'contract' && state.phase !== 'lobby') {
       return null;
@@ -489,5 +491,74 @@ export class RoomService {
     );
 
     return { totalCount: members.length };
+  }
+
+  async setMemberEdit(
+    id: string,
+    userId: string,
+    targetId: string,
+    canEdit: boolean,
+  ): Promise<boolean> {
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raw) {
+      return false;
+    }
+
+    const state = JSON.parse(raw) as RoomState;
+
+    if (state.hostId !== userId) {
+      return false;
+    }
+
+    if (!state.members[targetId]) {
+      return false;
+    }
+
+    state.members[targetId].canEdit = canEdit;
+
+    await this.redisService.instance.set(
+      `room:state:${id}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+
+    return true;
+  }
+
+  async setAllEdit(
+    id: string,
+    userId: string,
+    canEdit: boolean,
+  ): Promise<boolean> {
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raw) {
+      return false;
+    }
+
+    const state = JSON.parse(raw) as RoomState;
+
+    if (state.hostId !== userId) {
+      return false;
+    }
+
+    const members = Object.values(state.members);
+
+    members.forEach((m) => {
+      if (!m.isHost) {
+        m.canEdit = canEdit;
+      }
+    });
+
+    await this.redisService.instance.set(
+      `room:state:${id}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+
+    return true;
   }
 }
