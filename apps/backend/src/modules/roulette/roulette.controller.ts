@@ -9,7 +9,9 @@ import { RouletteService } from './roulette.service';
 import { SpinRouletteDto } from './dto/roulette.dto';
 import type { Request } from 'express';
 
-interface AuthenticatedRequest extends Request { user?: { id: string }; }
+interface AuthenticatedRequest extends Request {
+  user?: { id: string };
+}
 
 @ApiTags('Roulette API (벌칙 룰렛)')
 @Controller('rooms')

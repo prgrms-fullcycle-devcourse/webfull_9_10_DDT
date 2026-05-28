@@ -15,7 +15,9 @@ import { RuleService } from './rule.service';
 import { CreateRoomRuleDto, SaveRuleTemplateDto } from './dto/rule.dto';
 import type { Request } from 'express';
 
-interface AuthenticatedRequest extends Request { user?: { id: string }; }
+interface AuthenticatedRequest extends Request {
+  user?: { id: string };
+}
 
 @ApiTags('Rule API (계약서 관리)')
 @ApiBearerAuth()

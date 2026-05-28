@@ -4,7 +4,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TimerService } from './timer.service';
 import type { Request } from 'express';
 
-interface AuthenticatedRequest extends Request { user?: { id: string; email: string; role: string }; }
+interface AuthenticatedRequest extends Request {
+  user?: { id: string; email: string; role: string };
+}
 
 @ApiTags('Timer API (타이머 및 세션 제어)')
 @Controller('rooms')

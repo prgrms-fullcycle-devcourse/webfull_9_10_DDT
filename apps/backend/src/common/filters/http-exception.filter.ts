@@ -49,11 +49,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
           errorCode = exceptionResponse.error || 'UNKNOWN_ERROR';
       }
 
-      if (exceptionResponse.error && typeof exceptionResponse.error === 'string') {
+      if (
+        exceptionResponse.error &&
+        typeof exceptionResponse.error === 'string'
+      ) {
         errorCode = exceptionResponse.error;
       }
     } else {
-      this.logger.error(`[Unhandled Exception] ${request.method} ${request.url}`, exception);
+      this.logger.error(
+        `[Unhandled Exception] ${request.method} ${request.url}`,
+        exception,
+      );
     }
 
     response.status(status).json({

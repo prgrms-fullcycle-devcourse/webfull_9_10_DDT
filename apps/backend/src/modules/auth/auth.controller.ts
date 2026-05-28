@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Req, Res, UseGuards, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Req,
+  Res,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -6,8 +15,12 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { AgreeTermsDto } from './dto/agree-terms.dto';
 
-interface AuthenticatedRequest extends Request { user: { id: string; email: string; role: string; }; }
-interface GoogleProfileRequest extends Request { user: { id: string; email: string; nickname: string; }; }
+interface AuthenticatedRequest extends Request {
+  user: { id: string; email: string; role: string };
+}
+interface GoogleProfileRequest extends Request {
+  user: { id: string; email: string; nickname: string };
+}
 
 @ApiTags('인증(Auth) API')
 @Controller('auth')
@@ -25,7 +38,10 @@ export class AuthController {
   @ApiOperation({ summary: '구글 소셜 로그인 콜백' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req: GoogleProfileRequest, @Res() res: Response): Promise<void> {
+  async googleAuthRedirect(
+    @Req() req: GoogleProfileRequest,
+    @Res() res: Response,
+  ): Promise<void> {
     const user = await this.authService.validateOAuthLogin(req.user);
     const token = this.authService.generateJwt(user);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
@@ -52,7 +68,10 @@ export class AuthController {
   @ApiBody({ type: AgreeTermsDto })
   @UseGuards(AuthGuard('jwt'))
   @Post('terms')
-  async agreeTerms(@Req() req: AuthenticatedRequest, @Body() body: AgreeTermsDto) {
+  async agreeTerms(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: AgreeTermsDto,
+  ) {
     const data = await this.authService.agreeTerms(req.user.id, body);
     return { message: '약관 동의가 완료되었습니다.', data };
   }
@@ -63,7 +82,8 @@ export class AuthController {
   @Post('logout')
   async logout(@Req() req: AuthenticatedRequest) {
     const token = req.headers.authorization?.split(' ')[1];
-    if (!token) throw new UnauthorizedException('유효하지 않은 인증 토큰입니다.');
+    if (!token)
+      throw new UnauthorizedException('유효하지 않은 인증 토큰입니다.');
 
     const data = await this.authService.logout(token);
     return { message: '로그아웃이 완료되었습니다.', data };

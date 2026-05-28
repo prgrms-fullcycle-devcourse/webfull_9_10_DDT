@@ -8,7 +8,9 @@ import {
 import { ResultService } from './result.service';
 import type { Request } from 'express';
 
-interface AuthenticatedRequest extends Request { user?: { id: string }; }
+interface AuthenticatedRequest extends Request {
+  user?: { id: string };
+}
 
 @ApiTags('Result API (결과 조회)')
 @Controller('rooms')
@@ -24,7 +26,11 @@ export class ResultController {
     @Req() req: AuthenticatedRequest,
     @Headers('x-guest-token') guestToken?: string,
   ) {
-    const data = await this.resultService.getResult(roomId, req.user?.id, guestToken);
+    const data = await this.resultService.getResult(
+      roomId,
+      req.user?.id,
+      guestToken,
+    );
     return { message: '세션 결과를 조회했습니다.', data };
   }
 }
