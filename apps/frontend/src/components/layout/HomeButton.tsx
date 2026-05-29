@@ -2,24 +2,24 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type BackButtonProps = Omit<
+type HomeButtonProps = Omit<
   React.ComponentProps<typeof Button>,
   'children' | 'size' | 'variant'
 > & {
   iconSize?: number;
 };
 
-export function BackButton({
+export function HomeButton({
   className,
   onClick,
   iconSize = 20,
-  'aria-label': ariaLabel = '뒤로가기',
+  'aria-label': ariaLabel = '홈으로 이동',
   ...props
-}: BackButtonProps) {
+}: HomeButtonProps) {
   const router = useRouter();
 
   return (
@@ -27,15 +27,15 @@ export function BackButton({
       type='button'
       variant='ghost'
       size='icon'
-      onClick={onClick ?? (() => router.back())}
+      onClick={onClick ?? (() => router.push('/'))}
       aria-label={ariaLabel}
       className={cn(
-        'rounded-full text-white/75 hover:bg-white/10 hover:text-white',
-        className
+        'rounded-full text-white/80 hover:bg-white/10',
+        className,
       )}
       {...props}
     >
-      <ArrowLeft size={iconSize} />
+      <Home size={iconSize} />
     </Button>
   );
 }

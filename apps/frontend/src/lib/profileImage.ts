@@ -1,17 +1,9 @@
 export const PROFILE_IMAGE_OPTIONS = [
   { key: 'basic_image_key_01', src: '/avatars/bear.png', label: 'bear' },
   { key: 'basic_image_key_02', src: '/avatars/cat.png', label: 'cat' },
-  {
-    key: 'basic_image_key_03',
-    src: '/avatars/crocodile.png',
-    label: 'crocodile',
-  },
+  { key: 'basic_image_key_03', src: '/avatars/crocodile.png', label: 'crocodile' },
   { key: 'basic_image_key_04', src: '/avatars/fox.png', label: 'fox' },
-  {
-    key: 'basic_image_key_05',
-    src: '/avatars/hedgehog.png',
-    label: 'hedgehog',
-  },
+  { key: 'basic_image_key_05', src: '/avatars/hedgehog.png', label: 'hedgehog' },
   { key: 'basic_image_key_06', src: '/avatars/monkey.png', label: 'monkey' },
   { key: 'basic_image_key_07', src: '/avatars/penguin.png', label: 'penguin' },
   { key: 'basic_image_key_08', src: '/avatars/pig.png', label: 'pig' },
@@ -20,6 +12,19 @@ export const PROFILE_IMAGE_OPTIONS = [
 ] as const;
 
 export const DEFAULT_PROFILE_IMAGE_KEY = 'basic_image_key_01';
+
+const activeToLegacyProfileKey: Record<string, string> = {
+  AVATAR_BEAR: 'basic_image_key_01',
+  AVATAR_CAT: 'basic_image_key_02',
+  AVATAR_CROCODILE: 'basic_image_key_03',
+  AVATAR_FOX: 'basic_image_key_04',
+  AVATAR_HEDGEHOG: 'basic_image_key_05',
+  AVATAR_MONKEY: 'basic_image_key_06',
+  AVATAR_PENGUIN: 'basic_image_key_07',
+  AVATAR_PIG: 'basic_image_key_08',
+  AVATAR_RABBIT: 'basic_image_key_09',
+  AVATAR_SHIBA: 'basic_image_key_10',
+};
 
 const legacyProfileImageMap: Record<string, string> = {
   DEFAULT_PROFILE_1: '/avatars/bear.png',
@@ -45,8 +50,24 @@ const legacyProfileImageMap: Record<string, string> = {
   char_10: '/avatars/shiba.png',
 };
 
+const legacyToActiveProfileKey = Object.entries(activeToLegacyProfileKey).reduce(
+  (acc, [active, legacy]) => ({ ...acc, [legacy]: active }),
+  {} as Record<string, string>,
+);
+
 export const getProfileImageSrc = (key?: string | null) => {
   if (!key) return undefined;
   const option = PROFILE_IMAGE_OPTIONS.find((item) => item.key === key);
   return option?.src ?? legacyProfileImageMap[key];
+};
+
+export const getLegacyProfileImageKey = (key?: string | null) => {
+  if (!key) return undefined;
+  return activeToLegacyProfileKey[key] ?? key;
+};
+
+export const getProfileImageOptionKey = (key?: string | null) => {
+  if (!key) return undefined;
+  if (PROFILE_IMAGE_OPTIONS.some((item) => item.key === key)) return key;
+  return legacyToActiveProfileKey[key];
 };

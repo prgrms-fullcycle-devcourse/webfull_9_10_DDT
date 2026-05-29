@@ -9,6 +9,7 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,6 @@ import { useMutation } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
 import { PROFILE_IMAGE_OPTIONS } from '@/lib/profileImage';
-import Image from 'next/image';
 
 export const JoinRoom = () => {
   const router = useRouter();
@@ -187,47 +187,10 @@ export const JoinRoom = () => {
             </span>
           </div>
 
-          {/* 프로필 이미지 */}
-          <div className='flex flex-col gap-3'>
-            <Label className='text-[15px] font-bold text-white/85'>
-              프로필 이미지
-            </Label>
-            <div className='grid grid-cols-5 gap-3'>
-              {PROFILE_IMAGE_OPTIONS.map((opt, index) => (
-                <button
-                  key={opt.key} // ← index보다 key가 안전
-                  type='button'
-                  onClick={() => setSelectedProfile(index)}
-                  className='relative aspect-square rounded-full bg-[#1A1A2E] border-2 transition-all'
-                  style={{
-                    borderColor:
-                      selectedProfile === index ? '#8B5CF6' : 'transparent',
-                  }}
-                >
-                  <Image
-                    src={opt.src}
-                    alt={opt.label} // ← label 활용
-                    fill
-                    sizes='(max-width: 390px) 60px, 80px'
-                    className='object-cover rounded-full z-0'
-                  />
-                  {selectedProfile === index && (
-                    <span className='absolute top-0.5 z-10 right-0.5 w-5 h-5 bg-[#8B5CF6] rounded-full flex items-center justify-center'>
-                      <svg width='10' height='8' viewBox='0 0 10 8' fill='none'>
-                        <path
-                          d='M1 4L3.5 6.5L9 1'
-                          stroke='white'
-                          strokeWidth='1.5'
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                        />
-                      </svg>
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ProfileImagePicker
+            selectedProfile={selectedProfile}
+            onSelectProfile={setSelectedProfile}
+          />
 
           {/* 비밀번호 */}
           {!isHost && (

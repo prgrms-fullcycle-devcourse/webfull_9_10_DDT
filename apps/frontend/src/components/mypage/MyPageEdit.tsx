@@ -1,7 +1,6 @@
 'use client';
 
 import axios from 'axios';
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BackButton } from '@/components/layout/BackButton';
@@ -13,11 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MyPageDeleteButton } from '@/components/mypage/MyPageDeleteButton';
+import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import type { UpdateUserDto } from '@/api/generated/models/updateUserDto';
-import { PROFILE_IMAGE_OPTIONS, getProfileImageSrc } from '@/lib/profileImage';
-import { Check } from 'lucide-react';
+import { PROFILE_IMAGE_OPTIONS, getLegacyProfileImageKey, getProfileImageOptionKey } from '@/lib/profileImage';
 
 type UserProfile = {
   userId: string;
@@ -47,7 +46,6 @@ export function MyPageEdit() {
   const [success, setSuccess] = useState('');
 
   const selectedProfileKey = PROFILE_IMAGE_OPTIONS[selectedProfile]?.key;
-  const profileImageSrc = getProfileImageSrc(PROFILE_IMAGE_OPTIONS[selectedProfile]?.key);
   const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
@@ -79,7 +77,8 @@ export function MyPageEdit() {
 
         setNickname(data.nickname ?? '');
 
-        const index = PROFILE_IMAGE_OPTIONS.findIndex((item) => item.key === data.profileImage);
+        const optionKey = getProfileImageOptionKey(data.profileImage);
+        const index = PROFILE_IMAGE_OPTIONS.findIndex((item) => item.key === optionKey);
         setSelectedProfile(index >= 0 ? index : 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : '불러오기에 실패했습니다.');
@@ -91,7 +90,7 @@ export function MyPageEdit() {
     void loadProfile();
   }, []);
 
-  const isValid = nickname.trim().length > 0 && nickname.trim().length <= 10;
+  const isValid = nickname.trim().length >= 2 && nickname.trim().length <= 20;
 
   const handleSave = async () => {
     if (!isValid) return;
@@ -110,7 +109,7 @@ export function MyPageEdit() {
     try {
       const updateUserDto: UpdateUserDto = {
         nickname: nickname.trim(),
-        profileImage: selectedProfileKey,
+        profileImage: getLegacyProfileImageKey(selectedProfileKey),
       };
 
       await usersApi.usersControllerUpdateMe(updateUserDto, {
@@ -171,15 +170,16 @@ export function MyPageEdit() {
     <RequireAuth>
       <MobileLayout
         header={
-        <div className='flex w-full items-center justify-between gap-3'>
+        <>
           <BackButton />
           <HeaderTitle>프로필 수정</HeaderTitle>
+          <div className="flex-1" />
           <MyPageDeleteButton
             onClick={handleDelete}
             disabled={isSaving || isDeleting}
             isDeleting={isDeleting}
           />
-        </div>
+        </>
       }
         bottomButton={
           <Button
@@ -192,71 +192,27 @@ export function MyPageEdit() {
           </Button>
         }
       >
-        <div className='space-y-6 pb-4'>
-          <div className='rounded-[22px] border border-white/10 bg-[#1B1F2F] p-5 text-white'>
-            <div className='mb-5 flex items-center justify-between'>
-              <div>
-                <p className='text-[14px] font-semibold'>프로필 이미지</p>
-                <p className='mt-1 text-[12px] text-[#A3A1B3]'>원하는 이미지를 선택해주세요.</p>
-              </div>
-              <div className='relative h-16 w-16 overflow-hidden rounded-full border border-[#6D5AF5] bg-[#2F2A53]'>
-                {profileImageSrc ? (
-                  <Image
-                    src={profileImageSrc}
-                    alt='선택된 프로필'
-                    fill
-                    className='object-cover'
-                  />
-                ) : null}
-                <span className='pointer-events-none absolute inset-0 rounded-full ring-2 ring-[#8B5CF6]/50' />
-              </div>
-            </div>
-
-            <div className='grid grid-cols-5 gap-3'>
-              {PROFILE_IMAGE_OPTIONS.map((image, index) => {
-                const isSelected = selectedProfile === index;
-                return (
-                  <button
-                    key={image.key}
-                    type='button'
-                    onClick={() => setSelectedProfile(index)}
-                    className={`relative aspect-square w-full overflow-hidden rounded-full border-2 transition ${
-                      isSelected ? 'border-[#8B5CF6]' : 'border-white/10'
-                    }`}
-                  >
-                    <div className='relative h-full w-full'>
-                      <Image
-                        src={image.src}
-                        alt={image.label}
-                        fill
-                        className='object-cover'
-                      />
-                    </div>
-                    {isSelected ? (
-                      <span className='absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#7C3AED]'>
-                        <Check size={14} className='text-white' />
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className='rounded-[22px] border border-white/10 bg-[#1B1F2F] p-5 text-white'>
-            <div className='flex items-center justify-between gap-3'>
-              <Label className='text-[14px] font-semibold'>내 닉네임</Label>
-              <span className='text-xs text-[#A3A1B3]'>{nickname.length}/10</span>
-            </div>
+        <div className='flex flex-col gap-6 pt-2'>
+          <div className='flex flex-col gap-2'>
+            <Label className='text-[15px] font-bold text-white/85'>내 닉네임</Label>
             <Input
               type='text'
               placeholder='닉네임을 입력해주세요'
+              maxLength={20}
               value={nickname}
-              maxLength={10}
-              onChange={(event) => setNickname(event.target.value)}
-              className='mt-3 h-[52px] rounded-[16px] border-white/10 bg-[#151622] px-4 text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+              onChange={(e) => setNickname(e.target.value)}
+              className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
             />
+            <span className='text-xs text-[#6B7280] text-right'>
+              {nickname.length}/20
+            </span>
           </div>
+
+          <ProfileImagePicker
+            selectedProfile={selectedProfile}
+            onSelectProfile={setSelectedProfile}
+            description='원하는 이미지를 선택해주세요.'
+          />
 
           {error ? (
             <div className='rounded-[14px] border border-[#FF606B]/20 bg-[#2C1722] px-4 py-3 text-sm text-[#FFB3C0]'>

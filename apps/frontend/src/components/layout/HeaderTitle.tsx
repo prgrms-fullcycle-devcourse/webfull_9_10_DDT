@@ -6,7 +6,7 @@ type HeaderTitleProps = React.ComponentProps<'span'>;
 export function HeaderTitle({ className, children, ...props }: HeaderTitleProps) {
   return (
     <span
-      className={cn('ml-[38px] text-[18px] font-normal tracking-tight', className)}
+      className={cn('ml-[4px] text-[18px] font-normal tracking-tight', className)}
       {...props}
     >
       {children}
