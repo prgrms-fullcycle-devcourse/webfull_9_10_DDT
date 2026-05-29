@@ -1,8 +1,7 @@
 'use client';
 
-import axios from 'axios';
 import { useState } from 'react';
-import { useRouter } from "next/navigation";
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Users, Lightbulb } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
@@ -21,16 +20,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
-import { getUsers } from '@/api/generated/users-사용자/users-사용자';
-import type { CreateRoomDto } from '@/api/generated/models/createRoomDto';
+import { useMutation } from '@tanstack/react-query';
 
 type Step = 'form' | 'complete';
-
-interface CreateRoomProps {
-  onBack?: () => void;
-  onEnter?: (roomCode: string) => void;
-}
-
 /* ── 완료 화면 ── */
 function CreateRoomComplete({
   roomName,
@@ -45,7 +37,6 @@ function CreateRoomComplete({
   inviteLink: string;
   onCopyAll: () => void;
 }) {
-
   return (
     <div className='flex flex-col gap-5 pt-2'>
       <p className='text-center text-base text-white/70'>
@@ -54,7 +45,6 @@ function CreateRoomComplete({
 
       {/* 정보 카드 */}
       <div className='bg-[#111827] border border-white/[0.12] rounded-[16px] px-4 py-5 flex flex-col gap-4'>
-
         {/* 방 이름 & 최대 인원 */}
         <div className='flex gap-4'>
           <div className='flex-1 flex flex-col gap-1'>
@@ -80,7 +70,9 @@ function CreateRoomComplete({
         {/* 방 코드 */}
         <div className='flex flex-col gap-1'>
           <span className='text-xs text-[#6B7280]'>방 코드</span>
-          <span className='text-2xl font-bold text-white tracking-widest'>{roomCode}</span>
+          <span className='text-2xl font-bold text-white tracking-widest'>
+            {roomCode}
+          </span>
         </div>
 
         <div className='border-t border-white/[0.08]' />
@@ -95,7 +87,10 @@ function CreateRoomComplete({
       {/* 안내 문구 */}
       <div className='flex items-start gap-2 text-xs text-[#9CA3AF] leading-relaxed'>
         <Lightbulb size={14} className='text-[#FACC15] shrink-0 mt-0.5' />
-        <span>링크와 비밀번호를 공유하여 같이 집중할 멤버들과 함께 입장해 시작해보세요!</span>
+        <span>
+          링크와 비밀번호를 공유하여 같이 집중할 멤버들과 함께 입장해
+          시작해보세요!
+        </span>
       </div>
 
       {/* 복사 버튼 */}
@@ -111,7 +106,7 @@ function CreateRoomComplete({
 }
 
 /* ── 메인 컴포넌트 ── */
-export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
+export const CreateRoom = () => {
   const router = useRouter();
 
   const onBack = () => {
@@ -122,53 +117,30 @@ export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
   const [password, setPassword] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  const isValid = roomName.trim().length > 0 && password.length >= 4 && password.length <= 12;
+  const isValid =
+    roomName.trim().length > 0 && password.length >= 4 && password.length <= 12;
 
-  const handleSubmit = async () => {
-    if (!isValid) return;
-    if (!document.cookie.includes('access_token=')) {
-      toast.error('로그인이 필요합니다.');
-      return;
-    }
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
-
-    setIsSubmitting(true);
-    try {
-      const axiosInstance = axios.create({ baseURL: apiUrl });
-      const roomApi = getRoomApi(axiosInstance);
-      const usersApi = getUsers(axiosInstance);
-
-      const userResponse = await usersApi.usersControllerGetMe({
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const userResult = userResponse.data as { data?: { nickname: string; profileImage?: string } };
-
-      const createRoomDto: CreateRoomDto = {
-        title: roomName,
-        password,
-        nickname: userResult.data?.nickname ?? '익명',
-        profileImage: userResult.data?.profileImage ?? 'AVATAR_BEAR',
-      };
-
-      const response = await roomApi.roomControllerCreate(createRoomDto, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const result = response.data as { data: { code: string; url: string } };
-      setRoomCode(result.data.code);
+  const createRoomMutation = useMutation({
+    mutationFn: async (input: { title: string; password: string }) => {
+      const res = await getRoomApi().roomControllerCreate(input);
+      return res.data as { code: string; url: string };
+    },
+    onSuccess: (data) => {
+      setRoomCode(data.code);
+      sessionStorage.setItem(`isHost:${data.code}`, 'true');
+      sessionStorage.setItem(`hostPassword:${data.code}`, password);
       setStep('complete');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '방 생성에 실패했습니다.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : '방 생성 실패');
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    createRoomMutation.mutate({ title: roomName, password });
   };
 
   const inviteLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/room/${roomCode}`;
@@ -179,147 +151,159 @@ export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
     toast.success('초대 정보가 복사되었어요');
   };
 
-  const handleEnterRoom = () => {
-    if (roomCode) {
-      if (onEnter) {
-        onEnter(roomCode);
-      } else {
-        router.push(`/room/${roomCode}`);
-      }
-    }
-  };
-
   return (
     <>
-    <MobileLayout
-      header={
-        <>
-          {step === 'complete' ? (
-            <CloseButton onClick={() => setShowExitDialog(true)} />
+      <MobileLayout
+        header={
+          <>
+            {step === 'complete' ? (
+              <CloseButton onClick={() => setShowExitDialog(true)} />
+            ) : (
+              <BackButton onClick={onBack} />
+            )}
+            <HeaderTitle>
+              {step === 'complete' ? '방 생성 완료 🎉' : '방 만들기'}
+            </HeaderTitle>
+          </>
+        }
+        bottomButton={
+          step === 'complete' ? (
+            <Button
+              style={{
+                background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
+                boxShadow: '0 0 40px rgba(124,58,237,0.45)',
+              }}
+              className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98]'
+              onClick={() => router.push(`/room/${roomCode}`)}
+            >
+              입장하기
+            </Button>
           ) : (
-            <BackButton onClick={onBack} />
-          )}
-          <HeaderTitle>
-            {step === 'complete' ? '방 생성 완료 🎉' : '방 만들기'}
-          </HeaderTitle>
-        </>
-      }
-      bottomButton={
-        step === 'complete' ? (
-          <Button
-            style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)', boxShadow: '0 0 40px rgba(124,58,237,0.45)' }}
-            className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98]'
-            onClick={handleEnterRoom}
-          >
-            입장하기
-          </Button>
+            <Button
+              disabled={!isValid || createRoomMutation.isPending}
+              onClick={handleSubmit}
+              style={{
+                background: isValid
+                  ? 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)'
+                  : undefined,
+                boxShadow: isValid
+                  ? '0 0 40px rgba(124,58,237,0.45)'
+                  : undefined,
+              }}
+              className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            >
+              {createRoomMutation.isPending ? '생성 중...' : '방 만들기'}
+            </Button>
+          )
+        }
+      >
+        {step === 'complete' ? (
+          <CreateRoomComplete
+            roomName={roomName}
+            password={password}
+            roomCode={roomCode}
+            inviteLink={inviteLink}
+            onCopyAll={handleCopyAll}
+          />
         ) : (
-          <Button
-            disabled={!isValid || isSubmitting}
-            onClick={handleSubmit}
-            style={{
-              background: isValid ? 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)' : undefined,
-              boxShadow: isValid ? '0 0 40px rgba(124,58,237,0.45)' : undefined,
-            }}
-            className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
-          >
-            {isSubmitting ? '생성 중...' : '방 만들기'}
-          </Button>
-        )
-      }
-    >
-      {step === 'complete' ? (
-        <CreateRoomComplete
-          roomName={roomName}
-          password={password}
-          roomCode={roomCode}
-          inviteLink={inviteLink}
-          onCopyAll={handleCopyAll}
-        />
-      ) : (
-        <>
-          <p className='text-center text-[20px] font-normal text-white/50 leading-relaxed pb-6'>
-            비밀방을 생성해<br />같이 집중할 멤버를 초대하세요.
-          </p>
+          <>
+            <p className='text-center text-[20px] font-normal text-white/50 leading-relaxed pb-6'>
+              비밀방을 생성해
+              <br />
+              같이 집중할 멤버를 초대하세요.
+            </p>
 
-          <div className='flex justify-center mb-8'>
-            <div className='inline-flex items-center gap-2.5 bg-[#111827] border border-white/[0.12] rounded-[16px] px-4 py-[14px] text-sm text-[#9CA3AF]'>
-              <Users size={18} className='text-[#6B7280] shrink-0' />
-              최대 10명까지 입장 가능합니다.
-            </div>
-          </div>
-
-          <div className='flex flex-col gap-5'>
-            <div className='flex flex-col gap-2'>
-              <Label className='text-[15px] font-bold text-white/85'>방 이름</Label>
-              <Input
-                type='text'
-                placeholder='방 이름을 입력해주세요'
-                maxLength={20}
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
-              />
-              <span className='text-xs text-[#6B7280] text-right'>{roomName.length}/20</span>
-            </div>
-
-            <div className='flex flex-col gap-2'>
-              <Label className='text-[15px] font-bold text-white/85'>비밀번호</Label>
-              <div className='relative flex items-center'>
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder='비밀번호를 입력해주세요'
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 pr-10 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
-                />
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label='비밀번호 표시'
-                  className='absolute right-1 text-[#6B7280] hover:text-white/75 hover:bg-transparent'
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </Button>
+            <div className='flex justify-center mb-8'>
+              <div className='inline-flex items-center gap-2.5 bg-[#111827] border border-white/[0.12] rounded-[16px] px-4 py-[14px] text-sm text-[#9CA3AF]'>
+                <Users size={18} className='text-[#6B7280] shrink-0' />
+                최대 10명까지 입장 가능합니다.
               </div>
-              <span className='text-xs text-[#6B7280] pl-0.5'>
-                · 비밀번호는 4~12자이어야 합니다.
-              </span>
             </div>
-          </div>
-        </>
-      )}
-    </MobileLayout>
 
-    {/* 나가기 확인 다이얼로그 */}
-    <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            지금 나가면 초대 링크를<br />다시 확인할 수 없어요
-          </DialogTitle>
-          <DialogDescription>정말 나가시겠습니까?</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant='outline'
-            className='flex-1 h-12 rounded-[14px] border-white/[0.18] text-white/80 bg-transparent hover:bg-white/5'
-            onClick={() => setShowExitDialog(false)}
-          >
-            취소
-          </Button>
-          <Button
-            className='flex-1 h-12 rounded-[14px] font-bold'
-            style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)' }}
-            onClick={() => { setShowExitDialog(false); onBack?.(); }}
-          >
-            나가기
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <div className='flex flex-col gap-5'>
+              <div className='flex flex-col gap-2'>
+                <Label className='text-[15px] font-bold text-white/85'>
+                  방 이름
+                </Label>
+                <Input
+                  type='text'
+                  placeholder='방 이름을 입력해주세요'
+                  maxLength={20}
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+                />
+                <span className='text-xs text-[#6B7280] text-right'>
+                  {roomName.length}/20
+                </span>
+              </div>
+
+              <div className='flex flex-col gap-2'>
+                <Label className='text-[15px] font-bold text-white/85'>
+                  비밀번호
+                </Label>
+                <div className='relative flex items-center'>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder='비밀번호를 입력해주세요'
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 pr-10 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+                  />
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label='비밀번호 표시'
+                    className='absolute right-1 text-[#6B7280] hover:text-white/75 hover:bg-transparent'
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </Button>
+                </div>
+                <span className='text-xs text-[#6B7280] pl-0.5'>
+                  · 비밀번호는 4~12자이어야 합니다.
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+      </MobileLayout>
+
+      {/* 나가기 확인 다이얼로그 */}
+      <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              지금 나가면 초대 링크를
+              <br />
+              다시 확인할 수 없어요
+            </DialogTitle>
+            <DialogDescription>정말 나가시겠습니까?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              className='flex-1 h-12 rounded-[14px] border-white/[0.18] text-white/80 bg-transparent hover:bg-white/5'
+              onClick={() => setShowExitDialog(false)}
+            >
+              취소
+            </Button>
+            <Button
+              className='flex-1 h-12 rounded-[14px] font-bold'
+              style={{
+                background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
+              }}
+              onClick={() => {
+                setShowExitDialog(false);
+                onBack?.();
+              }}
+            >
+              나가기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

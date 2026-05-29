@@ -192,11 +192,10 @@ export function useYjsContract(
     if (!doc) return;
 
     const yjsTiers = doc.getArray<Tier>('tiers');
-    const last = yjsTiers.length > 0 ? yjsTiers.get(yjsTiers.length - 1) : null;
-    const newMinPct =
-      last?.maxPct !== null && last?.maxPct !== undefined
-        ? last.maxPct
-        : (last?.minPct ?? 0) + 1;
+    const isFirst = yjsTiers.length === 0;
+    const last = isFirst ? null : yjsTiers.get(yjsTiers.length - 1);
+
+    const newMinPct = isFirst ? 0 : (last!.maxPct ?? last!.minPct + 1);
 
     doc.transact(() => {
       if (last) {

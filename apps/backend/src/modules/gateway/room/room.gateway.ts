@@ -269,4 +269,47 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
     });
   }
+
+  @SubscribeMessage('edit:member')
+  async handleEditMember(
+    @ConnectedSocket() client: RoomSocket,
+    @MessageBody() body: { targetId: string; canEdit: boolean },
+  ) {
+    const { roomCode, userId } = client.data;
+    const ok = await this.roomService.setMemberEdit(
+      roomCode,
+      userId,
+      body.targetId,
+      body.canEdit,
+    );
+
+    if (!ok) {
+      return;
+    }
+
+    this.server
+      .to(roomCode)
+      .emit('edit:updated', { targetId: body.targetId, canEdit: body.canEdit });
+  }
+
+  @SubscribeMessage('edit:all')
+  async handleEditAll(
+    @ConnectedSocket() client: RoomSocket,
+    @MessageBody() body: { canEdit: boolean },
+  ) {
+    const { roomCode, userId } = client.data;
+
+    const ok = await this.roomService.setAllEdit(
+      roomCode,
+      userId,
+      body.canEdit,
+    );
+
+    if (!ok) {
+      return;
+    }
+    this.server
+      .to(roomCode)
+      .emit('edit:all-updated', { canEdit: body.canEdit });
+  }
 }
