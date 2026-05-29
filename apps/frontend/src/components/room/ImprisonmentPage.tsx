@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useRouter, useParams } from 'next/navigation'; 
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
@@ -13,8 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-
-type TimerMode = 'FOCUS' | 'BREAK';
+import { useTimerSync } from '@/hooks/useTimerSync'; 
 
 const API_DATA = { //api로 교체
   focusDuration: 5,
@@ -23,69 +23,42 @@ const API_DATA = { //api로 교체
 };
 
 export default function ImprisonmentPage() {
-  const [mode, setMode] = useState<TimerMode>('FOCUS');
-  const [currentSession, setCurrentSession] = useState<number>(1);
-  const [timeLeft, setTimeLeft] = useState<number>(API_DATA.focusDuration);
-  const [isActive, setIsActive] = useState<boolean>(true);
+  const router = useRouter();
+  const params = useParams();
+  
+  const roomCode = params.id as string;
+  const identifier = typeof document !== 'undefined' ? 
+    (document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1] || 'guest_token') : '';
+
+  const { timeLeft, mode, currentSession } = useTimerSync(roomCode, identifier);
+  
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   const totalSessions = API_DATA.totalSessions;
-
-  const getDuration = (targetMode: TimerMode) => {
-    return targetMode === 'FOCUS'
-      ? API_DATA.focusDuration
-      : API_DATA.breakDuration;
-  };
-
-  const totalDuration = getDuration(mode);
   const isFocus = mode === 'FOCUS';
+  
+  const getDuration = (targetMode: 'FOCUS' | 'BREAK') => {
+    return targetMode === 'FOCUS' ? API_DATA.focusDuration : API_DATA.breakDuration;
+  };
+  const totalDuration = getDuration(mode);
 
-  useEffect(() => {
-    if (!isActive) return;
-
-    const timer = setInterval(() => {
-      if (timeLeft === 0) {
-        if (mode === 'FOCUS') {
-          if (currentSession === totalSessions) {
-            setIsActive(false);
-            console.log('끝'); //결과 페이지로 이동
-            return;
-          }
-
-          console.log('휴식 시작'); //휴식 시작 알람
-          setMode('BREAK');
-          setTimeLeft(API_DATA.breakDuration);
-        } else {
-          if (currentSession < totalSessions) {
-            console.log(`집중 시작`); //집중 시작 알람
-            
-            setCurrentSession((prev) => prev + 1);
-            setMode('FOCUS');
-            setTimeLeft(API_DATA.focusDuration);
-          }
+  const handleForfeit = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      await fetch(`${apiUrl}/rooms/${roomCode}/give-up`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${identifier}`,
+          'X-Guest-Token': identifier 
         }
-        return;
-      }
-
-      setTimeLeft((prev) => {
-        const nextTime = prev - 1;
-
-        if (mode === 'BREAK' && nextTime === 60) {
-          console.log('집중 시작 1분 전'); //집중 1분전 알람
-        }
-
-        return nextTime;
       });
-
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeLeft, mode, currentSession, totalSessions, isActive]);
-
-  const handleForfeit = () => {
-    setIsActive(false);
-    setIsModalOpen(false);
-    console.log('중도 포기'); //중도 포기
+      
+      localStorage.removeItem('ddt_active_session');
+      setIsModalOpen(false);
+      router.push(`/result/${roomCode}`);
+    } catch (error) {
+      console.error('포기 처리 실패:', error);
+    }
   };
 
   const theme = {

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { RoomService } from '../../room/room.service';
+import { EscapeService } from '../../escape/escape.service';
 
 interface SocketData {
   roomCode: string;
@@ -43,6 +44,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly roomService: RoomService,
+    private readonly escapeService: EscapeService,
   ) {}
   @WebSocketServer()
   server!: Server;
@@ -133,6 +135,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (roomState?.members[userId]?.socketId === client.id) {
       await this.roomService.setConnected(roomCode, userId, false);
+
+      if (roomState.phase === 'timer') {
+        await this.escapeService.logEscapeStart(roomCode, userId);
+      }
 
       client.to(roomCode).emit('member:left', { userId });
 

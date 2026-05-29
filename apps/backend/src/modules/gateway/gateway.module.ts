@@ -4,6 +4,7 @@ import { YjsGateway } from './yjs/yjs.gateway';
 import { JwtModule } from '@nestjs/jwt';
 import { RoomModule } from '../room/room.module';
 import { ConfigService } from '@nestjs/config';
+import { EscapeModule } from '../escape/escape.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
       }),
     }),
     RoomModule,
+    EscapeModule,
   ],
   providers: [RoomGateway, YjsGateway],
   exports: [RoomGateway, YjsGateway],
