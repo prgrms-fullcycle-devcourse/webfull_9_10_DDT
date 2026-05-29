@@ -21,7 +21,7 @@ import type {
 
   export const getAuthApi = (axiosInstance: AxiosInstance = axios) => {
 /**
- * 프론트엔드에서 구글 로그인 창을 띄울 때 호출하는 API입니다.
+ * 프론트가 팝업으로 여는 진입점. 구글 동의 화면으로 리다이렉트됩니다.
  * @summary 구글 소셜 로그인 진입점
  */
 const authControllerGoogleAuth = (
@@ -32,7 +32,7 @@ const authControllerGoogleAuth = (
     );
   }
 /**
- * 구글 인증이 완료된 후 구글 서버가 백엔드로 리다이렉트하는 주소입니다. 팝업창을 닫고 프론트엔드로 토큰을 전송합니다.
+ * 구글 인증 완료 후 호출됩니다. 팝업을 닫고 postMessage(OAUTH_SUCCESS, token)로 프론트에 JWT를 전달합니다.
  * @summary 구글 소셜 로그인 콜백
  */
 const authControllerGoogleAuthRedirect = (
@@ -43,7 +43,7 @@ const authControllerGoogleAuthRedirect = (
     );
   }
 /**
- * 로그인 없이 서비스를 이용하는 유저에게 게스트용 JWT 토큰과 식별자를 발급합니다.
+ * 로그인 없이 입장할 게스트에게 JWT와 guestToken을 발급합니다.
  * @summary 비회원(게스트) 토큰 발급
  */
 const authControllerGuestLogin = (
@@ -55,7 +55,7 @@ const authControllerGuestLogin = (
     );
   }
 /**
- * 신규 가입 유저가 필수 약관 3종에 모두 동의했을 때 호출하여 DB 상태를 업데이트합니다.
+ * 필수 약관 3종에 모두 동의해야 하며, 이미 동의한 계정은 409를 반환합니다.
  * @summary 회원가입 필수 약관 동의
  */
 const authControllerAgreeTerms = (
@@ -67,7 +67,7 @@ const authControllerAgreeTerms = (
     );
   }
 /**
- * 현재 사용 중인 JWT 토큰을 Redis 블랙리스트에 등록하여 강제로 무효화시킵니다.
+ * 현재 JWT를 Redis 블랙리스트에 등록해 만료 시점까지 무효화합니다.
  * @summary 로그아웃 (토큰 무효화)
  */
 const authControllerLogout = (

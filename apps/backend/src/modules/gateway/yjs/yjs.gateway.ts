@@ -32,44 +32,44 @@ export class YjsGateway implements OnModuleDestroy {
     ws: WebSocket,
     req: IncomingMessage,
   ): Promise<void> {
-    const roomId = this.getRoomId(req);
-    this.logger.log(`연결 시도 - Room: ${roomId}`);
+    const roomCode = this.getRoomCode(req);
+    this.logger.log(`연결 시도 - Room: ${roomCode}`);
 
-    if (!roomId) {
+    if (!roomCode) {
       ws.close();
       return;
     }
 
-    const raw = await this.redis.instance.get(`room:state:${roomId}`);
+    const raw = await this.redis.instance.get(`room:state:${roomCode}`);
     const state = raw ? (JSON.parse(raw) as RoomState) : null;
 
     if (!raw) {
-      this.logger.warn(`방 정보를 찾을 수 없음: ${roomId}`);
+      this.logger.warn(`방 정보를 찾을 수 없음: ${roomCode}`);
       ws.close(1008, 'Room not found');
       return;
     }
 
     if (state?.phase === 'timer') {
-      this.logger.log(`연결 종료(타이머 페이즈): ${roomId}`);
+      this.logger.log(`연결 종료(타이머 페이즈): ${roomCode}`);
       ws.close();
       return;
     }
 
-    this.clientRoomMap.set(ws, roomId);
+    this.clientRoomMap.set(ws, roomCode);
 
     ws.on('close', () => {
       this.clientRoomMap.delete(ws);
     });
 
-    setupYjsWSConnection(ws, req, { docName: roomId });
+    setupYjsWSConnection(ws, req, { docName: roomCode });
   }
 
-  destroyRoom(roomId: string): void {
+  destroyRoom(roomCode: string): void {
     if (!this.wss) return;
 
     const targets: WebSocket[] = [];
     this.wss.clients.forEach((client: WebSocket) => {
-      if (this.clientRoomMap.get(client) === roomId) {
+      if (this.clientRoomMap.get(client) === roomCode) {
         targets.push(client);
       }
     });
@@ -85,10 +85,10 @@ export class YjsGateway implements OnModuleDestroy {
     this.wss = null;
   }
 
-  private getRoomId(req: IncomingMessage): string {
+  private getRoomCode(req: IncomingMessage): string {
     const url = new URL(req.url ?? '', 'http://localhost');
-    const roomId = url.searchParams.get('roomId');
+    const roomCode = url.searchParams.get('roomCode');
     // 끝에 슬래시 제거
-    return roomId ? roomId.replace(/\/$/, '') : '';
+    return roomCode ? roomCode.replace(/\/$/, '') : '';
   }
 }

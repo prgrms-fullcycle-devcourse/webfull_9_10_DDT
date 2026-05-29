@@ -17,18 +17,20 @@ export class TimerService {
     private readonly roomGateway: RoomGateway,
   ) {}
 
-  private async verifyHost(roomId: string, userId: string) {
-    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+  private async verifyHost(roomCode: string, userId: string) {
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+    });
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (room.hostId !== userId)
       throw new ForbiddenException('방장 권한이 필요합니다.');
     return room;
   }
 
-  async startTimer(roomId: string, userId: string) {
-    await this.verifyHost(roomId, userId);
+  async startTimer(roomCode: string, userId: string) {
+    await this.verifyHost(roomCode, userId);
 
-    const rawState = await this.redis.instance.get(`room:state:${roomId}`);
+    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
     if (rawState) {
       const state = JSON.parse(rawState) as {
         members?: Record<string, { isSigned?: boolean }>;
@@ -45,7 +47,7 @@ export class TimerService {
 
     const now = new Date();
     await this.prisma.room.update({
-      where: { id: roomId },
+      where: { code: roomCode },
       data: { phase: 'timer', startedAt: now },
     });
 
@@ -58,18 +60,18 @@ export class TimerService {
       serverTime: now,
     };
 
-    this.roomGateway.server.to(roomId).emit('session:started', responseData);
+    this.roomGateway.server.to(roomCode).emit('session:started', responseData);
     return responseData;
   }
 
-  async forceStartTimer(roomId: string, userId: string) {
-    await this.verifyHost(roomId, userId);
+  async forceStartTimer(roomCode: string, userId: string) {
+    await this.verifyHost(roomCode, userId);
 
     const kickedMemberIds: string[] = []; // Redis 기반 미서명자 추출 로직 추가 필요
 
     const now = new Date();
     await this.prisma.room.update({
-      where: { id: roomId },
+      where: { code: roomCode },
       data: { phase: 'timer', startedAt: now },
     });
 
@@ -83,12 +85,12 @@ export class TimerService {
       serverTime: now,
     };
 
-    this.roomGateway.server.to(roomId).emit('session:started', responseData);
+    this.roomGateway.server.to(roomCode).emit('session:started', responseData);
     return responseData;
   }
 
-  async giveUp(roomId: string, userId: string) {
-    const room = await this.verifyHost(roomId, userId);
+  async giveUp(roomCode: string, userId: string) {
+    const room = await this.verifyHost(roomCode, userId);
 
     if (room.phase !== 'timer')
       throw new ConflictException('집중 진행 중에만 강제 종료할 수 있습니다.');
@@ -97,20 +99,20 @@ export class TimerService {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.escapeLog.updateMany({
-        where: { roomMember: { roomId }, returnedAt: null },
+        where: { roomMember: { roomCode: roomCode }, returnedAt: null },
         data: { returnedAt: now },
       });
 
       await tx.room.update({
-        where: { id: roomId },
+        where: { code: roomCode },
         data: { phase: 'abandoned', status: 'abandoned', endedAt: now },
       });
     });
 
-    await this.redis.instance.del(`room:state:${roomId}`);
+    await this.redis.instance.del(`room:state:${roomCode}`);
 
     const responseData = { endedAt: now, reason: 'force-end' };
-    this.roomGateway.server.to(roomId).emit('session:ended', responseData);
+    this.roomGateway.server.to(roomCode).emit('session:ended', responseData);
 
     return responseData;
   }

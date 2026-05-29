@@ -22,18 +22,20 @@ import type {
 
   export const getRuleApi = (axiosInstance: AxiosInstance = axios) => {
 /**
+ * 계약(contract) 단계에서 방장이 룰을 확정하고 방에 템플릿을 할당합니다.
  * @summary 계약서 생성 (방장 전용)
  */
 const ruleControllerCreateRoomRule = (
-    roomId: string,
+    roomCode: string,
     createRoomRuleDto: CreateRoomRuleDto, options?: AxiosRequestConfig
  ): Promise<AxiosResponse<void>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/rule`,
+      `/rooms/${roomCode}/rule`,
       createRoomRuleDto,options
     );
   }
 /**
+ * 내가 저장한 계약서 템플릿 목록을 조회합니다.
  * @summary 저장된 계약서 조회
  */
 const ruleControllerGetSavedRules = (
@@ -44,6 +46,7 @@ const ruleControllerGetSavedRules = (
     );
   }
 /**
+ * 제목과 함께 계약서를 템플릿으로 저장합니다.
  * @summary 계약서 템플릿 저장
  */
 const ruleControllerSaveRuleTemplate = (
@@ -55,6 +58,7 @@ const ruleControllerSaveRuleTemplate = (
     );
   }
 /**
+ * 기존 저장 템플릿을 수정합니다.
  * @summary 계약서 덮어쓰기
  */
 const ruleControllerUpdateRuleTemplate = (
@@ -67,6 +71,7 @@ const ruleControllerUpdateRuleTemplate = (
     );
   }
 /**
+ * 저장 템플릿을 삭제합니다. 진행 중인 방에서 사용 중이면 삭제 불가.
  * @summary 계약서 삭제
  */
 const ruleControllerDeleteRuleTemplate = (

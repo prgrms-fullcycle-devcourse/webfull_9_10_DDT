@@ -4,7 +4,7 @@ export default function RoomPage({ params }: { params: { id: string } }) {
   return (
     <div>
       <ContractForm
-        roomId='asdf'
+        roomCode='asdf'
         userId='asdf'
         nickname='asdf'
         canEdit={true}

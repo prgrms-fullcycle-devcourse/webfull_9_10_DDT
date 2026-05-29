@@ -35,7 +35,7 @@ interface ContractFormValues {
 }
 
 interface ContractFormProps {
-  roomId: string;
+  roomCode: string;
   userId: string;
   nickname: string;
   canEdit: boolean;
@@ -63,7 +63,7 @@ const OwnerIndicator = ({ fieldKey, fieldOwners }: OwnerIndicatorProps) => {
 };
 
 const ContractForm = ({
-  roomId,
+  roomCode,
   userId,
   nickname,
   canEdit,
@@ -83,7 +83,7 @@ const ContractForm = ({
     addPenalty,
     updatePenalty,
     removePenalty,
-  } = useYjsContract(roomId, true);
+  } = useYjsContract(roomCode, true);
 
   const [arrayError, setArrayError] = useState<string | null>(null);
 
@@ -130,7 +130,7 @@ const ContractForm = ({
               </Badge>
             </div>
             <CardDescription>
-              방 ID: {roomId} - 함께 규칙을 정하고 서명하세요.
+              방 ID: {roomCode} - 함께 규칙을 정하고 서명하세요.
             </CardDescription>
           </CardHeader>
 

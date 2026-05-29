@@ -13,7 +13,7 @@ import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { RoomService } from '../../room/room.service';
 
 interface SocketData {
-  roomId: string;
+  roomCode: string;
   userId: string;
   role: string;
 }
@@ -55,7 +55,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       (client.handshake.auth.token as string) ??
       (client.handshake.query.token as string) ??
       client.handshake.headers.authorization?.replace('Bearer ', '');
-    const roomId = client.handshake.query.roomId as string;
+    const roomCode = client.handshake.query.roomCode as string;
 
     if (!token) {
       client.disconnect();
@@ -71,12 +71,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    if (!roomId) {
+    if (!roomCode) {
       client.disconnect();
       return;
     }
 
-    const roomState = await this.roomService.getRoomState(roomId);
+    const roomState = await this.roomService.getRoomState(roomCode);
 
     if (!roomState) {
       client.disconnect();
@@ -86,7 +86,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const existingSocketId = roomState.members[client.data.userId]?.socketId;
 
     if (existingSocketId) {
-      const sockets = await this.server.in(roomId).fetchSockets();
+      const sockets = await this.server.in(roomCode).fetchSockets();
       const duplicate = sockets.find((s) => s.id === existingSocketId);
 
       if (duplicate) {
@@ -95,24 +95,24 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    if (this.cleanupTimers.has(roomId)) {
-      clearTimeout(this.cleanupTimers.get(roomId));
-      this.cleanupTimers.delete(roomId);
+    if (this.cleanupTimers.has(roomCode)) {
+      clearTimeout(this.cleanupTimers.get(roomCode));
+      this.cleanupTimers.delete(roomCode);
     }
 
-    client.data.roomId = roomId;
-    await client.join(roomId);
+    client.data.roomCode = roomCode;
+    await client.join(roomCode);
     await this.updateMemberConnection(client, true);
-    this.logger.log(`클라이언트 연결됨: ${client.id} 방: ${roomId}`);
+    this.logger.log(`클라이언트 연결됨: ${client.id} 방: ${roomCode}`);
 
-    const updated = await this.roomService.transitionToContract(roomId);
+    const updated = await this.roomService.transitionToContract(roomCode);
 
     const { nickname, profileImage, isHost } =
       roomState.members[client.data.userId];
 
     client.emit('room:state', updated ?? roomState);
 
-    client.to(roomId).emit('member:joined', {
+    client.to(roomCode).emit('member:joined', {
       userId: client.data.userId,
       nickname,
       profileImage,
@@ -123,36 +123,36 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleDisconnect(client: RoomSocket): Promise<void> {
     this.logger.log(`클라이언트 연결 끊김: ${client.id}`);
 
-    const { roomId, userId } = client.data;
+    const { roomCode, userId } = client.data;
 
-    if (!roomId || !userId) {
+    if (!roomCode || !userId) {
       return;
     }
 
-    const roomState = await this.roomService.getRoomState(roomId);
+    const roomState = await this.roomService.getRoomState(roomCode);
 
     if (roomState?.members[userId]?.socketId === client.id) {
-      await this.roomService.setConnected(roomId, userId, false);
+      await this.roomService.setConnected(roomCode, userId, false);
 
-      client.to(roomId).emit('member:left', { userId });
+      client.to(roomCode).emit('member:left', { userId });
 
       const onlineMembersCount =
-        await this.roomService.countConnectedMembers(roomId);
+        await this.roomService.countConnectedMembers(roomCode);
 
       if (!onlineMembersCount) {
-        if (this.cleanupTimers.has(roomId)) {
-          clearTimeout(this.cleanupTimers.get(roomId));
+        if (this.cleanupTimers.has(roomCode)) {
+          clearTimeout(this.cleanupTimers.get(roomCode));
         }
         const timer = setTimeout(() => {
-          void this.handleRoomCleanup(roomId).finally(() => {
-            this.cleanupTimers.delete(roomId);
+          void this.handleRoomCleanup(roomCode).finally(() => {
+            this.cleanupTimers.delete(roomCode);
           });
         }, 10000);
-        this.cleanupTimers.set(roomId, timer);
+        this.cleanupTimers.set(roomCode, timer);
       } else {
-        if (this.cleanupTimers.has(roomId)) {
-          clearTimeout(this.cleanupTimers.get(roomId));
-          this.cleanupTimers.delete(roomId);
+        if (this.cleanupTimers.has(roomCode)) {
+          clearTimeout(this.cleanupTimers.get(roomCode));
+          this.cleanupTimers.delete(roomCode);
         }
       }
     }
@@ -168,20 +168,20 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client: RoomSocket,
     connected: boolean,
   ): Promise<void> {
-    const { roomId, userId } = client.data;
+    const { roomCode, userId } = client.data;
 
     await this.roomService.setConnected(
-      roomId,
+      roomCode,
       userId,
       connected,
       connected ? client.id : undefined,
     );
   }
 
-  private async handleRoomCleanup(roomId: string): Promise<void> {
-    const currentCount = await this.roomService.countConnectedMembers(roomId);
+  private async handleRoomCleanup(roomCode: string): Promise<void> {
+    const currentCount = await this.roomService.countConnectedMembers(roomCode);
     if (currentCount === 0) {
-      await this.roomService.deleteRoom(roomId);
+      await this.roomService.deleteRoom(roomCode);
     }
   }
 
@@ -190,10 +190,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: RoomSocket,
     @MessageBody() body: { signed: boolean },
   ) {
-    const { roomId, userId } = client.data;
+    const { roomCode, userId } = client.data;
 
     const result = await this.roomService.setSigned(
-      roomId,
+      roomCode,
       userId,
       body.signed,
     );
@@ -202,7 +202,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    this.server.to(roomId).emit('sign:updated', {
+    this.server.to(roomCode).emit('sign:updated', {
       userId,
       signed: body.signed,
       signedCount: result.signedCount,
@@ -216,11 +216,11 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: RoomSocket,
     @MessageBody() body: { targetId: string },
   ) {
-    const { roomId, userId } = client.data;
+    const { roomCode, userId } = client.data;
 
     if (userId === body.targetId) return;
 
-    const roomState = await this.roomService.getRoomState(roomId);
+    const roomState = await this.roomService.getRoomState(roomCode);
 
     if (!roomState) {
       return;
@@ -232,9 +232,9 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    await this.roomService.kickMember(roomId, body.targetId);
+    await this.roomService.kickMember(roomCode, body.targetId);
 
-    const sockets = await this.server.in(roomId).fetchSockets();
+    const sockets = await this.server.in(roomCode).fetchSockets();
     const targetSocket = sockets.find(
       (s) => (s.data as RoomSocket).data.userId === body.targetId,
     );
@@ -243,21 +243,23 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       targetSocket.emit('kicked');
       setTimeout(() => targetSocket.disconnect(), 100);
 
-      this.server.to(roomId).emit('member:kicked', { targetId: body.targetId });
+      this.server
+        .to(roomCode)
+        .emit('member:kicked', { targetId: body.targetId });
     }
   }
 
   @SubscribeMessage('contract:edited')
   async handleContractEdited(@ConnectedSocket() client: RoomSocket) {
-    const { userId, roomId } = client.data;
+    const { userId, roomCode } = client.data;
 
-    const result = await this.roomService.resetAllSigns(roomId);
+    const result = await this.roomService.resetAllSigns(roomCode);
 
     if (!result) {
       return;
     }
 
-    this.server.to(roomId).emit('sign:reset', {
+    this.server.to(roomCode).emit('sign:reset', {
       userId,
     });
   }

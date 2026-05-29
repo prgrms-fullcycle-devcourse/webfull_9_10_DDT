@@ -6,13 +6,11 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface CreateRoomDto {
-  /** 방 이름 (최대 20자) */
-  title: string;
-  /** 방 비밀번호 (4~20자) */
+export interface JoinRoomDto {
+  /** 방 비밀번호 */
   password: string;
-  /** 방장이 방에서 사용할 닉네임 */
+  /** 방에서 사용할 닉네임 */
   nickname: string;
-  /** 방장 프로필 이미지 키값 */
+  /** 프로필 이미지 키값 */
   profileImage: string;
 }

@@ -161,7 +161,7 @@ export class UsersController {
           page: 1,
           sessions: [
             {
-              roomId: 'uuid-string',
+              roomCode: 'uuid-string',
               roomTitle: '스터디 뽀모도로',
               profileImage: 'char_03',
               totalEscapeMs: 60000,

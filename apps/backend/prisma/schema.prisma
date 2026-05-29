@@ -58,8 +58,7 @@ model PenaltyItem {
 }
 
 model Room {
-  id           String        @id @default(uuid())
-  code         String        @unique
+  code         String        @id
   title        String
   hostId       String        @map("host_id")
   templateId   String?       @map("template_id")
@@ -81,7 +80,7 @@ model Room {
 
 model RoomMember {
   id           String       @id @default(uuid())
-  roomId       String       @map("room_id")
+  roomCode     String       @map("room_code")
   userId       String?      @map("user_id")
   guestToken   String?      @map("guest_token")
   nickname     String
@@ -91,12 +90,12 @@ model RoomMember {
   joinedAt     DateTime     @default(now()) @map("joined_at")
   gaveUpAt     DateTime?    @map("gave_up_at")
 
-  room         Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room         Room         @relation(fields: [roomCode], references: [code], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id])
   escapeLogs   EscapeLog[]
   result       RoomResult?
 
-  @@unique([roomId, userId]) 
+  @@unique([roomCode, userId])
   @@map("ROOM_MEMBER")
 }
 
@@ -115,13 +114,13 @@ model EscapeLog {
 
 model RoomResult {
   roomMemberId  String          @id @map("room_member_id")
-  roomId        String          @map("room_id")
+  roomCode      String          @map("room_code")
   totalEscapeMs Int             @map("total_escape_ms")
   penaltyTier   Int             @map("penalty_tier")
   createdAt     DateTime        @default(now()) @map("created_at")
 
   roomMember    RoomMember      @relation(fields: [roomMemberId], references: [id], onDelete: Cascade)
-  room          Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room          Room            @relation(fields: [roomCode], references: [code], onDelete: Cascade)
   penalties     ResultPenalty[]
 
   @@map("ROOM_RESULT")

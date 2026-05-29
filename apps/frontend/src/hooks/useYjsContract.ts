@@ -58,7 +58,7 @@ function generateColor(userId: string): string {
 }
 
 export function useYjsContract(
-  roomId: string,
+  roomCode: string,
   enabled: boolean,
 ): UseContractYjsReturn {
   const docRef = useRef<Y.Doc | null>(null);
@@ -77,7 +77,7 @@ export function useYjsContract(
   );
 
   useEffect(() => {
-    if (!roomId || !enabled) {
+    if (!roomCode || !enabled) {
       return;
     }
 
@@ -89,7 +89,7 @@ export function useYjsContract(
     const yjsTiers = doc.getArray<Tier>('tiers');
     const yjsPenalties = doc.getArray<Penalty>('penalties');
 
-    const serverUrl = 'ws://localhost:8080/yjs?roomId=' + roomId;
+    const serverUrl = 'ws://localhost:8080/yjs?roomCode=' + roomCode;
 
     const provider = new WebsocketProvider(serverUrl, '', doc);
     const awareness = provider.awareness;
@@ -146,7 +146,7 @@ export function useYjsContract(
       providerRef.current = null;
       setIsConnected(false);
     };
-  }, [roomId, enabled]);
+  }, [roomCode, enabled]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {

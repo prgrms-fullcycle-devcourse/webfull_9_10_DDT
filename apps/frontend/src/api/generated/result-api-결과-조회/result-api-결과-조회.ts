@@ -17,14 +17,15 @@ import type {
 
   export const getResultApi = (axiosInstance: AxiosInstance = axios) => {
 /**
+ * 세션 종료 후 멤버별 이탈 시간·순위·벌칙 결과를 조회합니다. 진행 중(timer)에는 조회할 수 없습니다.
  * @summary 결과 화면 조회
  */
 const resultControllerGetResult = (
-    roomId: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.get(
-      `/rooms/${roomId}/result`,options
+      `/rooms/${roomCode}/result`,options
     );
   }
 return {resultControllerGetResult}};
-export type ResultControllerGetResultResult = AxiosResponse<void>
+export type ResultControllerGetResultResult = AxiosResponse<unknown>

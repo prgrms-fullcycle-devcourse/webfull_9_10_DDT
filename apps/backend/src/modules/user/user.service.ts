@@ -135,7 +135,7 @@ export class UsersService {
       include: {
         room: {
           select: {
-            id: true,
+            code: true,
             title: true,
             endedAt: true,
             _count: { select: { roomMembers: true } },
@@ -151,7 +151,7 @@ export class UsersService {
     });
 
     const sessions = members.map((m) => ({
-      roomId: m.room.id,
+      roomCode: m.room.code,
       roomTitle: m.room.title,
       profileImage: m.profileImage,
       totalEscapeMs: m.result?.totalEscapeMs || 0,
