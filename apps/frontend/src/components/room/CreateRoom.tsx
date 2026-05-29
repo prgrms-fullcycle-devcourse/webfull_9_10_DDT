@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from "next/navigation";
 import { toast } from 'sonner';
-import { ArrowLeft, Eye, EyeOff, Users, X, Lightbulb } from 'lucide-react';
+import { Eye, EyeOff, Users, Lightbulb } from 'lucide-react';
+import { BackButton } from '@/components/layout/BackButton';
+import { CloseButton } from '@/components/layout/CloseButton';
+import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,16 +22,9 @@ import {
 
 type Step = 'form' | 'complete';
 
-interface RoomData {
-  roomName: string;
-  password: string;
-  roomCode?: string;
-}
-
 interface CreateRoomProps {
   onBack?: () => void;
   onEnter?: (roomCode: string) => void;
-  onSubmit?: (data: RoomData) => Promise<{ roomCode: string } | void> | void;
 }
 
 /* ── 완료 화면 ── */
@@ -36,14 +32,15 @@ function CreateRoomComplete({
   roomName,
   password,
   roomCode,
+  inviteLink,
   onCopyAll,
 }: {
   roomName: string;
   password: string;
   roomCode: string;
+  inviteLink: string;
   onCopyAll: () => void;
 }) {
-  const inviteLink = `https://gamok.app/room/${roomCode}`;
 
   return (
     <div className='flex flex-col gap-5 pt-2'>
@@ -110,8 +107,9 @@ function CreateRoomComplete({
 }
 
 /* ── 메인 컴포넌트 ── */
-export const CreateRoom = ({ onEnter, onSubmit }: CreateRoomProps) => {
+export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
   const router = useRouter();
+
   const onBack = () => {
     router.back();
   };
@@ -127,18 +125,43 @@ export const CreateRoom = ({ onEnter, onSubmit }: CreateRoomProps) => {
 
   const handleSubmit = async () => {
     if (!isValid) return;
+    if (!document.cookie.includes('access_token=')) {
+      toast.error('로그인이 필요합니다.');
+      return;
+    }
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
+
     setIsSubmitting(true);
     try {
-      const result = await onSubmit?.({ roomName, password });
-      setRoomCode(result?.roomCode ?? 'A1B2C3D4');
+      const response = await fetch(`${apiUrl}/room`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: roomName, password }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message ?? '방 생성에 실패했습니다.');
+      }
+
+      const data: { code: string; url: string } = await response.json();
+      setRoomCode(data.code);
       setStep('complete');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '방 생성에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const inviteLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/room/${roomCode}`;
+
   const handleCopyAll = async () => {
-    const inviteLink = `https://gamok.app/room/${roomCode}`;
     const text = `[${roomName}] 에 초대합니다\n비밀번호 : ${password}\n방 코드 : ${roomCode}\n입장 링크 : ${inviteLink}`;
     await navigator.clipboard.writeText(text);
     toast.success('초대 정보가 복사되었어요');
@@ -150,29 +173,13 @@ export const CreateRoom = ({ onEnter, onSubmit }: CreateRoomProps) => {
       header={
         <>
           {step === 'complete' ? (
-            <Button
-              variant='ghost'
-              size='icon'
-              onClick={() => setShowExitDialog(true)}
-              aria-label='닫기'
-              className='absolute right-4 rounded-full text-white/75 hover:bg-white/10 hover:text-white'
-            >
-              <X size={20} />
-            </Button>
+            <CloseButton onClick={() => setShowExitDialog(true)} />
           ) : (
-            <Button
-              variant='ghost'
-              size='icon'
-              onClick={onBack}
-              aria-label='뒤로가기'
-              className='absolute left-4 rounded-full text-white/75 hover:bg-white/10 hover:text-white'
-            >
-              <ArrowLeft size={20} />
-            </Button>
+            <BackButton onClick={onBack} />
           )}
-          <span className='mx-auto text-[18px] font-normal tracking-tight'>
+          <HeaderTitle>
             {step === 'complete' ? '방 생성 완료 🎉' : '방 만들기'}
-          </span>
+          </HeaderTitle>
         </>
       }
       bottomButton={
@@ -192,7 +199,7 @@ export const CreateRoom = ({ onEnter, onSubmit }: CreateRoomProps) => {
               background: isValid ? 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)' : undefined,
               boxShadow: isValid ? '0 0 40px rgba(124,58,237,0.45)' : undefined,
             }}
-            className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#4B5563]'
+            className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
             {isSubmitting ? '생성 중...' : '방 만들기'}
           </Button>
@@ -204,6 +211,7 @@ export const CreateRoom = ({ onEnter, onSubmit }: CreateRoomProps) => {
           roomName={roomName}
           password={password}
           roomCode={roomCode}
+          inviteLink={inviteLink}
           onCopyAll={handleCopyAll}
         />
       ) : (

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface AuthState {
   isLoggedIn: boolean;
-  checkLoginStatus: () => void;
+  checkLoginStatus: () => boolean;
   logout: () => void;
 }
 
@@ -12,6 +12,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkLoginStatus: () => {
     const hasToken = document.cookie.includes('access_token=');
     set({ isLoggedIn: hasToken });
+    return hasToken;
   },
 
   logout: () => {
