@@ -90,29 +90,38 @@ export class TimerService {
   }
 
   async giveUp(roomCode: string, userId: string) {
-    const room = await this.verifyHost(roomCode, userId);
+    const isGuest = userId.startsWith('guest_');
+    const member = await this.prisma.roomMember.findFirst({
+      where: {
+        roomCode,
+        ...(isGuest ? { guestToken: userId } : { userId }),
+      },
+      include: { room: true },
+    });
 
-    if (room.phase !== 'timer')
-      throw new ConflictException('집중 진행 중에만 강제 종료할 수 있습니다.');
+    if (!member)
+      throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
+    if (member.room.phase !== 'timer')
+      throw new ConflictException('집중 진행 중에만 중도 포기할 수 있습니다.');
+    if (member.gaveUpAt)
+      throw new ConflictException('이미 중도 포기한 상태입니다.');
 
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
       await tx.escapeLog.updateMany({
-        where: { roomMember: { roomCode: roomCode }, returnedAt: null },
+        where: { roomMemberId: member.id, returnedAt: null },
         data: { returnedAt: now },
       });
 
-      await tx.room.update({
-        where: { code: roomCode },
-        data: { phase: 'abandoned', status: 'abandoned', endedAt: now },
+      await tx.roomMember.update({
+        where: { id: member.id },
+        data: { gaveUpAt: now },
       });
     });
-
-    await this.redis.instance.del(`room:state:${roomCode}`);
-
-    const responseData = { endedAt: now, reason: 'force-end' };
-    this.roomGateway.server.to(roomCode).emit('session:ended', responseData);
+    //탈주 처리 로직 추가 필요
+    const responseData = { userId, gaveUpAt: now };
+    this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
 
     return responseData;
   }

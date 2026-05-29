@@ -34,9 +34,9 @@ export class RuleController {
   constructor(private readonly ruleService: RuleService) {}
 
   @ApiOperation({
-    summary: '계약서 생성 (방장 전용)',
+    summary: '계약서 생성 및 할당 (방장 전용)',
     description:
-      '계약(contract) 단계에서 방장이 룰을 확정하고 방에 템플릿을 할당합니다.',
+      '방장이 설정한 규칙(목표 시간, 휴식 시간, 반복 횟수, 벌칙 등)을 바탕으로 방의 계약서를 확정하고 할당합니다.',
   })
   @ApiParam({
     name: 'roomCode',
@@ -51,10 +51,6 @@ export class RuleController {
   })
   @ApiResponse({ status: 403, description: '방장 권한이 필요합니다.' })
   @ApiResponse({ status: 404, description: '방을 찾을 수 없습니다.' })
-  @ApiResponse({
-    status: 409,
-    description: '계약 단계에서만 확정할 수 있습니다.',
-  })
   @Post('rooms/:roomCode/rule')
   async createRoomRule(
     @Param('roomCode') roomCode: string,
@@ -134,9 +130,9 @@ export class RuleController {
   }
 
   @ApiOperation({
-    summary: '계약서 삭제',
+    summary: '저장된 계약서 삭제',
     description:
-      '저장 템플릿을 삭제합니다. 진행 중인 방에서 사용 중이면 삭제 불가.',
+      '사용자가 개인 보관함에 저장해둔 특정 계약서 템플릿을 삭제합니다. 단, 현재 진행 중인 방에서 사용 중인 템플릿은 삭제할 수 없습니다.',
   })
   @ApiParam({
     name: 'ruleId',

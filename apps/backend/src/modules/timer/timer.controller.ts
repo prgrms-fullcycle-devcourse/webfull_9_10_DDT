@@ -120,8 +120,9 @@ export class TimerController {
 
   @ApiBearerAuth()
   @ApiOperation({
-    summary: '중도 포기 (세션 강제 종료)',
-    description: '진행 중(timer)인 세션을 방장이 강제 종료합니다.',
+    summary: '세션 중도 포기',
+    description:
+      '진행 중인 세션(timer)에서 요청한 사용자 본인의 참여를 중단합니다. 포기 시 본인만 이탈 처리되며, 방의 상태나 다른 참여자의 타이머는 유지됩니다.',
   })
   @ApiParam({
     name: 'roomCode',
@@ -130,12 +131,12 @@ export class TimerController {
   })
   @ApiResponse({
     status: 201,
-    description: '강제 종료 성공',
+    description: '중도 포기 성공',
     schema: {
       example: {
         statusCode: 201,
-        message: '세션이 강제 종료되었습니다.',
-        data: { endedAt: '2026-05-29T01:10:00.000Z', reason: 'force-end' },
+        message: '세션 중도 포기가 완료되었습니다.',
+        data: { userId: 'uuid', gaveUpAt: '2026-05-29T01:10:00.000Z' },
         error: null,
       },
     },
@@ -144,11 +145,10 @@ export class TimerController {
     status: 401,
     description: '인증 토큰이 없거나 유효하지 않습니다.',
   })
-  @ApiResponse({ status: 403, description: '방장 권한이 필요합니다.' })
   @ApiResponse({ status: 404, description: '방을 찾을 수 없습니다.' })
   @ApiResponse({
     status: 409,
-    description: '집중 진행 중에만 강제 종료할 수 있습니다.',
+    description: '진행 중인 세션이 아니거나 이미 포기한 상태입니다.',
   })
   @UseGuards(AuthGuard('jwt'))
   @Post(':roomCode/give-up')
@@ -157,6 +157,6 @@ export class TimerController {
     @Req() req: AuthenticatedRequest,
   ) {
     const data = await this.timerService.giveUp(roomCode, req.user!.id);
-    return { message: '세션이 강제 종료되었습니다.', data };
+    return { message: '세션 중도 포기가 완료되었습니다.', data };
   }
 }
