@@ -1,17 +1,9 @@
 export const PROFILE_IMAGE_OPTIONS = [
   { key: 'basic_image_key_01', src: '/avatars/bear.png', label: 'bear' },
   { key: 'basic_image_key_02', src: '/avatars/cat.png', label: 'cat' },
-  {
-    key: 'basic_image_key_03',
-    src: '/avatars/crocodile.png',
-    label: 'crocodile',
-  },
+  { key: 'basic_image_key_03', src: '/avatars/crocodile.png', label: 'crocodile' },
   { key: 'basic_image_key_04', src: '/avatars/fox.png', label: 'fox' },
-  {
-    key: 'basic_image_key_05',
-    src: '/avatars/hedgehog.png',
-    label: 'hedgehog',
-  },
+  { key: 'basic_image_key_05', src: '/avatars/hedgehog.png', label: 'hedgehog' },
   { key: 'basic_image_key_06', src: '/avatars/monkey.png', label: 'monkey' },
   { key: 'basic_image_key_07', src: '/avatars/penguin.png', label: 'penguin' },
   { key: 'basic_image_key_08', src: '/avatars/pig.png', label: 'pig' },

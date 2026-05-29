@@ -9,8 +9,10 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MyPageDeleteButton } from '@/components/mypage/MyPageDeleteButton';
-import { ProfileNicknamePicker } from '@/components/common/ProfileNicknamePicker';
+import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import type { UpdateUserDto } from '@/api/generated/models/updateUserDto';
@@ -191,14 +193,25 @@ export function MyPageEdit() {
         }
       >
         <div className='flex flex-col gap-6 pt-2'>
-          <ProfileNicknamePicker
-            nickname={nickname}
-            onNicknameChange={setNickname}
+          <div className='flex flex-col gap-2'>
+            <Label className='text-[15px] font-bold text-white/85'>내 닉네임</Label>
+            <Input
+              type='text'
+              placeholder='닉네임을 입력해주세요'
+              maxLength={20}
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+            />
+            <span className='text-xs text-[#6B7280] text-right'>
+              {nickname.length}/20
+            </span>
+          </div>
+
+          <ProfileImagePicker
             selectedProfile={selectedProfile}
             onSelectProfile={setSelectedProfile}
-            maxNicknameLength={20}
-            nicknamePlaceholder='닉네임을 입력해주세요'
-            profileDescription='원하는 이미지를 선택해주세요.'
+            description='원하는 이미지를 선택해주세요.'
           />
 
           {error ? (
