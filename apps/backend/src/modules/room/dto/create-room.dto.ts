@@ -14,20 +14,4 @@ export class CreateRoomDto {
   @MinLength(4)
   @MaxLength(20)
   password!: string;
-
-  @ApiProperty({
-    example: '집중왕',
-    description: '방장이 방에서 사용할 닉네임',
-  })
-  @IsString()
-  @IsNotEmpty()
-  nickname!: string;
-
-  @ApiProperty({
-    example: 'basic_image_key_01',
-    description: '방장 프로필 이미지 키값',
-  })
-  @IsString()
-  @IsNotEmpty()
-  profileImage!: string;
 }

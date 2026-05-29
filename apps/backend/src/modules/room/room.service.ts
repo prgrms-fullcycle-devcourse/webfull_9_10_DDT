@@ -59,8 +59,7 @@ export class RoomService {
     createRoomDto: CreateRoomDto,
     hostId: string,
   ): Promise<CreateRoomResult> {
-    const { title, password, nickname, profileImage } = createRoomDto;
-
+    const { title, password } = createRoomDto;
     const passwordHash = await bcrypt.hash(password, 10);
 
     const room = await this.createRoomWithUniqueCode({
@@ -70,30 +69,11 @@ export class RoomService {
       phase: 'lobby',
     });
 
-    await this.prismaService.roomMember.create({
-      data: {
-        roomCode: room.code,
-        userId: hostId,
-        nickname,
-        isHost: true,
-        isLoggedIn: true,
-        profileImage,
-      },
-    });
-
     const roomState: RoomState = {
       roomCode: room.code,
       hostId,
       phase: 'lobby',
-      members: {
-        [hostId]: {
-          nickname,
-          isLoggedIn: true,
-          isHost: true,
-          connected: false,
-          profileImage,
-        },
-      },
+      members: {},
     };
 
     await this.redisService.instance.set(
@@ -185,6 +165,7 @@ export class RoomService {
         code: true,
         passwordHash: true,
         phase: true,
+        hostId: true,
         _count: { select: { roomMembers: true } },
       },
     });
@@ -229,6 +210,7 @@ export class RoomService {
     if (!isReturning && room._count.roomMembers >= 10) {
       throw new ConflictException('방이 가득 찼습니다.');
     }
+    const isHostUser = userId === room.hostId;
 
     if (userId) {
       await this.prismaService.roomMember.upsert({
@@ -241,7 +223,7 @@ export class RoomService {
           roomCode: room.code,
           userId,
           nickname,
-          isHost: false,
+          isHost: isHostUser,
           isLoggedIn: true,
           profileImage,
         },
@@ -256,7 +238,7 @@ export class RoomService {
           state.members[userId] = {
             nickname,
             isLoggedIn: true,
-            isHost: false,
+            isHost: isHostUser,
             connected: false,
             profileImage,
           };
