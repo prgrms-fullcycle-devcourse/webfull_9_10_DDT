@@ -24,7 +24,7 @@ import { AlertCircle, Plus, Trash2, User } from 'lucide-react';
 import { MobileLayout } from '../layout/mobileLayout';
 import { BackButton } from '../layout/BackButton';
 import { HeaderTitle } from '../layout/HeaderTitle';
-import EditPermissionToggle from './ EditPermissionToggle';
+import EditPermissionToggle from './EditPermissionToggle';
 
 interface FieldOwner {
   userId: string;
@@ -159,7 +159,7 @@ const ContractForm = ({
                 </Badge>
               </div>
               <CardDescription>
-                방 ID: {roomId} - 함께 규칙을 정하고 서명하세요.
+                방 ID: {roomCode} - 함께 규칙을 정하고 서명하세요.
               </CardDescription>
             </CardHeader>
 

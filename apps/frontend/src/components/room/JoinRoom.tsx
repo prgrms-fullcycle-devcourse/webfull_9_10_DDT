@@ -17,29 +17,24 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useMutation } from '@tanstack/react-query';
+import { getRoomApi } from '@/api/generated/room-api/room-api';
+import { toast } from 'sonner';
 
-const PROFILE_IMAGES = [
-  '/avatars/bear.png',
-  '/avatars/cat.png',
-  '/avatars/crocodile.png',
-  '/avatars/fox.png',
-  '/avatars/hedgehog.png',
-  '/avatars/monkey.png',
-  '/avatars/penguin.png',
-  '/avatars/pig.png',
-  '/avatars/rabbit.png',
-  '/avatars/shiba.png',
+const PROFILE_OPTIONS = [
+  { key: 'basic_image_key_01', src: '/avatars/bear.png' },
+  { key: 'basic_image_key_02', src: '/avatars/cat.png' },
+  { key: 'basic_image_key_03', src: '/avatars/crocodile.png' },
+  { key: 'basic_image_key_04', src: '/avatars/fox.png' },
+  { key: 'basic_image_key_05', src: '/avatars/hedgehog.png' },
+  { key: 'basic_image_key_06', src: '/avatars/monkey.png' },
+  { key: 'basic_image_key_07', src: '/avatars/penguin.png' },
+  { key: 'basic_image_key_08', src: '/avatars/pig.png' },
+  { key: 'basic_image_key_09', src: '/avatars/rabbit.png' },
+  { key: 'basic_image_key_10', src: '/avatars/shiba.png' },
 ];
 
-interface JoinRoomProps {
-  onEnter?: (data: {
-    nickname: string;
-    profileIndex: number;
-    password: string;
-  }) => void;
-}
-
-export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
+export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
   const code = params.code as string;
@@ -49,20 +44,50 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
   const [selectedProfile, setSelectedProfile] = useState(0);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogDismissed, setDialogDismissed] = useState(false);
+
+  const [isHost, setIsHost] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     checkLoginStatus();
   }, [checkLoginStatus]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsHost(sessionStorage.getItem(`isHost:${code}`) === 'true');
+    setIsHydrated(true);
+  }, [code]);
+
+  const isValid =
+    nickname.trim().length > 0 &&
+    isHydrated &&
+    (isHost || (password.length >= 4 && password.length <= 20));
+
   const handleGoogleLogin = () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
     window.open(
       `${apiUrl}/auth/google`,
       'Google Login',
-      'width=500,height=600,left=200,top=200',
+      'width=500,height=600',
     );
+
+    const handler = async (event: MessageEvent) => {
+      if (event.origin !== apiUrl) return;
+      if (event.data?.type !== 'OAUTH_SUCCESS') return;
+
+      window.removeEventListener('message', handler);
+
+      if (event.data.token) {
+        document.cookie = `access_token=${event.data.token}; path=/; max-age=86400`;
+      }
+
+      await useAuthStore.getState().fetchMe(); // loadMe로 이름 바꿨으면 그쪽
+      setDialogDismissed(true);
+    };
+
+    window.addEventListener('message', handler);
   };
 
   const handleLogout = async () => {
@@ -75,18 +100,37 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
     logout();
   };
 
-  const isValid =
-    nickname.trim().length > 0 && password.length >= 4 && password.length <= 12;
+  const joinMutation = useMutation({
+    mutationFn: async (input: {
+      password: string;
+      nickname: string;
+      profileImage: string;
+    }) => {
+      const res = await getRoomApi().roomControllerJoinById(code, input);
+      return res.data as { id: string; isReturning: boolean };
+    },
+    onSuccess: () => {
+      sessionStorage.removeItem(`isHost:${code}`);
+      sessionStorage.removeItem(`hostPassword:${code}`);
+      router.push(`/room/${code}/contract`);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : '입장 실패');
+    },
+  });
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!isValid) return;
-    setIsSubmitting(true);
-    try {
-      await onEnter?.({ nickname, profileIndex: selectedProfile, password });
-      router.push(`/room/${code}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+
+    const submitPassword = isHost
+      ? (sessionStorage.getItem(`hostPassword:${code}`) ?? '')
+      : password;
+
+    joinMutation.mutate({
+      password: submitPassword,
+      nickname,
+      profileImage: PROFILE_OPTIONS[selectedProfile].key,
+    });
   };
 
   return (
@@ -143,7 +187,7 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
         }
         bottomButton={
           <Button
-            disabled={!isValid || isSubmitting}
+            disabled={!isValid || joinMutation.isPending}
             onClick={handleSubmit}
             style={{
               background: isValid
@@ -153,7 +197,7 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
             }}
             className='w-full h-14 rounded-[24px] text-base font-bold text-white hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
-            {isSubmitting ? '입장 중...' : '입장하기'}
+            {joinMutation.isPending ? '입장 중...' : '입장하기'}
           </Button>
         }
       >
@@ -182,7 +226,7 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
               프로필 이미지
             </Label>
             <div className='grid grid-cols-5 gap-3'>
-              {PROFILE_IMAGES.map((src, index) => (
+              {PROFILE_OPTIONS.map((opt, index) => (
                 <button
                   key={index}
                   type='button'
@@ -194,7 +238,7 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
                   }}
                 >
                   <img
-                    src={src}
+                    src={opt.src}
                     alt={`프로필 ${index + 1}`}
                     className='w-full h-full object-cover rounded-full'
                     onError={(e) => {
@@ -221,33 +265,35 @@ export const JoinRoom = ({ onEnter }: JoinRoomProps) => {
           </div>
 
           {/* 비밀번호 */}
-          <div className='flex flex-col gap-2'>
-            <Label className='text-[15px] font-bold text-white/85'>
-              방 비밀번호
-            </Label>
-            <div className='relative flex items-center'>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder='비밀번호를 입력해주세요'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 pr-10 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
-              />
-              <Button
-                type='button'
-                variant='ghost'
-                size='icon'
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label='비밀번호 표시'
-                className='absolute right-1 text-[#6B7280] hover:text-white/75 hover:bg-transparent'
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </Button>
+          {!isHost && (
+            <div className='flex flex-col gap-2'>
+              <Label className='text-[15px] font-bold text-white/85'>
+                방 비밀번호
+              </Label>
+              <div className='relative flex items-center'>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder='비밀번호를 입력해주세요'
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 pr-10 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+                />
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label='비밀번호 표시'
+                  className='absolute right-1 text-[#6B7280] hover:text-white/75 hover:bg-transparent'
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </Button>
+              </div>
+              <span className='text-xs text-[#6B7280] pl-0.5'>
+                · 비밀번호는 4~12자이어야 합니다.
+              </span>
             </div>
-            <span className='text-xs text-[#6B7280] pl-0.5'>
-              · 비밀번호는 4~12자이어야 합니다.
-            </span>
-          </div>
+          )}
         </div>
       </MobileLayout>
     </>

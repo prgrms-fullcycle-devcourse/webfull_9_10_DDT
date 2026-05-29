@@ -13,13 +13,13 @@ import { io, Socket } from 'socket.io-client';
 const SocketContext = createContext<Socket | null>(null);
 
 interface SocketProviderProps {
-  roomId: string;
+  roomCode: string;
   token: string;
   children: ReactNode;
 }
 
 export function SocketProvider({
-  roomId,
+  roomCode,
   token,
   children,
 }: SocketProviderProps) {
@@ -31,9 +31,9 @@ export function SocketProvider({
       return;
     }
 
-    const s = io(process.env.NEXT_PUBLIC_API_URL ?? 'https://localhost:8080', {
+    const s = io(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080', {
       auth: { token },
-      query: { roomId },
+      query: { roomCode },
       transports: ['websocket'],
     });
 
@@ -61,7 +61,7 @@ export function SocketProvider({
       s.disconnect();
       socketRef.current = null;
     };
-  }, [roomId, token]);
+  }, [roomCode, token]);
 
   return (
     <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>

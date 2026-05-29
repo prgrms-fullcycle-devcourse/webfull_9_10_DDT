@@ -19,14 +19,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { getRoomApi } from '@/api/generated/room-api/room-api';
+import { useMutation } from '@tanstack/react-query';
 
 type Step = 'form' | 'complete';
-
-interface CreateRoomProps {
-  onBack?: () => void;
-  onEnter?: (roomCode: string) => void;
-}
-
 /* ── 완료 화면 ── */
 function CreateRoomComplete({
   roomName,
@@ -110,7 +106,7 @@ function CreateRoomComplete({
 }
 
 /* ── 메인 컴포넌트 ── */
-export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
+export const CreateRoom = () => {
   const router = useRouter();
 
   const onBack = () => {
@@ -121,55 +117,30 @@ export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
   const [password, setPassword] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const [nickname, setNickname] = useState('');
-  const [profileImage, setProfileImage] = useState('');
 
   const isValid =
     roomName.trim().length > 0 && password.length >= 4 && password.length <= 12;
 
-  const handleSubmit = async () => {
-    if (!isValid) return;
-    if (!document.cookie.includes('access_token=')) {
-      toast.error('로그인이 필요합니다.');
-      return;
-    }
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`${apiUrl}/rooms`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: roomName,
-          password,
-          nickname,
-          profileImage,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message ?? '방 생성에 실패했습니다.');
-      }
-
-      const data: { code: string; url: string } = await response.json();
+  const createRoomMutation = useMutation({
+    mutationFn: async (input: { title: string; password: string }) => {
+      const res = await getRoomApi().roomControllerCreate(input);
+      return res.data as { code: string; url: string };
+    },
+    onSuccess: (data) => {
       setRoomCode(data.code);
+      sessionStorage.setItem(`isHost:${data.code}`, 'true');
+      sessionStorage.setItem(`hostPassword:${data.code}`, password);
       setStep('complete');
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : '방 생성에 실패했습니다.',
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : '방 생성 실패');
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    createRoomMutation.mutate({ title: roomName, password });
   };
 
   const inviteLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/room/${roomCode}`;
@@ -203,13 +174,13 @@ export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
                 boxShadow: '0 0 40px rgba(124,58,237,0.45)',
               }}
               className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98]'
-              onClick={() => onEnter?.(roomCode)}
+              onClick={() => router.push(`/room/${roomCode}`)}
             >
               입장하기
             </Button>
           ) : (
             <Button
-              disabled={!isValid || isSubmitting}
+              disabled={!isValid || createRoomMutation.isPending}
               onClick={handleSubmit}
               style={{
                 background: isValid
@@ -221,7 +192,7 @@ export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
               }}
               className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
             >
-              {isSubmitting ? '생성 중...' : '방 만들기'}
+              {createRoomMutation.isPending ? '생성 중...' : '방 만들기'}
             </Button>
           )
         }
@@ -292,38 +263,6 @@ export const CreateRoom = ({ onEnter }: CreateRoomProps) => {
                 </div>
                 <span className='text-xs text-[#6B7280] pl-0.5'>
                   · 비밀번호는 4~12자이어야 합니다.
-                </span>
-              </div>
-              <div className='flex flex-col gap-2'>
-                <Label className='text-[15px] font-bold text-white/85'>
-                  닉네임
-                </Label>
-                <Input
-                  type='text'
-                  placeholder='닉네임을 입력해주세요'
-                  maxLength={20}
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
-                />
-                <span className='text-xs text-[#6B7280] text-right'>
-                  {roomName.length}/20
-                </span>
-              </div>
-              <div className='flex flex-col gap-2'>
-                <Label className='text-[15px] font-bold text-white/85'>
-                  프로필 이미지
-                </Label>
-                <Input
-                  type='text'
-                  placeholder='방 이름을 입력해주세요'
-                  maxLength={20}
-                  value={profileImage}
-                  onChange={(e) => setProfileImage(e.target.value)}
-                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
-                />
-                <span className='text-xs text-[#6B7280] text-right'>
-                  {roomName.length}/20
                 </span>
               </div>
             </div>
