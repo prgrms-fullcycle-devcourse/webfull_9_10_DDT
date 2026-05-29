@@ -20,7 +20,7 @@ export class RuleService {
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (room.hostId !== userId)
       throw new ForbiddenException('방장 권한이 필요합니다.');
-    
+
     return room;
   }
 

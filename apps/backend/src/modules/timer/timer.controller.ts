@@ -118,10 +118,11 @@ export class TimerController {
     return { message: '세션이 강제 시작되었습니다.', data };
   }
 
-@ApiBearerAuth()
+  @ApiBearerAuth()
   @ApiOperation({
     summary: '세션 중도 포기',
-    description: '진행 중인 세션(timer)에서 요청한 사용자 본인의 참여를 중단합니다. 포기 시 본인만 이탈 처리되며, 방의 상태나 다른 참여자의 타이머는 유지됩니다.',
+    description:
+      '진행 중인 세션(timer)에서 요청한 사용자 본인의 참여를 중단합니다. 포기 시 본인만 이탈 처리되며, 방의 상태나 다른 참여자의 타이머는 유지됩니다.',
   })
   @ApiParam({
     name: 'roomCode',
@@ -140,9 +141,15 @@ export class TimerController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: '인증 토큰이 없거나 유효하지 않습니다.' })
+  @ApiResponse({
+    status: 401,
+    description: '인증 토큰이 없거나 유효하지 않습니다.',
+  })
   @ApiResponse({ status: 404, description: '방을 찾을 수 없습니다.' })
-  @ApiResponse({ status: 409, description: '진행 중인 세션이 아니거나 이미 포기한 상태입니다.' })
+  @ApiResponse({
+    status: 409,
+    description: '진행 중인 세션이 아니거나 이미 포기한 상태입니다.',
+  })
   @UseGuards(AuthGuard('jwt'))
   @Post(':roomCode/give-up')
   async giveUp(

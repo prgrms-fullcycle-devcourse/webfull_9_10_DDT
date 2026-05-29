@@ -92,14 +92,15 @@ export class TimerService {
   async giveUp(roomCode: string, userId: string) {
     const isGuest = userId.startsWith('guest_');
     const member = await this.prisma.roomMember.findFirst({
-      where: { 
+      where: {
         roomCode,
-        ...(isGuest ? { guestToken: userId } : { userId })
+        ...(isGuest ? { guestToken: userId } : { userId }),
       },
       include: { room: true },
     });
 
-    if (!member) throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
+    if (!member)
+      throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
     if (member.room.phase !== 'timer')
       throw new ConflictException('집중 진행 중에만 중도 포기할 수 있습니다.');
     if (member.gaveUpAt)

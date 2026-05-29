@@ -35,7 +35,8 @@ export class RuleController {
 
   @ApiOperation({
     summary: '계약서 생성 및 할당 (방장 전용)',
-    description: '방장이 설정한 규칙(목표 시간, 휴식 시간, 반복 횟수, 벌칙 등)을 바탕으로 방의 계약서를 확정하고 할당합니다.',
+    description:
+      '방장이 설정한 규칙(목표 시간, 휴식 시간, 반복 횟수, 벌칙 등)을 바탕으로 방의 계약서를 확정하고 할당합니다.',
   })
   @ApiParam({
     name: 'roomCode',
@@ -44,7 +45,10 @@ export class RuleController {
   })
   @ApiBody({ type: CreateRoomRuleDto })
   @ApiResponse({ status: 201, description: '계약서 확정 성공' })
-  @ApiResponse({ status: 400, description: '벌칙 티어 구간이 연속적이지 않습니다.' })
+  @ApiResponse({
+    status: 400,
+    description: '벌칙 티어 구간이 연속적이지 않습니다.',
+  })
   @ApiResponse({ status: 403, description: '방장 권한이 필요합니다.' })
   @ApiResponse({ status: 404, description: '방을 찾을 수 없습니다.' })
   @Post('rooms/:roomCode/rule')
@@ -127,7 +131,8 @@ export class RuleController {
 
   @ApiOperation({
     summary: '저장된 계약서 삭제',
-    description: '사용자가 개인 보관함에 저장해둔 특정 계약서 템플릿을 삭제합니다. 단, 현재 진행 중인 방에서 사용 중인 템플릿은 삭제할 수 없습니다.',
+    description:
+      '사용자가 개인 보관함에 저장해둔 특정 계약서 템플릿을 삭제합니다. 단, 현재 진행 중인 방에서 사용 중인 템플릿은 삭제할 수 없습니다.',
   })
   @ApiParam({
     name: 'ruleId',
