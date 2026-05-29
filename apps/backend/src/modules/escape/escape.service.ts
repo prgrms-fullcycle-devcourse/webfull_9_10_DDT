@@ -19,14 +19,16 @@ export class EscapeService {
   }
 
   async logEscapeStart(roomCode: string, identifier: string) {
-    const room = await this.prisma.room.findUnique({ where: { code: roomCode } });
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+    });
     if (!room || room.phase !== 'timer') return;
 
     const isGuest = identifier.startsWith('guest_');
     const member = await this.prisma.roomMember.findFirst({
-      where: { 
-        roomCode, 
-        ...(isGuest ? { guestToken: identifier } : { userId: identifier })
+      where: {
+        roomCode,
+        ...(isGuest ? { guestToken: identifier } : { userId: identifier }),
       },
     });
 
@@ -49,9 +51,9 @@ export class EscapeService {
   async logEscapeEnd(roomCode: string, identifier: string) {
     const isGuest = identifier.startsWith('guest_');
     const member = await this.prisma.roomMember.findFirst({
-      where: { 
-        roomCode, 
-        ...(isGuest ? { guestToken: identifier } : { userId: identifier })
+      where: {
+        roomCode,
+        ...(isGuest ? { guestToken: identifier } : { userId: identifier }),
       },
     });
 
@@ -64,7 +66,8 @@ export class EscapeService {
 
     if (activeEscape) {
       const returnedAt = new Date();
-      const durationMs = returnedAt.getTime() - activeEscape.escapedAt.getTime();
+      const durationMs =
+        returnedAt.getTime() - activeEscape.escapedAt.getTime();
 
       await this.prisma.$transaction([
         this.prisma.escapeLog.update({

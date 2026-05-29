@@ -44,7 +44,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly roomService: RoomService,
-    private readonly escapeService: EscapeService, 
+    private readonly escapeService: EscapeService,
   ) {}
   @WebSocketServer()
   server!: Server;
