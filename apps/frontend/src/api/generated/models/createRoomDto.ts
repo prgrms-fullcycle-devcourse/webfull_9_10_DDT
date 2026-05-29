@@ -11,8 +11,4 @@ export interface CreateRoomDto {
   title: string;
   /** 방 비밀번호 (4~20자) */
   password: string;
-  /** 방장이 방에서 사용할 닉네임 */
-  nickname: string;
-  /** 방장 프로필 이미지 키값 */
-  profileImage: string;
 }

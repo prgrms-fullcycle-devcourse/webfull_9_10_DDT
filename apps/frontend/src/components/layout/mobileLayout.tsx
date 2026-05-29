@@ -6,7 +6,11 @@ interface MobileLayoutProps {
   bottomButton?: ReactNode;
 }
 
-export const MobileLayout = ({ header, children, bottomButton }: MobileLayoutProps) => {
+export const MobileLayout = ({
+  header,
+  children,
+  bottomButton,
+}: MobileLayoutProps) => {
   return (
     <div className='relative flex min-h-screen flex-col'>
       <header className='fixed top-0 left-1/2 z-50 flex h-[58px] w-full max-w-[390px] -translate-x-1/2 items-center border-b border-border bg-background px-4'>
