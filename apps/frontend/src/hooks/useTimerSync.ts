@@ -16,15 +16,20 @@ export function useTimerSync(roomCode: string, identifier: string) {
   const [currentSession, setCurrentSession] = useState(1);
   const socketRef = useRef<Socket | null>(null);
 
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
   useEffect(() => {
     localStorage.setItem('ddt_active_session', JSON.stringify({ roomCode, identifier }));
 
-    socketRef.current = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080', {
+    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080', {
       query: { roomCode, token: identifier },
       transports: ['websocket'],
     });
 
-    const socket = socketRef.current;
+    socketRef.current = socket;
 
     const heartbeatTimer = setInterval(() => {
       socket.emit('heartbeat', { roomCode, identifier });
@@ -38,14 +43,14 @@ export function useTimerSync(roomCode: string, identifier: string) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        if (mode === 'FOCUS') {
+        if (modeRef.current === 'FOCUS') {
           socket.emit('escape:start', { roomCode, identifier });
           toast.error('화면을 이탈했습니다! 벌칙 시간이 누적됩니다.', { duration: 3000 });
         }
       } else {
-        if (mode === 'FOCUS') {
+        if (modeRef.current === 'FOCUS') {
           socket.emit('escape:end', { roomCode, identifier });
-          socket.emit('request:sync', { roomCode });
+          socket.emit('request:sync', { roomCode }); 
         }
       }
     };
@@ -56,8 +61,9 @@ export function useTimerSync(roomCode: string, identifier: string) {
       clearInterval(heartbeatTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [roomCode, identifier, mode]);
+  }, [roomCode, identifier]);
 
   useEffect(() => {
     if (mode === 'BREAK' && timeLeft === 60) {
@@ -70,5 +76,5 @@ export function useTimerSync(roomCode: string, identifier: string) {
     }
   }, [mode, timeLeft]);
 
-  return { timeLeft, mode, currentSession, socket: socketRef.current };
+  return { timeLeft, mode, currentSession };
 }
