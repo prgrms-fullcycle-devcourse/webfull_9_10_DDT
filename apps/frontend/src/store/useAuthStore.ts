@@ -1,6 +1,14 @@
 // src/store/useAuthStore.ts
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
+import { getToken } from '@/lib/getToken';
+import { jwtDecode } from 'jwt-decode';
 import { create } from 'zustand';
+
+interface JwtPayload {
+  sub: string;
+  role: string;
+  exp?: string;
+}
 
 interface Me {
   id: string;
@@ -19,23 +27,58 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   isLoggedIn: false,
   me: null,
 
   setMe: (me) => set({ me, isLoggedIn: true }),
 
   fetchMe: async () => {
-    const hasToken = document.cookie.includes('access_token=');
-    if (!hasToken) {
+    const token = getToken();
+
+    if (!token) {
       set({ isLoggedIn: false, me: null });
+      return;
+    }
+
+    let payload: JwtPayload;
+    try {
+      payload = jwtDecode<JwtPayload>(token);
+    } catch {
+      set({ isLoggedIn: false, me: null });
+      return;
+    }
+
+    if (payload.role === 'guest') {
+      set({
+        me: {
+          id: payload.sub,
+          nickname: '게스트',
+          profileImage: 'basic_image_key_01',
+          role: 'guest',
+        },
+        isLoggedIn: true,
+      });
       return;
     }
 
     try {
       const res = await getUsers().usersControllerGetMe();
-      const me = res.data as Me;
-      set({ me, isLoggedIn: true });
+      const data = res.data as {
+        userId: string;
+        nickname: string;
+        email: string;
+        profileImage: string;
+      };
+      set({
+        me: {
+          id: data.userId,
+          nickname: data.nickname,
+          profileImage: data.profileImage,
+          role: 'user',
+        },
+        isLoggedIn: true,
+      });
     } catch {
       // 토큰 만료 등
       set({ isLoggedIn: false, me: null });

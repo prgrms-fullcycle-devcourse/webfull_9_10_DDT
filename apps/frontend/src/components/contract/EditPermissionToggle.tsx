@@ -1,10 +1,30 @@
 'use client';
-import { useState } from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Switch } from '../ui/switch';
+import { useSocket } from '@/contexts/SocketContext';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useRoomStore } from '@/store/useRoomStore';
 
 const EditPermissionToggle = () => {
-  const [hostOnly, setHostOnly] = useState(false);
+  const socket = useSocket();
+  const me = useAuthStore((state) => state.me);
+  const members = useRoomStore((state) => state.members);
+  const hostId = useRoomStore((state) => state.hostId);
+
+  const isHost = me?.id === hostId;
+
+  const hostOnly = Object.values(members).some(
+    (m) => !m.isHost && m.canEdit === false,
+  );
+
+  const handleToggle = (checked: boolean) => {
+    if (!socket) {
+      return;
+    }
+    if (!isHost) return;
+
+    socket.emit('edit:all', { canEdit: !checked });
+  };
   return (
     <Card>
       <CardHeader>
@@ -12,8 +32,9 @@ const EditPermissionToggle = () => {
           <CardTitle>계약서 편집 권한</CardTitle>
           <Switch
             checked={hostOnly}
-            onCheckedChange={setHostOnly}
+            onCheckedChange={handleToggle}
             className='data-[state=unchecked]:bg-muted'
+            disabled={!isHost}
           />
         </div>
         <CardDescription>

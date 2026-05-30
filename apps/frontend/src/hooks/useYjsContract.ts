@@ -60,6 +60,7 @@ function generateColor(userId: string): string {
 export function useYjsContract(
   roomCode: string,
   enabled: boolean,
+  isHost: boolean,
 ): UseContractYjsReturn {
   const docRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<typeof WebsocketProvider | null>(null);
@@ -116,9 +117,23 @@ export function useYjsContract(
     provider.on('status', ({ status }: { status: string }) => {
       console.log('연결 상태:', status);
       setIsConnected(status === 'connected');
-      if (status === 'disconnected') {
-        console.log('연결 실패, 재연결을 중단합니다.');
-        provider.destroy();
+    });
+
+    provider.on('sync', (isSynced: boolean) => {
+      if (!isSynced) return;
+
+      const yjsTiers = doc.getArray<Tier>('tiers');
+      if (yjsTiers.length === 0 && isHost) {
+        doc.transact(() => {
+          yjsTiers.push([
+            {
+              tier: 1,
+              minPct: 0,
+              maxPct: null,
+              count: 0,
+            },
+          ]);
+        });
       }
     });
 
@@ -146,7 +161,7 @@ export function useYjsContract(
       providerRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled]);
+  }, [roomCode, enabled, isHost]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {
@@ -233,6 +248,9 @@ export function useYjsContract(
   }, []);
 
   const removeTier = useCallback((index: number) => {
+    if (index === 0) {
+      return;
+    }
     const doc = docRef.current;
     if (!doc) {
       return;

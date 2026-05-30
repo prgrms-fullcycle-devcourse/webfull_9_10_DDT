@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import './globals.css';
 import { SessionRestorer } from '@/components/room/SessionRestorer';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { AuthInitializer } from '@/components/auth/AuthInitializer';
 
 const notoSansKR = Noto_Sans_KR({
   variable: '--font-noto-sans-kr',
@@ -27,12 +28,14 @@ export default function RootLayout({
       className={`${notoSansKR.variable} h-full antialiased dark`}
     >
       <body className='min-h-full flex justify-center bg-black/80'>
-        <SessionRestorer />
         <QueryProvider>
-          <div className='relative w-full max-w-[390px] min-h-screen flex flex-col bg-background sm:border-x sm:border-border sm:shadow-[0_0_40px_rgba(0,0,0,0.6)]'>
-            {children}
-          </div>
-          <Toaster position='top-center' richColors />
+          <AuthInitializer>
+            <SessionRestorer />
+            <div className='relative w-full max-w-[390px] min-h-screen flex flex-col bg-background sm:border-x sm:border-border sm:shadow-[0_0_40px_rgba(0,0,0,0.6)]'>
+              {children}
+            </div>
+            <Toaster position='top-center' richColors />
+          </AuthInitializer>
         </QueryProvider>
       </body>
     </html>

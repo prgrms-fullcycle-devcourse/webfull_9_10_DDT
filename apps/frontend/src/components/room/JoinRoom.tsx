@@ -22,6 +22,7 @@ import { useMutation } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
 import { PROFILE_IMAGE_OPTIONS } from '@/lib/profileImage';
+import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 
 export const JoinRoom = () => {
   const router = useRouter();
@@ -98,6 +99,21 @@ export const JoinRoom = () => {
     },
   });
 
+  const handleGuestStart = async () => {
+    try {
+      const res = await getAuthApi().authControllerGuestLogin();
+      const data = res.data as { accessToken: string; guestToken: string };
+
+      document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400`;
+
+      await useAuthStore.getState().fetchMe();
+
+      setDialogDismissed(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '게스트 시작 실패');
+    }
+  };
+
   const handleSubmit = () => {
     if (!isValid) return;
 
@@ -128,7 +144,7 @@ export const JoinRoom = () => {
             <Button
               variant='outline'
               className='flex-1 h-12 rounded-[14px] border-white/[0.18] bg-[#111827] text-white hover:bg-white/5'
-              onClick={() => setDialogDismissed(true)}
+              onClick={handleGuestStart}
             >
               게스트로 시작
             </Button>

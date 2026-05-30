@@ -109,16 +109,11 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const updated = await this.roomService.transitionToContract(roomCode);
 
-    const { nickname, profileImage, isHost } =
-      roomState.members[client.data.userId];
-
     client.emit('room:state', updated ?? roomState);
 
     client.to(roomCode).emit('member:joined', {
       userId: client.data.userId,
-      nickname,
-      profileImage,
-      isHost,
+      ...roomState.members[client.data.userId],
     });
   }
 
@@ -187,7 +182,14 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private async handleRoomCleanup(roomCode: string): Promise<void> {
     const currentCount = await this.roomService.countConnectedMembers(roomCode);
     if (currentCount === 0) {
+      this.server.to(roomCode).emit('room:closed', {
+        reason: '회원이 나가서 방이 종료되었습니다.',
+      });
       await this.roomService.deleteRoom(roomCode);
+
+      setTimeout(() => {
+        this.server.in(roomCode).disconnectSockets();
+      }, 100);
     }
   }
 

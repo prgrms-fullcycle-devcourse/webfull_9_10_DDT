@@ -4,6 +4,7 @@ import { Server } from 'http';
 import { IncomingMessage } from 'http';
 import { RedisService } from '../../../common/redis/redis.service';
 import { setupYjsWSConnection } from './yjs.utils';
+import { Duplex } from 'stream';
 
 interface RoomState {
   phase: string;
@@ -19,13 +20,25 @@ export class YjsGateway implements OnModuleDestroy {
 
   init(httpServer: Server) {
     this.wss = new WebSocketServer({
-      server: httpServer,
-      path: '/yjs',
+      noServer: true,
     });
 
     this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       void this.handleConnection(ws, req);
     });
+
+    httpServer.on(
+      'upgrade',
+      (request: IncomingMessage, socket: Duplex, head: Buffer) => {
+        const url = new URL(request.url ?? '', 'http://localhost');
+
+        if (url.pathname === '/yjs') {
+          this.wss!.handleUpgrade(request, socket, head, (ws) => {
+            this.wss!.emit('connection', ws, request);
+          });
+        }
+      },
+    );
   }
 
   private async handleConnection(

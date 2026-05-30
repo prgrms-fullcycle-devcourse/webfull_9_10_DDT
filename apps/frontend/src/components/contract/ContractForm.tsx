@@ -25,6 +25,9 @@ import { MobileLayout } from '../layout/mobileLayout';
 import { BackButton } from '../layout/BackButton';
 import { HeaderTitle } from '../layout/HeaderTitle';
 import EditPermissionToggle from './EditPermissionToggle';
+import { useRoom } from '@/contexts/RoomContext';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useRoomStore } from '@/store/useRoomStore';
 
 interface FieldOwner {
   userId: string;
@@ -36,13 +39,6 @@ interface ContractFormValues {
   focusMin: number;
   breakMin: number;
   rounds: number;
-}
-
-interface ContractFormProps {
-  roomCode: string;
-  userId: string;
-  nickname: string;
-  canEdit: boolean;
 }
 
 interface OwnerIndicatorProps {
@@ -66,12 +62,14 @@ const OwnerIndicator = ({ fieldKey, fieldOwners }: OwnerIndicatorProps) => {
   );
 };
 
-const ContractForm = ({
-  roomCode,
-  userId,
-  nickname,
-  canEdit,
-}: ContractFormProps) => {
+const ContractForm = () => {
+  const room = useRoom();
+  const me = useAuthStore((state) => state.me);
+  const members = useRoomStore((state) => state.members);
+  const hostId = useRoomStore((s) => s.hostId);
+
+  const isHost = me?.id === hostId;
+
   const {
     fields,
     tiers,
@@ -87,16 +85,11 @@ const ContractForm = ({
     addPenalty,
     updatePenalty,
     removePenalty,
-  } = useYjsContract(roomCode, true);
+  } = useYjsContract(room.code, !!me, isHost);
 
   const [arrayError, setArrayError] = useState<string | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<ContractFormValues>({
+  const { register, handleSubmit, setValue } = useForm<ContractFormValues>({
     defaultValues: { focusMin: 0, breakMin: 0, rounds: 0 },
   });
 
@@ -122,6 +115,14 @@ const ContractForm = ({
     console.log('서명 완료:', data, tiers, penalties);
   };
 
+  if (!me) {
+    return null;
+  }
+
+  const myMember = members[me!.id];
+  const canEdit = myMember?.canEdit ?? false;
+  const myNickname = myMember?.nickname ?? me.nickname;
+
   return (
     <MobileLayout
       header={
@@ -146,7 +147,7 @@ const ContractForm = ({
       }
     >
       <div className='max-w-2xl mx-auto p-4'>
-        <EditPermissionToggle />
+        {isHost && <EditPermissionToggle />}
         <Card>
           <form onSubmit={handleSubmit(onSubmit)}>
             <CardHeader>
@@ -159,7 +160,7 @@ const ContractForm = ({
                 </Badge>
               </div>
               <CardDescription>
-                방 ID: {roomCode} - 함께 규칙을 정하고 서명하세요.
+                방 코드: {room.code} - 함께 규칙을 정하고 서명하세요.
               </CardDescription>
             </CardHeader>
 
@@ -194,9 +195,9 @@ const ContractForm = ({
                     disabled={
                       !canEdit ||
                       (!!fieldOwners['focusMin'] &&
-                        fieldOwners['focusMin'].userId !== userId)
+                        fieldOwners['focusMin'].userId !== me.id)
                     }
-                    onFocus={() => handleFocus('focusMin', userId, nickname)}
+                    onFocus={() => handleFocus('focusMin', me.id, myNickname)}
                     onBlur={handleBlur}
                     onChange={(e) => {
                       const val = Number(e.target.value);
@@ -227,9 +228,9 @@ const ContractForm = ({
                     disabled={
                       !canEdit ||
                       (!!fieldOwners['breakMin'] &&
-                        fieldOwners['breakMin'].userId !== userId)
+                        fieldOwners['breakMin'].userId !== me.id)
                     }
-                    onFocus={() => handleFocus('breakMin', userId, nickname)}
+                    onFocus={() => handleFocus('breakMin', me.id, myNickname)}
                     onBlur={handleBlur}
                     onChange={(e) => {
                       const val = Number(e.target.value);
@@ -260,9 +261,9 @@ const ContractForm = ({
                     disabled={
                       !canEdit ||
                       (!!fieldOwners['rounds'] &&
-                        fieldOwners['rounds'].userId !== userId)
+                        fieldOwners['rounds'].userId !== me.id)
                     }
-                    onFocus={() => handleFocus('rounds', userId, nickname)}
+                    onFocus={() => handleFocus('rounds', me.id, myNickname)}
                     onBlur={handleBlur}
                     onChange={(e) => {
                       const val = Number(e.target.value);
@@ -385,11 +386,11 @@ const ContractForm = ({
                             disabled={
                               !canEdit ||
                               (!!fieldOwners[penaltyKey] &&
-                                fieldOwners[penaltyKey].userId !== userId)
+                                fieldOwners[penaltyKey].userId !== me.id)
                             }
                             placeholder='예: 팔굽혀펴기 10회'
                             onFocus={() =>
-                              handleFocus(penaltyKey, userId, nickname)
+                              handleFocus(penaltyKey, me.id, myNickname)
                             }
                             onBlur={handleBlur}
                             onChange={(e) => updatePenalty(i, e.target.value)}

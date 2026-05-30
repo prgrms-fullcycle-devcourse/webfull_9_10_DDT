@@ -240,8 +240,9 @@ export class RoomService {
             nickname,
             isLoggedIn: true,
             isHost: isHostUser,
-            connected: false,
+            connected: true,
             profileImage,
+            canEdit: isHostUser,
           };
           await this.redisService.instance.set(
             `room:state:${room.code}`,
@@ -280,8 +281,10 @@ export class RoomService {
             nickname,
             isLoggedIn: false,
             isHost: false,
-            connected: false,
+            connected: true,
             profileImage,
+            isSigned: false,
+            canEdit: false,
           };
           await this.redisService.instance.set(
             `room:state:${room.code}`,

@@ -1,5 +1,5 @@
 'use client';
-
+/*
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation'; 
 import { Button } from '@/components/ui/button';
@@ -14,15 +14,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useTimerSync } from '@/hooks/useTimerSync'; 
+// import { useTimerSync } from '@/hooks/useTimerSync'; 
 
 const API_DATA = { //api로 교체
   focusDuration: 5,
   breakDuration: 3,
   totalSessions: 4,
 };
+*/
 
 export default function ImprisonmentPage() {
+  /*
   const router = useRouter();
   const params = useParams();
   
@@ -161,4 +163,6 @@ export default function ImprisonmentPage() {
       </MobileLayout>
     </div>
   );
+  */
+  return <div>ImprisonmentPage</div>;
 }
