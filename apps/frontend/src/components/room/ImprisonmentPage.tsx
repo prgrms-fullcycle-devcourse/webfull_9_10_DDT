@@ -1,7 +1,7 @@
 'use client';
-
+/*
 import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation'; 
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
@@ -14,13 +14,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+// import { useTimerSync } from '@/hooks/useTimerSync'; 
 
-const API_DATA = {
-  //api로 교체
+const API_DATA = { //api로 교체
   focusDuration: 5,
   breakDuration: 3,
   totalSessions: 4,
 };
+*/
 
 export default function ImprisonmentPage() {
   /*
@@ -161,5 +162,7 @@ export default function ImprisonmentPage() {
         </div>
       </MobileLayout>
     </div>
-  );    */
+  );
+  */
+  return <div>ImprisonmentPage</div>;
 }
