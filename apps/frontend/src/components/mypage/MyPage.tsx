@@ -7,7 +7,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Clock3 } from 'lucide-react';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
+import { HomeButton } from '@/components/layout/HomeButton';
 import { MobileLayout } from '@/components/layout/mobileLayout';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { MyPageSettings } from '@/components/mypage/MyPageSettings';
 import { MyPageHistoryList, HistoryItem } from '@/components/mypage/MyPageHistoryList';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -53,6 +56,7 @@ export const MyPage = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
@@ -126,7 +130,11 @@ export const MyPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSettingsOpen]);
 
-  const handleLogout = async () => {
+  const openLogoutConfirm = () => {
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const executeLogout = async () => {
     const token = getCookieToken();
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -171,8 +179,10 @@ export const MyPage = () => {
   return (
     <MobileLayout
       header={
-        <div className='flex w-full items-center justify-between gap-4'>
+        <>
+          <HomeButton />
           <HeaderTitle>마이 페이지</HeaderTitle>
+           <div className="flex-1" />
           <MyPageSettings
             ref={settingsRef}
             isOpen={isSettingsOpen}
@@ -180,10 +190,10 @@ export const MyPage = () => {
             onClose={() => setIsSettingsOpen(false)}
             onLogout={() => {
               setIsSettingsOpen(false);
-              void handleLogout();
+              openLogoutConfirm();
             }}
           />
-        </div>
+        </>
       }
     >
       <section className='mb-5 flex items-center gap-4 pt-2'>
@@ -266,6 +276,34 @@ export const MyPage = () => {
           chevronDirection='right'
         />
       </section>
+
+      <Dialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
+        <DialogContent className='bg-[#141A2B] border-white/10 rounded-2xl'>
+          <DialogHeader>
+            <DialogTitle>로그아웃 하시겠어요?</DialogTitle>
+            <DialogDescription className='text-[#D3D3E3]'>로그아웃하면 다시 로그인해야 합니다.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className='flex gap-3 pt-3'>
+            <Button
+              variant='outline'
+              className='flex-1 h-12 rounded-[14px] border-white/[0.18] text-white/80 bg-transparent hover:bg-white/5'
+              onClick={() => setIsLogoutConfirmOpen(false)}
+            >
+              아니요
+            </Button>
+            <Button
+              className='flex-1 h-12 rounded-[14px] font-bold text-white'
+              style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)' }}
+              onClick={async () => {
+                setIsLogoutConfirmOpen(false);
+                await executeLogout();
+              }}
+            >
+              네
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MobileLayout>
   );
 };
