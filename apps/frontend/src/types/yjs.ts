@@ -43,4 +43,19 @@ export interface UseContractYjsReturn {
   removePenalty: (index: number) => void;
   handleFocus: (fieldKey: string, userId: string, nickname: string) => void;
   handleBlur: () => void;
+  applyAll: (data: ApplyData) => void;
+}
+
+export interface ApplyOptions {
+  fields: boolean;
+  tiers: boolean;
+  penalties: boolean;
+  penaltyMode: 'replace' | 'append';
+}
+
+export interface ApplyData {
+  fields?: ContractFields;
+  tiers?: Tier[];
+  penalties?: Penalty[];
+  penaltyMode?: 'replace' | 'append';
 }

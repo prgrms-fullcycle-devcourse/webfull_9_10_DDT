@@ -1,4 +1,4 @@
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   Card,
@@ -73,7 +73,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                         value={p.content}
                         className={cn(
                           fieldOwners[penaltyKey] &&
-                            'outline outline-2 outline-offset-1',
+                            'outline-2 outline-offset-1',
                           'bg-background! h-12 z-0',
                         )}
                         style={{
