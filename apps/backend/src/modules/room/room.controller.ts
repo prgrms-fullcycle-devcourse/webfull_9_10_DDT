@@ -73,6 +73,26 @@ export class RoomController {
     }
     return this.roomService.create(createRoomDto, req.user.id);
   }
+  @ApiBearerAuth()
+    @ApiOperation({
+      summary: '방 퇴장',
+      description: '타이머 시작 전 방에서 퇴장합니다. 방장이 퇴장하면 방이 폐쇄됩니다.',
+    })
+    @ApiParam({ name: 'roomCode', description: '방 코드' })
+    @ApiResponse({ status: 200, description: '퇴장 성공' })
+    @UseGuards(AuthGuard('jwt'))
+    @Post(':roomCode/leave')
+    async leaveRoom(
+      @Param('roomCode') roomCode: string,
+      @Req() req: AuthenticatedRequest,
+    ) {
+      const isGuest = req.user.role === 'guest';
+      const userId = isGuest ? null : req.user.id;
+      const guestToken = isGuest ? req.user.id : null;
+
+      const data = await this.roomService.leaveRoom(roomCode, userId, guestToken);
+      return { message: '방에서 퇴장했습니다.', data };
+    }
 
   @ApiOperation({
     summary: '방 코드로 방 정보 조회',
