@@ -100,7 +100,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               type='number'
               {...register('breakMin', { required: true, min: 1 })}
               className={cn(
-                fieldOwners['breakMin'] && 'outline outline-2 outline-offset-1',
+                fieldOwners['breakMin'] && 'outline-2 outline-offset-1',
                 'bg-background! h-12 w-26 border-white/20',
               )}
               style={{ outlineColor: fieldOwners['breakMin']?.color }}
@@ -134,7 +134,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               type='number'
               {...register('rounds', { required: true, min: 1 })}
               className={cn(
-                fieldOwners['rounds'] && 'outline outline-2 outline-offset-1',
+                fieldOwners['rounds'] && 'outline-2 outline-offset-1',
                 'bg-background! h-12 w-26 border border-white/20',
               )}
               style={{ outlineColor: fieldOwners['rounds']?.color }}
@@ -159,7 +159,6 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
             <Label htmlFor='rounds' className='text-xs'>
               총 예상 시간
             </Label>
-            <OwnerIndicator fieldKey='rounds' fieldOwners={fieldOwners} />
           </div>
           <p className='w-full h-12 text-2xl p-1 items-start justify-center text-primary font-extrabold'>
             {formatTime(totalMin)}

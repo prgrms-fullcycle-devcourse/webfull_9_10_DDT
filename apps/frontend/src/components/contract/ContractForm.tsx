@@ -19,6 +19,7 @@ import TimerSettings from './TimerSettings';
 import TierSettings from './TierSettings';
 import PenaltyList from './PenaltyList';
 import { Separator } from '../ui/separator';
+import { ContractActions } from './ContractActions';
 
 interface ContractFormValues {
   focusMin: number;
@@ -49,6 +50,7 @@ const ContractForm = () => {
     addPenalty,
     updatePenalty,
     removePenalty,
+    applyAll,
   } = useYjsContract(room.code, !!me, isHost);
 
   const [arrayError, setArrayError] = useState<string | null>(null);
@@ -78,11 +80,11 @@ const ContractForm = () => {
   }
 
   const myMember = members[me.id];
-  const canEdit = myMember?.canEdit ?? false;
   const memberList = Object.entries(members);
   const signedCount = memberList.filter(([, m]) => m.isSigned).length;
   const memberCount = memberList.length;
   const allSigned = signedCount === memberCount;
+  const isMeSigned = myMember?.isSigned ?? false;
 
   return (
     <MobileLayout
@@ -91,21 +93,12 @@ const ContractForm = () => {
           <BackButton />
           <HeaderTitle>계약서</HeaderTitle>
           <div className='absolute right-4 flex gap-1'>
-            <Button
-              size='sm'
-              onClick={() => {}}
-              className='text-xs px-4 py-0.5 rounded-sm bg-card border border-white/20'
-            >
-              저장
-            </Button>
-            <Button
-              size='sm'
-              onClick={() => {}}
-              className='text-xs px-4 py-0.5 rounded-sm bg-card border border-white/20'
-              disabled={!canEdit}
-            >
-              불러오기
-            </Button>
+            <ContractActions
+              fields={fields}
+              tiers={tiers}
+              penalties={penalties}
+              applyAll={applyAll}
+            />
           </div>
         </>
       }
@@ -182,7 +175,7 @@ const ContractForm = () => {
           {isHost && !allSigned && (
             <Button
               type='button'
-              disabled={!myMember.isSigned}
+              disabled={!isMeSigned}
               className='flex-1 py-5! rounded-sm! bg-destructive'
             >
               강제 시작

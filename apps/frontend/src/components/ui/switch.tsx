@@ -23,7 +23,7 @@ function Switch({
         'data-[size=sm]:h-[14px] data-[size=sm]:w-[24px]',
         'data-[size=default]:h-[18.4px] data-[size=default]:w-[32px]',
         'data-[size=lg]:h-[30px] data-[size=lg]:w-[52px]', // 추가
-        'dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:bg-primary data-unchecked:bg-input dark:data-unchecked:bg-input/80 data-disabled:cursor-not-allowed data-disabled:opacity-50',
+        'dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:bg-primary data-[state=unchecked]:bg-white/15 border border-white/20 data-disabled:cursor-not-allowed data-disabled:opacity-50',
         className,
       )}
       {...props}

@@ -1,5 +1,6 @@
 'use client';
 import {
+  ApplyData,
   AwarenessState,
   ContractFields,
   FocusedField,
@@ -269,6 +270,52 @@ export function useYjsContract(
     });
   }, []);
 
+  const applyAll = useCallback((data: ApplyData) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    doc.transact(() => {
+      if (data.fields) {
+        const yjsFields = doc.getMap<number>('fields');
+        yjsFields.set('focusMin', data.fields?.focusMin);
+        yjsFields.set('breakMin', data.fields.breakMin);
+        yjsFields.set('rounds', data.fields.rounds);
+      }
+
+      if (data.tiers) {
+        const yjsTiers = doc.getArray<Tier>('tiers');
+        if (yjsTiers.length > 0) {
+          yjsTiers.delete(0, yjsTiers.length);
+        }
+        if (data.tiers.length > 0) {
+          yjsTiers.insert(0, data.tiers);
+        }
+      }
+      if (data.penalties) {
+        const yjsPenalties = doc.getArray<Penalty>('penalties');
+        const mode = data.penaltyMode ?? 'replace';
+
+        if (mode === 'replace') {
+          if (yjsPenalties.length > 0) {
+            yjsPenalties.delete(0, yjsPenalties.length);
+          }
+          if (data.penalties.length > 0) {
+            yjsPenalties.insert(0, data.penalties);
+          }
+        } else {
+          const newPenalties = data.penalties.map((p) => ({
+            ...p,
+            id: crypto.randomUUID(),
+          }));
+
+          if (newPenalties.length > 0) {
+            yjsPenalties.push(newPenalties);
+          }
+        }
+      }
+    });
+  }, []);
+
   return {
     fields,
     fieldOwners,
@@ -284,5 +331,6 @@ export function useYjsContract(
     removePenalty,
     handleFocus,
     handleBlur,
+    applyAll,
   };
 }

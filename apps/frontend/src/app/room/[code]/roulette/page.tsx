@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -13,12 +13,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-const PenaltyRoulette = dynamic(() => import('@/components/ui/custom-roulette'), {
-  ssr: false,
-  loading: () => (
-    <div className="mx-auto aspect-square w-full max-w-[320px] rounded-full border-2 border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)]" />
-  ),
-});
+const PenaltyRoulette = dynamic(
+  () => import('@/components/ui/custom-roulette'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className='mx-auto aspect-square w-full max-w-[320px] rounded-full border-2 border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)]' />
+    ),
+  },
+);
 
 type RoulettePenalty = {
   id: string;
@@ -64,11 +67,13 @@ export default function RoulettePage() {
   );
 
   const targetIndex = useMemo(
-    () => SERVER_ROULETTE_ITEMS.findIndex((item) => item.id === currentAnswerId),
+    () =>
+      SERVER_ROULETTE_ITEMS.findIndex((item) => item.id === currentAnswerId),
     [currentAnswerId],
   );
 
-  const currentAnswer = targetIndex >= 0 ? SERVER_ROULETTE_ITEMS[targetIndex] : null;
+  const currentAnswer =
+    targetIndex >= 0 ? SERVER_ROULETTE_ITEMS[targetIndex] : null;
   const hasInvalidTarget = !isAllCompleted && targetIndex < 0;
 
   const handleStartSpinning = () => {
@@ -97,24 +102,26 @@ export default function RoulettePage() {
   return (
     <MobileLayout
       header={
-        <div className="relative flex w-full items-center justify-between text-foreground">
-          <span className="mx-auto text-lg font-medium">벌칙 룰렛</span>
+        <div className='relative flex w-full items-center justify-between text-foreground'>
+          <span className='mx-auto text-lg font-medium'>벌칙 룰렛</span>
           <button
-            type="button"
-            onClick={() => !isSpinning && !isAllCompleted && setIsDialogOpen(true)}
+            type='button'
+            onClick={() =>
+              !isSpinning && !isAllCompleted && setIsDialogOpen(true)
+            }
             disabled={isSpinning || isAllCompleted}
-            className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground disabled:pointer-events-none disabled:opacity-40"
-            aria-label="룰렛 나가기"
+            className='absolute right-0 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground disabled:pointer-events-none disabled:opacity-40'
+            aria-label='룰렛 나가기'
           >
-            <X className="h-5 w-5" />
+            <X className='h-5 w-5' />
           </button>
         </div>
       }
       bottomButton={
         <Button
-          variant="default"
-          size="main"
-          className="w-full rounded-xl"
+          variant='default'
+          size='main'
+          className='w-full rounded-xl'
           onClick={handleStartSpinning}
           disabled={isSpinning || hasInvalidTarget}
         >
@@ -126,18 +133,18 @@ export default function RoulettePage() {
         </Button>
       }
     >
-      <div className="flex min-w-0 flex-col gap-6 pb-6 text-foreground">
-        <div className="rounded-2xl border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] p-4 text-center">
-          <div className="text-sm text-muted-foreground">
+      <div className='flex min-w-0 flex-col gap-6 pb-6 text-foreground'>
+        <div className='rounded-2xl border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] p-4 text-center'>
+          <div className='text-sm text-muted-foreground'>
             남은 시간
-            <span className="ml-1 text-base font-bold text-destructive">
+            <span className='ml-1 text-base font-bold text-destructive'>
               {remainingTime}
             </span>
           </div>
         </div>
 
-        <div className="flex w-full min-w-0 flex-col items-center rounded-2xl border border-[var(--roulette-card-border)] bg-[var(--roulette-card)] px-4 py-6">
-          <h2 className="mb-6 text-lg font-bold">오늘의 벌칙 뽑기</h2>
+        <div className='flex w-full min-w-0 flex-col items-center rounded-2xl border border-[var(--roulette-card-border)] bg-[var(--roulette-card)] px-4 py-6'>
+          <h2 className='mb-6 text-lg font-bold'>오늘의 벌칙 뽑기</h2>
           <PenaltyRoulette
             mustStartSpinning={isSpinning}
             targetIndex={targetIndex}
@@ -145,53 +152,53 @@ export default function RoulettePage() {
             items={rouletteLabels}
           />
           {hasInvalidTarget ? (
-            <p className="mt-4 text-sm text-destructive">
+            <p className='mt-4 text-sm text-destructive'>
               서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.
             </p>
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <h3 className="mb-1 text-sm font-semibold text-muted-foreground">
+        <div className='flex flex-col gap-2'>
+          <h3 className='mb-1 text-sm font-semibold text-muted-foreground'>
             선택된 벌칙
           </h3>
           {history.map((penalty, idx) => (
             <div
               key={`${penalty}-${idx}`}
-              className="flex items-center gap-3 rounded-xl border border-[var(--roulette-history-border)] bg-[var(--roulette-history)] p-4"
+              className='flex items-center gap-3 rounded-xl border border-[var(--roulette-history-border)] bg-[var(--roulette-history)] p-4'
             >
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+              <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground'>
                 {idx + 1}
               </div>
-              <span className="min-w-0 text-sm font-medium">{penalty}</span>
+              <span className='min-w-0 text-sm font-medium'>{penalty}</span>
             </div>
           ))}
         </div>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="flex w-[calc(100%-32px)] max-w-[228px] flex-col items-start gap-4 overflow-hidden rounded-3xl border-0 bg-[var(--roulette-dialog)] p-4 text-center shadow-[0_0_10px_rgba(0,0,0,0.1)]">
-          <section className="flex w-full flex-col items-start gap-3 py-3 text-left">
-            <DialogTitle className="text-base font-semibold leading-[150%] text-foreground">
+        <DialogContent className='flex w-[calc(100%-32px)] max-w-[228px] flex-col items-start gap-4 overflow-hidden rounded-3xl border-0 bg-[var(--roulette-dialog)] p-4 text-center shadow-[0_0_10px_rgba(0,0,0,0.1)]'>
+          <section className='flex w-full flex-col items-start gap-3 py-3 text-left'>
+            <DialogTitle className='text-base font-semibold leading-[150%] text-foreground'>
               룰렛 횟수가 아직 남았어요.
             </DialogTitle>
-            <DialogDescription className="text-xs font-medium leading-5 text-foreground/75">
+            <DialogDescription className='text-xs font-medium leading-5 text-foreground/75'>
               벌칙이 자동으로 결정돼요.
             </DialogDescription>
           </section>
-          <div className="grid w-full grid-cols-2 items-center gap-3">
+          <div className='grid w-full grid-cols-2 items-center gap-3'>
             <Button
-              type="button"
-              variant="secondary"
+              type='button'
+              variant='secondary'
               onClick={() => setIsDialogOpen(false)}
-              className="h-14 rounded-[14px] border border-[var(--roulette-dialog-secondary-border)] bg-[var(--roulette-dialog-secondary)] text-sm font-bold text-foreground/70"
+              className='h-14 rounded-[14px] border border-[var(--roulette-dialog-secondary-border)] bg-[var(--roulette-dialog-secondary)] text-sm font-bold text-foreground/70'
             >
               취소
             </Button>
             <Button
-              type="button"
+              type='button'
               onClick={handleExit}
-              className="h-14 rounded-[14px] bg-primary text-sm font-bold text-primary-foreground"
+              className='h-14 rounded-[14px] bg-primary text-sm font-bold text-primary-foreground'
             >
               나가기
             </Button>
