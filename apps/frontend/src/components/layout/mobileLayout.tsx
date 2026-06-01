@@ -3,26 +3,33 @@ import { ReactNode } from 'react';
 interface MobileLayoutProps {
   header: ReactNode;
   children: ReactNode;
-  bottomButton: ReactNode;
+  bottomButton?: ReactNode;
 }
 
-export const MobileLayout = ({ header, children, bottomButton }: MobileLayoutProps) => {
+export const MobileLayout = ({
+  header,
+  children,
+  bottomButton,
+}: MobileLayoutProps) => {
   return (
-    <div className='relative flex flex-col min-h-screen'>
-      {/* 상단 헤더 고정 */}
-      <header className='fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] h-[58px] z-50 bg-background border-b border-border flex items-center px-4'>
+    <div className='relative flex min-h-screen flex-col overflow-x-hidden'>
+      <header className='fixed top-0 left-1/2 z-50 flex h-[58px] w-full max-w-[390px] -translate-x-1/2 items-center border-b border-border bg-background px-4'>
         {header}
       </header>
 
-      {/* 스크롤 가능한 콘텐츠 영역 */}
-      <main className='flex-1 mt-[58px] mb-[80px] overflow-y-auto px-4 py-4'>
+      <main
+        className={`mt-[58px] flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 ${
+          bottomButton ? 'mb-[80px]' : ''
+        }`}
+      >
         {children}
       </main>
 
-      {/* 하단 버튼 고정 */}
-      <div className='fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] h-[80px] z-50 bg-background border-t border-border flex items-center px-4'>
-        {bottomButton}
-      </div>
+      {bottomButton ? (
+        <div className='fixed bottom-0 left-1/2 z-50 flex h-[80px] w-full max-w-[390px] -translate-x-1/2 items-center border-t border-border bg-background px-4'>
+          {bottomButton}
+        </div>
+      ) : null}
     </div>
   );
 };

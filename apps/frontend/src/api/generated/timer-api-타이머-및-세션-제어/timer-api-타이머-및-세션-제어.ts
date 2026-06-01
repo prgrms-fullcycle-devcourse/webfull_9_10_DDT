@@ -17,39 +17,42 @@ import type {
 
   export const getTimerApi = (axiosInstance: AxiosInstance = axios) => {
 /**
+ * 전원 서명이 완료되어야 시작됩니다. 미서명 인원이 있으면 400을 반환합니다.
  * @summary 방 정상 시작 (방장 전용)
  */
 const timerControllerStartTimer = (
-    roomId: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/timer/start`,
+      `/rooms/${roomCode}/timer/start`,
       undefined,options
     );
   }
 /**
+ * 미서명 멤버를 제외하고 세션을 강제로 시작합니다. (방장 전용)
  * @summary 타이머 강제 시작 (미서명 인원 강퇴)
  */
 const timerControllerForceStartTimer = (
-    roomId: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/timer/force-start`,
+      `/rooms/${roomCode}/timer/force-start`,
       undefined,options
     );
   }
 /**
- * @summary 중도 포기 (세션 강제 종료)
+ * 진행 중인 세션(timer)에서 요청한 사용자 본인의 참여를 중단합니다. 포기 시 본인만 이탈 처리되며, 방의 상태나 다른 참여자의 타이머는 유지됩니다.
+ * @summary 세션 중도 포기
  */
 const timerControllerGiveUp = (
-    roomId: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/give-up`,
+      `/rooms/${roomCode}/give-up`,
       undefined,options
     );
   }
 return {timerControllerStartTimer,timerControllerForceStartTimer,timerControllerGiveUp}};
-export type TimerControllerStartTimerResult = AxiosResponse<void>
-export type TimerControllerForceStartTimerResult = AxiosResponse<void>
-export type TimerControllerGiveUpResult = AxiosResponse<void>
+export type TimerControllerStartTimerResult = AxiosResponse<unknown>
+export type TimerControllerForceStartTimerResult = AxiosResponse<unknown>
+export type TimerControllerGiveUpResult = AxiosResponse<unknown>

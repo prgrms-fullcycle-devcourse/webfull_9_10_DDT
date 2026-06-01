@@ -21,28 +21,30 @@ import type {
 
   export const getRouletteApi = (axiosInstance: AxiosInstance = axios) => {
 /**
+ * spinIndex(1부터)의 벌칙을 공개합니다.
  * @summary 룰렛 실행
  */
 const rouletteControllerSpinRoulette = (
-    roomId: string,
+    roomCode: string,
     spinRouletteDto: SpinRouletteDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/roulette/spin`,
+      `/rooms/${roomCode}/roulette/spin`,
       spinRouletteDto,options
     );
   }
 /**
+ * 룰렛 도중 이탈 시 남은 벌칙을 모두 자동 공개 처리합니다.
  * @summary 룰렛 이탈 처리 (Rage-quit)
  */
 const rouletteControllerExitRoulette = (
-    roomId: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/roulette/exit`,
+      `/rooms/${roomCode}/roulette/exit`,
       undefined,options
     );
   }
 return {rouletteControllerSpinRoulette,rouletteControllerExitRoulette}};
-export type RouletteControllerSpinRouletteResult = AxiosResponse<void>
-export type RouletteControllerExitRouletteResult = AxiosResponse<void>
+export type RouletteControllerSpinRouletteResult = AxiosResponse<unknown>
+export type RouletteControllerExitRouletteResult = AxiosResponse<unknown>

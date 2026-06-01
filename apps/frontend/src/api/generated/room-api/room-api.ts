@@ -14,7 +14,7 @@ import type {
 
 import type {
   CreateRoomDto,
-  UpdateRoomDto
+  JoinRoomDto
 } from '../models';
 
 
@@ -22,49 +22,50 @@ import type {
 
   export const getRoomApi = (axiosInstance: AxiosInstance = axios) => {
 /**
- * @summary 방 생성 (로그인 유저만)
+ * 로그인 유저가 새 방을 생성합니다. 방의 식별자는 8자리 `code`이며, 코드가 중복되면 서버가 최대 5회까지 자동 재발급을 재시도합니다. 게스트는 생성할 수 없습니다.
+ * @summary 방 생성 (로그인 유저 전용)
  */
 const roomControllerCreate = (
     createRoomDto: CreateRoomDto, options?: AxiosRequestConfig
  ): Promise<AxiosResponse<unknown>> => {
     return axiosInstance.post(
-      `/room`,
+      `/rooms`,
       createRoomDto,options
     );
   }
-const roomControllerFindAll = (
+/**
+ * 방 코드로 방 기본 정보를 조회합니다. 종료된 방(result/closed)은 조회할 수 없습니다.
+ * @summary 방 코드로 방 정보 조회
+ */
+const roomControllerFindById = (
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
+    return axiosInstance.get(
+      `/rooms/${roomCode}`,options
+    );
+  }
+/**
+ * 방 코드로 입장합니다. 비밀번호가 일치해야 하며, 재입장이 아닌 경우 정원(10명)과 진행 상태(timer)를 검사합니다.
+ * @summary 방 코드로 방 입장
+ */
+const roomControllerJoinById = (
+    roomCode: string,
+    joinRoomDto: JoinRoomDto, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<unknown>> => {
+    return axiosInstance.post(
+      `/rooms/${roomCode}`,
+      joinRoomDto,options
+    );
+  }
+const roomControllerGetMyActiveRoom = (
      options?: AxiosRequestConfig
  ): Promise<AxiosResponse<void>> => {
     return axiosInstance.get(
-      `/room`,options
+      `/rooms/me/active`,options
     );
   }
-const roomControllerFindOne = (
-    id: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.get(
-      `/room/${id}`,options
-    );
-  }
-const roomControllerUpdate = (
-    id: string,
-    updateRoomDto: UpdateRoomDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.patch(
-      `/room/${id}`,
-      updateRoomDto,options
-    );
-  }
-const roomControllerRemove = (
-    id: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.delete(
-      `/room/${id}`,options
-    );
-  }
-return {roomControllerCreate,roomControllerFindAll,roomControllerFindOne,roomControllerUpdate,roomControllerRemove}};
+return {roomControllerCreate,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom}};
 export type RoomControllerCreateResult = AxiosResponse<unknown>
-export type RoomControllerFindAllResult = AxiosResponse<void>
-export type RoomControllerFindOneResult = AxiosResponse<void>
-export type RoomControllerUpdateResult = AxiosResponse<void>
-export type RoomControllerRemoveResult = AxiosResponse<void>
+export type RoomControllerFindByIdResult = AxiosResponse<unknown>
+export type RoomControllerJoinByIdResult = AxiosResponse<unknown>
+export type RoomControllerGetMyActiveRoomResult = AxiosResponse<void>

@@ -14,6 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import { nanoid } from 'nanoid';
 import * as bcrypt from 'bcrypt';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { Prisma } from '@prisma/client';
 
 interface RoomMember {
   nickname: string;
@@ -23,11 +24,11 @@ interface RoomMember {
   profileImage: string;
   socketId?: string;
   isSigned?: boolean;
+  canEdit?: boolean;
 }
 
 interface RoomState {
-  roomId: string;
-  code: string;
+  roomCode: string;
   hostId: string;
   phase: string;
   members: Record<string, RoomMember>;
@@ -53,55 +54,42 @@ export class RoomService {
   ) {}
 
   private readonly logger = new Logger(RoomService.name);
+  private static readonly MAX_CODE_RETRIES = 5;
 
   async create(
     createRoomDto: CreateRoomDto,
     hostId: string,
   ): Promise<CreateRoomResult> {
-    const { title, password, nickname, profileImage } = createRoomDto;
-
-    const code = nanoid(8);
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const room = await this.prismaService.room.create({
-      data: {
-        code,
-        title,
+    const existing = await this.prismaService.room.findFirst({
+      where: {
         hostId,
-        passwordHash,
-        phase: 'lobby',
+        phase: { notIn: ['closed', 'result'] },
       },
+      select: { code: true, phase: true, title: true },
     });
 
-    await this.prismaService.roomMember.create({
-      data: {
-        roomId: room.id,
-        userId: hostId,
-        nickname: nickname,
-        isHost: true,
-        isLoggedIn: true,
-        profileImage: profileImage,
-      },
+    if (existing) {
+      throw new ConflictException('이미 진행중인 방이 있습니다.');
+    }
+    const { title, password } = createRoomDto;
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const room = await this.createRoomWithUniqueCode({
+      title,
+      hostId,
+      passwordHash,
+      phase: 'lobby',
     });
 
     const roomState: RoomState = {
-      roomId: room.id,
-      code: room.code,
+      roomCode: room.code,
       hostId,
       phase: 'lobby',
-      members: {
-        [hostId]: {
-          nickname,
-          isLoggedIn: true,
-          isHost: true,
-          connected: false,
-          profileImage,
-        },
-      },
+      members: {},
     };
 
     await this.redisService.instance.set(
-      `room:state:${room.id}`,
+      `room:state:${room.code}`,
       JSON.stringify(roomState),
       'EX',
       7200,
@@ -110,16 +98,50 @@ export class RoomService {
     const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
 
     return {
-      code,
-      url: `${frontendUrl}/room/${room.id}`,
+      code: room.code,
+      url: `${frontendUrl}/room/${room.code}`,
     };
   }
 
-  async find(identifier: { id: string } | { code: string }) {
+  /**
+   * nanoid 코드가 PK(code)와 충돌(P2002)하면 새 코드로 재시도한다.
+   */
+  private async createRoomWithUniqueCode(data: {
+    title: string;
+    hostId: string;
+    passwordHash: string;
+    phase: string;
+  }) {
+    for (let attempt = 1; attempt <= RoomService.MAX_CODE_RETRIES; attempt++) {
+      const code = nanoid(8);
+      try {
+        return await this.prismaService.room.create({
+          data: { code, ...data },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          this.logger.warn(
+            `방 코드 충돌 (시도 ${attempt}/${RoomService.MAX_CODE_RETRIES}): ${code}`,
+          );
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new ConflictException(
+      '방 코드 생성에 실패했습니다. 잠시 후 다시 시도해주세요.',
+    );
+  }
+
+  async find(code: string) {
     const room = await this.prismaService.room.findUnique({
-      where: identifier,
+      where: { code },
       select: {
-        id: true,
+        code: true,
         title: true,
         phase: true,
         _count: { select: { roomMembers: true } },
@@ -136,25 +158,26 @@ export class RoomService {
 
     return {
       title: room.title,
-      id: room.id,
+      id: room.code,
       memberCount: room._count.roomMembers,
       phase: room.phase,
     };
   }
 
   async join(
-    identifier: { id: string } | { code: string },
+    code: string,
     joinRoomDto: JoinRoomDto,
     userId: string | null,
     guestToken: string | null,
   ): Promise<{ id: string; isReturning: boolean }> {
     const { nickname, password, profileImage } = joinRoomDto;
     const room = await this.prismaService.room.findUnique({
-      where: identifier,
+      where: { code },
       select: {
-        id: true,
+        code: true,
         passwordHash: true,
         phase: true,
+        hostId: true,
         _count: { select: { roomMembers: true } },
       },
     });
@@ -164,7 +187,7 @@ export class RoomService {
     }
 
     const isBanned = await this.redisService.instance.get(
-      `room:ban:${room.id}:${userId ?? guestToken}`,
+      `room:ban:${room.code}:${userId ?? guestToken}`,
     );
     if (isBanned) throw new ForbiddenException('강퇴된 방입니다.');
 
@@ -174,7 +197,7 @@ export class RoomService {
 
     const existing = userId
       ? await this.prismaService.roomMember.findUnique({
-          where: { roomId_userId: { roomId: room.id, userId } },
+          where: { roomCode_userId: { roomCode: room.code, userId } },
         })
       : null;
 
@@ -183,7 +206,7 @@ export class RoomService {
       : !!(
           guestToken &&
           (await this.prismaService.roomMember.findFirst({
-            where: { roomId: room.id, guestToken },
+            where: { roomCode: room.code, guestToken },
           }))
         );
 
@@ -192,7 +215,6 @@ export class RoomService {
     }
 
     const isValid = await bcrypt.compare(password, room.passwordHash);
-
     if (!isValid) {
       throw new UnauthorizedException('비밀번호가 틀렸습니다.');
     }
@@ -200,40 +222,41 @@ export class RoomService {
     if (!isReturning && room._count.roomMembers >= 10) {
       throw new ConflictException('방이 가득 찼습니다.');
     }
+    const isHostUser = userId === room.hostId;
 
     if (userId) {
       await this.prismaService.roomMember.upsert({
-        where: {
-          roomId_userId: { roomId: room.id, userId },
-        },
+        where: { roomCode_userId: { roomCode: room.code, userId } },
         update: {
-          nickname: existing ? existing.nickname : nickname, // 재접속이면 기존 닉네임 유지
+          nickname: existing ? existing.nickname : nickname,
           profileImage: existing ? existing.profileImage : profileImage,
         },
         create: {
-          roomId: room.id,
+          roomCode: room.code,
           userId,
-          nickname: nickname,
-          isHost: false,
+          nickname,
+          isHost: isHostUser,
           isLoggedIn: true,
           profileImage,
         },
       });
 
-      const raw = await this.redisService.instance.get(`room:state:${room.id}`);
+      const raw = await this.redisService.instance.get(
+        `room:state:${room.code}`,
+      );
       if (raw) {
         const state = JSON.parse(raw) as RoomState;
-
         if (!state.members[userId]) {
           state.members[userId] = {
             nickname,
             isLoggedIn: true,
-            isHost: false,
+            isHost: isHostUser,
             connected: false,
             profileImage,
+            canEdit: isHostUser,
           };
           await this.redisService.instance.set(
-            `room:state:${room.id}`,
+            `room:state:${room.code}`,
             JSON.stringify(state),
             'EX',
             7200,
@@ -244,15 +267,13 @@ export class RoomService {
       if (!joinRoomDto.nickname) {
         throw new BadRequestException('닉네임을 입력해주세요.');
       }
-
       if (!guestToken) {
         throw new UnauthorizedException('게스트 토큰이 없습니다.');
       }
-
       if (!isReturning) {
         await this.prismaService.roomMember.create({
           data: {
-            roomId: room.id,
+            roomCode: room.code,
             userId: null,
             guestToken,
             nickname: joinRoomDto.nickname,
@@ -263,21 +284,21 @@ export class RoomService {
         });
 
         const raw = await this.redisService.instance.get(
-          `room:state:${room.id}`,
+          `room:state:${room.code}`,
         );
-
         if (raw) {
           const state = JSON.parse(raw) as RoomState;
-
           state.members[guestToken] = {
             nickname,
             isLoggedIn: false,
             isHost: false,
             connected: false,
             profileImage,
+            isSigned: false,
+            canEdit: false,
           };
           await this.redisService.instance.set(
-            `room:state:${room.id}`,
+            `room:state:${room.code}`,
             JSON.stringify(state),
             'EX',
             7200,
@@ -286,11 +307,11 @@ export class RoomService {
       }
     }
 
-    return { id: room.id, isReturning };
+    return { id: room.code, isReturning };
   }
 
-  async transitionToContract(id: string): Promise<RoomState | null> {
-    const raw = await this.redisService.instance.get(`room:state:${id}`);
+  async transitionToContract(roomCode: string): Promise<RoomState | null> {
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
 
     if (!raw) {
       return null;
@@ -306,19 +327,19 @@ export class RoomService {
 
     await Promise.all([
       this.redisService.instance.set(
-        `room:state:${id}`,
+        `room:state:${roomCode}`,
         JSON.stringify(state),
         'EX',
         7200,
       ),
-      this.updatePhase(id, 'contract'),
+      this.updatePhase(roomCode, 'contract'),
     ]);
 
     return state;
   }
 
-  async countConnectedMembers(id: string): Promise<number> {
-    const raw = await this.redisService.instance.get(`room:state:${id}`);
+  async countConnectedMembers(roomCode: string): Promise<number> {
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
     if (!raw) {
       return 0;
     }
@@ -332,19 +353,22 @@ export class RoomService {
     return onlineMembersCount;
   }
 
-  async deleteRoom(id: string): Promise<void> {
+  async deleteRoom(roomCode: string): Promise<void> {
     await Promise.all([
-      this.redisService.instance.del(`room:state:${id}`),
-      this.updatePhase(id, 'closed'),
+      this.redisService.instance.del(`room:state:${roomCode}`),
+      this.updatePhase(roomCode, 'closed'),
     ]);
   }
 
-  async updatePhase(id: string, phase: string): Promise<void> {
-    await this.prismaService.room.update({ where: { id }, data: { phase } });
+  async updatePhase(roomCode: string, phase: string): Promise<void> {
+    await this.prismaService.room.update({
+      where: { code: roomCode },
+      data: { phase },
+    });
   }
 
-  async getRoomState(id: string): Promise<RoomState | null> {
-    const raw = await this.redisService.instance.get(`room:state:${id}`);
+  async getRoomState(roomCode: string): Promise<RoomState | null> {
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
 
     if (!raw) {
       return null;
@@ -356,20 +380,20 @@ export class RoomService {
   }
 
   async setConnected(
-    id: string,
+    roomCode: string,
     userId: string,
     connected: boolean,
     socketId?: string,
   ): Promise<void> {
-    const raw = await this.redisService.instance.get(`room:state:${id}`);
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
     if (!raw) {
-      this.logger.warn(`방 상태 없음: ${id}`);
+      this.logger.warn(`방 상태 없음: ${roomCode}`);
       return;
     }
 
     const state = JSON.parse(raw) as RoomState;
     if (!state.members[userId]) {
-      this.logger.warn(`멤버 없음: ${userId} in ${id}`);
+      this.logger.warn(`멤버 없음: ${userId} in ${roomCode}`);
       return;
     }
 
@@ -383,7 +407,7 @@ export class RoomService {
       }
 
       await this.redisService.instance.set(
-        `room:state:${id}`,
+        `room:state:${roomCode}`,
         JSON.stringify(state),
         'EX',
         7200,
@@ -391,29 +415,29 @@ export class RoomService {
     }
   }
 
-  async kickMember(id: string, targetId: string): Promise<void> {
+  async kickMember(roomCode: string, targetId: string): Promise<void> {
     const isGuest = targetId.startsWith('guest_');
 
     await this.prismaService.roomMember.deleteMany({
       where: {
-        roomId: id,
+        roomCode,
         ...(isGuest ? { guestToken: targetId } : { userId: targetId }),
       },
     });
 
-    const raw = await this.redisService.instance.get(`room:state:${id}`);
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
     if (raw) {
       const state = JSON.parse(raw) as RoomState;
       delete state.members[targetId];
       await this.redisService.instance.set(
-        `room:state:${id}`,
+        `room:state:${roomCode}`,
         JSON.stringify(state),
         'EX',
         7200,
       );
     }
     await this.redisService.instance.set(
-      `room:ban:${id}:${targetId}`,
+      `room:ban:${roomCode}:${targetId}`,
       '1',
       'EX',
       7200,
@@ -421,11 +445,11 @@ export class RoomService {
   }
 
   async setSigned(
-    id: string,
+    roomCode: string,
     userId: string,
     signed: boolean,
   ): Promise<SignedStatus | undefined> {
-    const raw = await this.redisService.instance.get(`room:state:${id}`);
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
 
     if (!raw) {
       return;
@@ -444,7 +468,7 @@ export class RoomService {
     state.members[userId].isSigned = signed;
 
     await this.redisService.instance.set(
-      `room:state:${id}`,
+      `room:state:${roomCode}`,
       JSON.stringify(state),
       'EX',
       7200,
@@ -461,8 +485,10 @@ export class RoomService {
     };
   }
 
-  async resetAllSigns(id: string): Promise<{ totalCount: number } | null> {
-    const raws = await this.redisService.instance.get(`room:state:${id}`);
+  async resetAllSigns(
+    roomCode: string,
+  ): Promise<{ totalCount: number } | null> {
+    const raws = await this.redisService.instance.get(`room:state:${roomCode}`);
 
     if (!raws) {
       return null;
@@ -482,12 +508,91 @@ export class RoomService {
     members.forEach((m) => (m.isSigned = false));
 
     await this.redisService.instance.set(
-      `room:state:${id}`,
+      `room:state:${roomCode}`,
       JSON.stringify(state),
       'EX',
       7200,
     );
 
     return { totalCount: members.length };
+  }
+
+  async setMemberEdit(
+    id: string,
+    userId: string,
+    targetId: string,
+    canEdit: boolean,
+  ): Promise<boolean> {
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raw) {
+      return false;
+    }
+
+    const state = JSON.parse(raw) as RoomState;
+
+    if (state.hostId !== userId) {
+      return false;
+    }
+
+    if (!state.members[targetId]) {
+      return false;
+    }
+
+    state.members[targetId].canEdit = canEdit;
+
+    await this.redisService.instance.set(
+      `room:state:${id}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+
+    return true;
+  }
+
+  async setAllEdit(
+    id: string,
+    userId: string,
+    canEdit: boolean,
+  ): Promise<boolean> {
+    const raw = await this.redisService.instance.get(`room:state:${id}`);
+
+    if (!raw) {
+      return false;
+    }
+
+    const state = JSON.parse(raw) as RoomState;
+
+    if (state.hostId !== userId) {
+      return false;
+    }
+
+    const members = Object.values(state.members);
+
+    members.forEach((m) => {
+      if (!m.isHost) {
+        m.canEdit = canEdit;
+      }
+    });
+
+    await this.redisService.instance.set(
+      `room:state:${id}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+
+    return true;
+  }
+
+  async findMyActiveRoom(userId: string) {
+    return this.prismaService.room.findFirst({
+      where: {
+        hostId: userId,
+        phase: { notIn: ['closed', 'result'] },
+      },
+      select: { code: true, phase: true, title: true },
+    });
   }
 }

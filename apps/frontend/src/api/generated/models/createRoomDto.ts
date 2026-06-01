@@ -7,8 +7,8 @@
  */
 
 export interface CreateRoomDto {
-  /** 방 이름 */
+  /** 방 이름 (최대 20자) */
   title: string;
-  /** 비밀번호 */
+  /** 방 비밀번호 (4~20자) */
   password: string;
 }

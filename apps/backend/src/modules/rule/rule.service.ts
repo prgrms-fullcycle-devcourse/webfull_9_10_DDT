@@ -13,16 +13,14 @@ import { Prisma } from '@prisma/client';
 export class RuleService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 방장 권한 확인
-  private async verifyHost(roomId: string, userId: string) {
-    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+  private async verifyHost(roomCode: string, userId: string) {
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+    });
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (room.hostId !== userId)
       throw new ForbiddenException('방장 권한이 필요합니다.');
-    if (room.phase !== 'contract')
-      throw new ConflictException(
-        '계약 단계에서만 계약서를 확정할 수 있습니다.',
-      );
+
     return room;
   }
 
@@ -36,8 +34,12 @@ export class RuleService {
     }
   }
 
-  async createRoomRule(roomId: string, userId: string, dto: CreateRoomRuleDto) {
-    await this.verifyHost(roomId, userId);
+  async createRoomRule(
+    roomCode: string,
+    userId: string,
+    dto: CreateRoomRuleDto,
+  ) {
+    await this.verifyHost(roomCode, userId);
     this.validateTiers(dto.tierConfig.tiers);
 
     const rule = await this.prisma.ruleTemplate.create({
@@ -58,7 +60,7 @@ export class RuleService {
 
     // 방에 템플릿 할당
     await this.prisma.room.update({
-      where: { id: roomId },
+      where: { code: roomCode },
       data: { templateId: rule.id },
     });
 

@@ -31,11 +31,15 @@ const TermsPage = () => {
     const receiveMessage = async (event: MessageEvent) => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
+      // 💡 구글 OAuth 팝업 등 내부 검증이 필요한 경우 origin 체크 추가 가능
       if (event.data?.type === 'OAUTH_SUCCESS') {
         const token = event.data.token;
 
+        // 쿠키 저장
         document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24}`;
-        checkLoginStatus();
+        
+        // 전역 auth 상태 갱신
+        await checkLoginStatus();
 
         try {
           setIsLoading(true);
@@ -53,10 +57,22 @@ const TermsPage = () => {
           });
 
           if (!response.ok) {
-            throw new Error('약관 동의 처리에 실패했습니다.');
+            if (response.status === 409) {
+              console.log('이미 약관 동의가 완료된 계정입니다.');
+            } else {
+              throw new Error('약관 동의 처리에 실패했습니다.');
+            }
           }
 
-          router.push('/');
+          // 💡 부모 창(메인 레이아웃)이 존재한다면 로그인 성공 메시지를 전달해 상태를 즉시 동기화
+          if (window.opener) {
+            window.opener.postMessage({ type: 'OAUTH_SUCCESS' }, window.location.origin);
+            // 만약 이 페이지가 팝업 창으로 열린 것이라면 동의 후 창을 닫아주는 것이 자연스러움
+            window.close();
+          } else {
+            // 팝업이 아니라 일반 페이지 이동이었을 경우 메인으로 리다이렉트
+            router.push('/');
+          }
         } catch (error) {
           console.error('Terms Agreement Error:', error);
           alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
@@ -75,7 +91,7 @@ const TermsPage = () => {
     window.open(
       `${apiUrl}/auth/google`,
       'Google Login',
-      'width=500,height=600,left=200,top=200'
+      'width=500,height=600,left=200,top=200',
     );
   };
 
@@ -162,7 +178,7 @@ const TermsPage = () => {
         disabled={!allChecked || isLoading}
         onClick={handleGoogleLogin}
       >
-        <span className='mr-2'>G</span> 
+        <span className='mr-2'>G</span>
         {isLoading ? '처리 중...' : 'Google로 계속하기'}
       </Button>
 

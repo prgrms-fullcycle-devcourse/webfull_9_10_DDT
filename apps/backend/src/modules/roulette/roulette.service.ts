@@ -10,7 +10,7 @@ export class RouletteService {
   constructor(private readonly prisma: PrismaService) {}
 
   async spinRoulette(
-    roomId: string,
+    roomCode: string,
     spinIndex: number,
     userId?: string,
     guestToken?: string,
@@ -18,7 +18,7 @@ export class RouletteService {
     const isGuest = !userId && !!guestToken;
 
     const member = await this.prisma.roomMember.findFirst({
-      where: { roomId, ...(isGuest ? { guestToken } : { userId }) },
+      where: { roomCode: roomCode, ...(isGuest ? { guestToken } : { userId }) },
       include: { result: { include: { penalties: true } } },
     });
 
@@ -51,9 +51,9 @@ export class RouletteService {
     };
   }
 
-  async exitRoulette(roomId: string, userId?: string, guestToken?: string) {
+  async exitRoulette(roomCode: string, userId?: string, guestToken?: string) {
     const member = await this.prisma.roomMember.findFirst({
-      where: { roomId, OR: [{ userId }, { guestToken }] },
+      where: { roomCode: roomCode, OR: [{ userId }, { guestToken }] },
     });
 
     if (!member) throw new BadRequestException('멤버 정보를 찾을 수 없습니다.');

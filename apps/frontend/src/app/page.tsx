@@ -9,31 +9,40 @@ import { useEffect, useState } from 'react';
 import { CenterLayout } from '@/components/layout/centerLayout';
 
 const RoomPage = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return (
-      typeof document !== 'undefined' &&
-      document.cookie.includes('accessToken=')
-    );
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    const syncLoginStatus = () => {
+      const hasToken = typeof document !== 'undefined' && document.cookie.includes('access_token=');
+      setIsLoggedIn(hasToken);
+    };
+
+    syncLoginStatus();
+
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
 
-      if (event.data === 'login-success') {
+      if (event.data?.type === 'OAUTH_SUCCESS') {
         setIsLoggedIn(true);
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('pageshow', syncLoginStatus);
+    window.addEventListener('focus', syncLoginStatus);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('pageshow', syncLoginStatus);
+      window.removeEventListener('focus', syncLoginStatus);
+    };
   }, []);
 
   const handleOpenTerms = () => {
     window.open(
       '/terms',
       'Terms Agreement',
-      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no, location=no',
+      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
     );
   };
 

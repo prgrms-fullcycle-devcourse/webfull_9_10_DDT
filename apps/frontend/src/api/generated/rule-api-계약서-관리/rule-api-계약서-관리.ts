@@ -22,18 +22,20 @@ import type {
 
   export const getRuleApi = (axiosInstance: AxiosInstance = axios) => {
 /**
- * @summary 계약서 생성 (방장 전용)
+ * 방장이 설정한 규칙(목표 시간, 휴식 시간, 반복 횟수, 벌칙 등)을 바탕으로 방의 계약서를 확정하고 할당합니다.
+ * @summary 계약서 생성 및 할당 (방장 전용)
  */
 const ruleControllerCreateRoomRule = (
-    roomId: string,
+    roomCode: string,
     createRoomRuleDto: CreateRoomRuleDto, options?: AxiosRequestConfig
  ): Promise<AxiosResponse<void>> => {
     return axiosInstance.post(
-      `/rooms/${roomId}/rule`,
+      `/rooms/${roomCode}/rule`,
       createRoomRuleDto,options
     );
   }
 /**
+ * 내가 저장한 계약서 템플릿 목록을 조회합니다.
  * @summary 저장된 계약서 조회
  */
 const ruleControllerGetSavedRules = (
@@ -44,6 +46,7 @@ const ruleControllerGetSavedRules = (
     );
   }
 /**
+ * 제목과 함께 계약서를 템플릿으로 저장합니다.
  * @summary 계약서 템플릿 저장
  */
 const ruleControllerSaveRuleTemplate = (
@@ -55,6 +58,7 @@ const ruleControllerSaveRuleTemplate = (
     );
   }
 /**
+ * 기존 저장 템플릿을 수정합니다.
  * @summary 계약서 덮어쓰기
  */
 const ruleControllerUpdateRuleTemplate = (
@@ -67,7 +71,8 @@ const ruleControllerUpdateRuleTemplate = (
     );
   }
 /**
- * @summary 계약서 삭제
+ * 사용자가 개인 보관함에 저장해둔 특정 계약서 템플릿을 삭제합니다. 단, 현재 진행 중인 방에서 사용 중인 템플릿은 삭제할 수 없습니다.
+ * @summary 저장된 계약서 삭제
  */
 const ruleControllerDeleteRuleTemplate = (
     ruleId: string, options?: AxiosRequestConfig

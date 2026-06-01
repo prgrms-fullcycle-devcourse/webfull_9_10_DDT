@@ -9,9 +9,9 @@ import { PrismaService } from '../../common/prisma.service';
 export class ResultService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getResult(roomId: string, _userId?: string, _guestToken?: string) {
+  async getResult(roomCode: string, _userId?: string, _guestToken?: string) {
     const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
+      where: { code: roomCode },
       include: {
         roomMembers: {
           include: {
@@ -68,7 +68,7 @@ export class ResultService {
     members.forEach((m, idx) => (m.rank = idx + 1));
 
     return {
-      roomId: room.id,
+      roomCode: room.code,
       roomTitle: room.title,
       focusMin: 25,
       breakMin: 5,

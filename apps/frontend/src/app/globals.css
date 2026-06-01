@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -29,16 +29,17 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-success: var(--success);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
   /* Design System Radius */
-  --radius-sm:  8px;
-  --radius-md:  12px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-2xl: 32px;
   --radius-full: 9999px;
 }
@@ -48,86 +49,124 @@
 
   /* Backgrounds */
   --background: #050816;
-  --surface:    #0B1120;
-  --card:       #111827;
-  --elevated:   #1F2937;
+  --surface: #0b1120;
+  --card: #111827;
+  --elevated: #1f2937;
 
   /* Text */
-  --foreground:       #FFFFFF;
-  --card-foreground:  #FFFFFF;
-  --popover-foreground: #FFFFFF;
+  --foreground: #ffffff;
+  --card-foreground: #ffffff;
+  --popover-foreground: #ffffff;
 
   /* Primary */
-  --primary:          #7C3AED;
-  --primary-foreground: #FFFFFF;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+
+  /* success */
+  --success: #10b981;
 
   /* Secondary */
-  --secondary:          #1F2937;
-  --secondary-foreground: #FFFFFF;
+  --secondary: #1f2937;
+  --secondary-foreground: #ffffff;
 
   /* Muted */
-  --muted:            #1F2937;
-  --muted-foreground: #9CA3AF;
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
 
   /* Accent */
-  --accent:           #1F2937;
-  --accent-foreground: #FFFFFF;
+  --accent: #1f2937;
+  --accent-foreground: #ffffff;
 
   /* State */
-  --destructive: #EF4444;
+  --destructive: #ef4444;
 
   /* Border & Input */
   --border: rgba(255, 255, 255, 0.12);
-  --input:  #111827;
-  --ring:   #8B5CF6;
+  --input: #111827;
+  --ring: #8b5cf6;
 
   /* Popover */
   --popover: #111827;
+
+  /* Roulette */
+  --roulette-panel: #1e1b4b;
+  --roulette-panel-border: #312e81;
+  --roulette-card: #111026;
+  --roulette-card-border: #1e1b4b;
+  --roulette-history: #1a1833;
+  --roulette-history-border: #2d2a4a;
+  --roulette-wheel-even: #2e1065;
+  --roulette-wheel-odd: #4c1d95;
+  --roulette-wheel-center: #0f0e17;
+  --roulette-dialog: #292e3e;
+  --roulette-dialog-secondary: #1d2033;
+  --roulette-dialog-secondary-border: #353b52;
 
   /* Radius base (kept for any calc usage) */
   --radius: 1rem;
 
   /* Sidebar */
-  --sidebar:                  #111827;
-  --sidebar-foreground:       #FFFFFF;
-  --sidebar-primary:          #7C3AED;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:           #1F2937;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border:           rgba(255, 255, 255, 0.12);
-  --sidebar-ring:             #8B5CF6;
+  --sidebar: #111827;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1f2937;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #8b5cf6;
 }
 
 /* Dark mode는 항상 :root와 동일 (html에 dark 클래스 고정) */
 .dark {
   --background: #050816;
-  --surface:    #0B1120;
-  --card:       #111827;
-  --elevated:   #1F2937;
-  --foreground:       #FFFFFF;
-  --card-foreground:  #FFFFFF;
-  --popover-foreground: #FFFFFF;
-  --primary:          #7C3AED;
-  --primary-foreground: #FFFFFF;
-  --secondary:          #1F2937;
-  --secondary-foreground: #FFFFFF;
-  --muted:            #1F2937;
-  --muted-foreground: #9CA3AF;
-  --accent:           #1F2937;
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444;
+  --surface: #0b1120;
+  --card: #111827;
+  --elevated: #1f2937;
+  --foreground: #ffffff;
+  --card-foreground: #ffffff;
+  --popover-foreground: #ffffff;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --success: #10b981;
+  --secondary: #1f2937;
+  --secondary-foreground: #ffffff;
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
+  --accent: #1f2937;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
   --border: rgba(255, 255, 255, 0.12);
-  --input:  #111827;
-  --ring:   #8B5CF6;
+  --input: #111827;
+  --ring: #8b5cf6;
   --popover: #111827;
-  --sidebar:                  #111827;
-  --sidebar-foreground:       #FFFFFF;
-  --sidebar-primary:          #7C3AED;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:           #1F2937;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border:           rgba(255, 255, 255, 0.12);
-  --sidebar-ring:             #8B5CF6;
+  --sidebar: #111827;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1f2937;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #8b5cf6;
+  --roulette-panel: #1e1b4b;
+  --roulette-panel-border: #312e81;
+  --roulette-card: #111026;
+  --roulette-card-border: #1e1b4b;
+  --roulette-history: #1a1833;
+  --roulette-history-border: #2d2a4a;
+  --roulette-wheel-even: #2e1065;
+  --roulette-wheel-odd: #4c1d95;
+  --roulette-wheel-center: #0f0e17;
+  --roulette-dialog: #292e3e;
+  --roulette-dialog-secondary: #1d2033;
+  --roulette-dialog-secondary-border: #353b52;
+  --sidebar: #111827;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1f2937;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #8b5cf6;
 }
 
 @layer base {
@@ -137,5 +176,20 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  html,
+  body {
+    padding-right: 0px !important;
+    --removed-body-scroll-bar-size: 0px !important;
   }
 }

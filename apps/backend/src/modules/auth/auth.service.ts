@@ -44,7 +44,7 @@ export class AuthService {
     const { id, email, nickname } = profile;
 
     let user = await this.prisma.user.findFirst({
-      where: { providerId: id },
+      where: { providerId: id, deletedAt: null },
     });
 
     if (!user) {
