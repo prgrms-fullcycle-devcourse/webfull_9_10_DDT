@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
-import { calculatePenaltyTier, parseTierConfig } from './penalty.util';
+import {
+  calculatePenaltyTier,
+  parseTierConfig,
+  resolveForfeitTier,
+} from './penalty.util';
 import type { PenaltyItem } from '@prisma/client';
 
 @Injectable()
@@ -41,17 +45,19 @@ export class PenaltyService {
       for (const member of room.roomMembers) {
         if (processedIds.has(member.id)) continue;
 
-        const totalEscapeMs = member.escapeLogs.reduce(
+        let totalEscapeMs = member.escapeLogs.reduce(
           (acc, log) => acc + (log.durationMs ?? 0),
           0,
         );
 
-        const { penaltyTier, penaltyCount, isForceAll } = calculatePenaltyTier(
-          totalEscapeMs,
-          focusMin,
-          rounds,
-          tiers,
-        );
+        // 중도 포기자(탈주): 포기~종료 잔여 시간을 이탈 시간에 합산(UI 표기용)
+        if (member.gaveUpAt && room.endedAt) {
+          totalEscapeMs += room.endedAt.getTime() - member.gaveUpAt.getTime();
+        }
+
+        const { penaltyTier, penaltyCount, isForceAll } = member.gaveUpAt
+          ? resolveForfeitTier(tiers)
+          : calculatePenaltyTier(totalEscapeMs, focusMin, rounds, tiers);
 
         const existing = await tx.roomResult.findUnique({
           where: { roomMemberId: member.id },

@@ -46,8 +46,10 @@ export class RouletteController {
         message: '룰렛이 스핀되었습니다.',
         data: {
           spinIndex: 1,
+          penaltyItemId: 'uuid',
           penaltyContent: '팔굽혀펴기 10회',
           remainingSpins: 2,
+          isFinished: false,
         },
         error: null,
       },
@@ -96,7 +98,12 @@ export class RouletteController {
       example: {
         statusCode: 201,
         message: '룰렛이 처리되었습니다.',
-        data: { autoRevealed: true },
+        data: {
+          autoRevealed: true,
+          revealedPenalties: [
+            { id: 'uuid', content: '팔굽혀펴기 10회', count: 1 },
+          ],
+        },
         error: null,
       },
     },

@@ -76,3 +76,19 @@ export function calculatePenaltyTier(
 
   return { penaltyTier: 0, penaltyCount: 0, isForceAll: false };
 }
+
+/**
+ * 중도 포기자(탈주) 강제 산정: 최고 등급(maxPct === null) 티어 부여.
+ * 룰렛 생략·전체 강제 공개(isForceAll).
+ */
+export function resolveForfeitTier(tiers: PenaltyTier[]): TierResult {
+  const topTier = tiers.find((t) => t.maxPct === null);
+  if (!topTier) {
+    throw new Error('최고 등급(maxPct=null) 티어가 없습니다.');
+  }
+  return {
+    penaltyTier: topTier.tier,
+    penaltyCount: topTier.count,
+    isForceAll: true,
+  };
+}
