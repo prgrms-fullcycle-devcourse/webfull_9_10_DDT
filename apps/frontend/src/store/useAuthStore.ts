@@ -7,7 +7,7 @@ import { create } from 'zustand';
 interface JwtPayload {
   sub: string;
   role: string;
-  exp?: string;
+  exp?: number;
 }
 
 interface Me {

@@ -41,8 +41,8 @@ const timerControllerForceStartTimer = (
     );
   }
 /**
- * 진행 중(timer)인 세션을 방장이 강제 종료합니다.
- * @summary 중도 포기 (세션 강제 종료)
+ * 진행 중인 세션(timer)에서 요청한 사용자 본인의 참여를 중단합니다. 포기 시 본인만 이탈 처리되며, 방의 상태나 다른 참여자의 타이머는 유지됩니다.
+ * @summary 세션 중도 포기
  */
 const timerControllerGiveUp = (
     roomCode: string, options?: AxiosRequestConfig

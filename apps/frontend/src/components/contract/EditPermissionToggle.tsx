@@ -4,6 +4,7 @@ import { Switch } from '../ui/switch';
 import { useSocket } from '@/contexts/SocketContext';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
+import { Unlock, Lock } from 'lucide-react';
 
 const EditPermissionToggle = () => {
   const socket = useSocket();
@@ -17,13 +18,13 @@ const EditPermissionToggle = () => {
     (m) => !m.isHost && m.canEdit === false,
   );
 
+  const allCanEdit = !hostOnly;
+
   const handleToggle = (checked: boolean) => {
-    if (!socket) {
+    if (!socket || !isHost) {
       return;
     }
-    if (!isHost) return;
-
-    socket.emit('edit:all', { canEdit: !checked });
+    socket.emit('edit:all', { canEdit: checked });
   };
   return (
     <Card>
@@ -31,16 +32,26 @@ const EditPermissionToggle = () => {
         <div className='flex justify-between'>
           <CardTitle>계약서 편집 권한</CardTitle>
           <Switch
-            checked={hostOnly}
+            checked={allCanEdit}
             onCheckedChange={handleToggle}
             className='data-[state=unchecked]:bg-muted'
             disabled={!isHost}
+            size='lg'
+            thumbIcon={
+              allCanEdit ? (
+                <Unlock className='w-4 h-4 text-purple-600' />
+              ) : (
+                <Lock className='w-4 h-4 text-purple-600' />
+              )
+            }
           />
         </div>
-        <CardDescription>
+        <CardDescription className='text-xs'>
           {hostOnly ? '방장만 편집 가능' : '모든 멤버가 편집 가능'}
         </CardDescription>
-        <CardDescription>OFF 시 모든 멤버가 편집할 수 있어요.</CardDescription>
+        <CardDescription className='text-xs'>
+          OFF 시 모든 멤버가 편집할 수 있어요.
+        </CardDescription>
       </CardHeader>
     </Card>
   );

@@ -60,6 +60,17 @@ export class RoomService {
     createRoomDto: CreateRoomDto,
     hostId: string,
   ): Promise<CreateRoomResult> {
+    const existing = await this.prismaService.room.findFirst({
+      where: {
+        hostId,
+        phase: { notIn: ['closed', 'result'] },
+      },
+      select: { code: true, phase: true, title: true },
+    });
+
+    if (existing) {
+      throw new ConflictException('이미 진행중인 방이 있습니다.');
+    }
     const { title, password } = createRoomDto;
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -240,7 +251,7 @@ export class RoomService {
             nickname,
             isLoggedIn: true,
             isHost: isHostUser,
-            connected: true,
+            connected: false,
             profileImage,
             canEdit: isHostUser,
           };
@@ -281,7 +292,7 @@ export class RoomService {
             nickname,
             isLoggedIn: false,
             isHost: false,
-            connected: true,
+            connected: false,
             profileImage,
             isSigned: false,
             canEdit: false,
@@ -573,5 +584,15 @@ export class RoomService {
     );
 
     return true;
+  }
+
+  async findMyActiveRoom(userId: string) {
+    return this.prismaService.room.findFirst({
+      where: {
+        hostId: userId,
+        phase: { notIn: ['closed', 'result'] },
+      },
+      select: { code: true, phase: true, title: true },
+    });
   }
 }

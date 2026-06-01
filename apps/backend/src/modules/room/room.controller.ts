@@ -158,4 +158,13 @@ export class RoomController {
       isGuest ? req.user.id : null,
     );
   }
+
+  @Get('me/active')
+  @UseGuards(AuthGuard('jwt'))
+  async getMyActiveRoom(@Req() req: AuthenticatedRequest) {
+    if (req.user.role === 'guest') {
+      throw new ForbiddenException('로그인이 필요합니다.');
+    }
+    return this.roomService.findMyActiveRoom(req.user.id);
+  }
 }

@@ -47,7 +47,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly escapeService: EscapeService,
   ) {}
   @WebSocketServer()
-  server!: Server;
+  server!: Server<
+    DefaultEventsMap,
+    DefaultEventsMap,
+    DefaultEventsMap,
+    SocketData
+  >;
 
   private cleanupTimers = new Map<string, NodeJS.Timeout>();
   private readonly logger = new Logger(RoomGateway.name);
@@ -243,9 +248,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.roomService.kickMember(roomCode, body.targetId);
 
     const sockets = await this.server.in(roomCode).fetchSockets();
-    const targetSocket = sockets.find(
-      (s) => (s.data as RoomSocket).data.userId === body.targetId,
-    );
+    const targetSocket = sockets.find((s) => s.data.userId === body.targetId);
 
     if (targetSocket) {
       targetSocket.emit('kicked');

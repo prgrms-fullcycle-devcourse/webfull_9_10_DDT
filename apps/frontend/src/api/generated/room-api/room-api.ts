@@ -57,33 +57,15 @@ const roomControllerJoinById = (
       joinRoomDto,options
     );
   }
-/**
- * `GET /rooms/:roomCode`와 동일하게 동작합니다.
- * @summary 방 코드로 방 정보 조회 (별칭 경로)
- */
-const roomControllerFindByCode = (
-    roomCode: string, options?: AxiosRequestConfig
+const roomControllerGetMyActiveRoom = (
+     options?: AxiosRequestConfig
  ): Promise<AxiosResponse<void>> => {
     return axiosInstance.get(
-      `/rooms/code/${roomCode}`,options
+      `/rooms/me/active`,options
     );
   }
-/**
- * `POST /rooms/:roomCode`와 동일하게 동작합니다.
- * @summary 방 코드로 방 입장 (별칭 경로)
- */
-const roomControllerJoinByCode = (
-    roomCode: string,
-    joinRoomDto: JoinRoomDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.post(
-      `/rooms/code/${roomCode}`,
-      joinRoomDto,options
-    );
-  }
-return {roomControllerCreate,roomControllerFindById,roomControllerJoinById,roomControllerFindByCode,roomControllerJoinByCode}};
+return {roomControllerCreate,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom}};
 export type RoomControllerCreateResult = AxiosResponse<unknown>
 export type RoomControllerFindByIdResult = AxiosResponse<unknown>
 export type RoomControllerJoinByIdResult = AxiosResponse<unknown>
-export type RoomControllerFindByCodeResult = AxiosResponse<void>
-export type RoomControllerJoinByCodeResult = AxiosResponse<void>
+export type RoomControllerGetMyActiveRoomResult = AxiosResponse<void>
