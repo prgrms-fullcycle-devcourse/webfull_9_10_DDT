@@ -34,7 +34,13 @@ export class UsersService {
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, nickname: true, email: true, profileImage: true, deletedAt: true },
+      select: {
+        id: true,
+        nickname: true,
+        email: true,
+        profileImage: true,
+        deletedAt: true,
+      },
     });
 
     if (!user || user.deletedAt) {
@@ -90,10 +96,7 @@ export class UsersService {
     const activeRoom = await this.prisma.room.findFirst({
       where: {
         phase: { notIn: ['done', 'closed'] },
-        OR: [
-          { hostId: userId },                    
-          { roomMembers: { some: { userId } } }, 
-        ],
+        OR: [{ hostId: userId }, { roomMembers: { some: { userId } } }],
       },
       select: { code: true },
     });
