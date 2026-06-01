@@ -124,7 +124,8 @@ export class UsersController {
   })
   async deleteMe(@Req() req: AuthenticatedRequest) {
     const userId = req.user.id;
-    const data = await this.usersService.deleteMe(userId);
+    const token = req.headers.authorization?.split(' ')[1];
+    const data = await this.usersService.deleteMe(userId, token);
     return { message: '회원 탈퇴가 완료되었습니다.', data };
   }
 
