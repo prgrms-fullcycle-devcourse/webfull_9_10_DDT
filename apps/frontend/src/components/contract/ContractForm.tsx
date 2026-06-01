@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation'; 
 import { FormProvider, useForm } from 'react-hook-form';
 import { useYjsContract } from '@/hooks/useYjsContract';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner'; 
+import { getRoomApi } from '@/api/generated/room-api/room-api';
+
 import { MobileLayout } from '../layout/mobileLayout';
 import { BackButton } from '../layout/BackButton';
 import { HeaderTitle } from '../layout/HeaderTitle';
@@ -28,6 +32,7 @@ interface ContractFormValues {
 }
 
 const ContractForm = () => {
+  const router = useRouter();
   const room = useRoom();
   const me = useAuthStore((state) => state.me);
   const members = useRoomStore((state) => state.members);
@@ -73,6 +78,25 @@ const ContractForm = () => {
     }
     setArrayError(null);
     console.log('서명 완료:', data, tiers, penalties);
+  };
+
+  const handleLeaveRoom = async () => {
+    if (
+      !confirm(
+        isHost
+          ? '방장이 나가면 방이 폭파됩니다. 정말 나가시겠어요?'
+          : '정말 방에서 나가시겠어요?'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await getRoomApi().roomControllerLeaveRoom(room.code);
+      router.replace('/');
+    } catch (err) {
+      toast.error('퇴장 처리에 실패했습니다.');
+    }
   };
 
   if (!me) {
@@ -169,6 +193,7 @@ const ContractForm = () => {
           <Button
             type='button'
             className='flex-1 py-5! rounded-sm! bg-card! border border-white/10'
+            onClick={handleLeaveRoom}
           >
             나가기
           </Button>
