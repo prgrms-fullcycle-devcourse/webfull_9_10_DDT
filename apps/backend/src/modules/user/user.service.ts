@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../../common/prisma.service';
+import { randomUUID } from 'node:crypto';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
@@ -21,7 +23,10 @@ export class UsersService {
     'basic_image_key_10',
   ]);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   /**
    * 1. GET /users/me - 내 정보 조회
@@ -29,10 +34,10 @@ export class UsersService {
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, nickname: true, email: true, profileImage: true },
+      select: { id: true, nickname: true, email: true, profileImage: true, deletedAt: true },
     });
 
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new NotFoundException({
         message: '존재하지 않는 사용자입니다.',
         error: 'USER_NOT_FOUND',
@@ -79,32 +84,49 @@ export class UsersService {
   /**
    * 3. DELETE /users/me - 회원 탈퇴
    */
-  async deleteMe(userId: string) {
+  async deleteMe(userId: string, token?: string) {
     await this.getMe(userId);
 
-    const activeRoomMember = await this.prisma.roomMember.findFirst({
+    const activeRoom = await this.prisma.room.findFirst({
       where: {
-        userId,
-        room: {
-          phase: {
-            notIn: ['done', 'closed'],
-          },
-        },
+        phase: { notIn: ['done', 'closed'] },
+        OR: [
+          { hostId: userId },                    
+          { roomMembers: { some: { userId } } }, 
+        ],
       },
+      select: { code: true },
     });
 
-    if (activeRoomMember) {
+    if (activeRoom) {
       throw new BadRequestException({
-        message: '방 참여 중에는 탈퇴할 수 없습니다.',
+        message: '진행 중인 방이 있어 탈퇴할 수 없습니다.',
         error: 'INVALID_REQUEST',
       });
     }
 
+    const anonId = randomUUID();
+
     await this.prisma.$transaction(async (tx) => {
-      await tx.user.delete({
+      await tx.ruleTemplate.deleteMany({
+        where: { userId, isSaved: true },
+      });
+
+      await tx.user.update({
         where: { id: userId },
+        data: {
+          deletedAt: new Date(),
+          isTermsAgreed: false,
+          nickname: '탈퇴한 사용자',
+          email: `deleted_${anonId}@deleted.local`,
+          providerId: `deleted_${anonId}`,
+        },
       });
     });
+
+    if (token) {
+      await this.authService.logout(token);
+    }
 
     return { success: true };
   }
