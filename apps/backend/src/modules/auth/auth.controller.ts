@@ -147,6 +147,7 @@ export class AuthController {
       provider: '',
       providerId: '',
       profileImage: '',
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
