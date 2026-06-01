@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
@@ -18,36 +18,58 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
-import { PROFILE_IMAGE_OPTIONS } from '@/lib/profileImage';
+import { PROFILE_IMAGE_OPTIONS, getProfileImageOptionKey } from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
+
+// 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
+const noopSubscribe = () => () => {};
 
 export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
   const code = params.code as string;
-  const { isLoggedIn, checkLoginStatus } = useAuthStore();
+  const { isLoggedIn, checkLoginStatus, me } = useAuthStore();
 
-  const [nickname, setNickname] = useState('');
-  const [selectedProfile, setSelectedProfile] = useState(0);
+  // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
+  const isMember = isLoggedIn && me?.role === 'user';
+  const defaultNickname = isMember ? me?.nickname ?? '' : '';
+  const defaultProfile = (() => {
+    if (!isMember) return 0;
+    const optionKey = getProfileImageOptionKey(me?.profileImage);
+    const idx = PROFILE_IMAGE_OPTIONS.findIndex((item) => item.key === optionKey);
+    return idx >= 0 ? idx : 0;
+  })();
+
+  // 사용자가 직접 입력하면 그 값이 기본값보다 우선한다 (null = 아직 미입력)
+  const [nicknameInput, setNicknameInput] = useState<string | null>(null);
+  const [profileInput, setProfileInput] = useState<number | null>(null);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [dialogDismissed, setDialogDismissed] = useState(false);
 
-  const [isHost, setIsHost] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const nickname = nicknameInput ?? defaultNickname;
+  const selectedProfile = profileInput ?? defaultProfile;
+
+  // sessionStorage는 클라이언트 전용이라, SSR/하이드레이션 불일치 없이 읽기 위해
+  // useSyncExternalStore를 사용한다 (서버 스냅샷은 false → 하이드레이션 후 클라이언트 값 반영)
+  const isHost = useSyncExternalStore(
+    noopSubscribe,
+    () => sessionStorage.getItem(`isHost:${code}`) === 'true',
+    () => false,
+  );
+  const isHydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     checkLoginStatus();
   }, [checkLoginStatus]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsHost(sessionStorage.getItem(`isHost:${code}`) === 'true');
-    setIsHydrated(true);
-  }, [code]);
 
   const isValid =
     nickname.trim().length > 0 &&
@@ -95,8 +117,27 @@ export const JoinRoom = () => {
       router.push(`/room/${code}/contract`);
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : '입장 실패');
+      const serverMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      toast.error(
+        serverMessage ?? (err instanceof Error ? err.message : '입장 실패'),
+      );
     },
+  });
+
+  // 입장 페이지 진입 시 방 존재/유효 여부 검증 (없는 방=404, 종료된 방=403 → isError)
+  const {
+    isLoading: isRoomLoading,
+    isError: isRoomInvalid,
+  } = useQuery({
+    queryKey: ['room', code],
+    queryFn: async () => {
+      const res = await getRoomApi().roomControllerFindById(code);
+      return res.data;
+    },
+    enabled: !!code,
+    retry: false,
   });
 
   const handleGuestStart = async () => {
@@ -127,6 +168,52 @@ export const JoinRoom = () => {
       profileImage: PROFILE_IMAGE_OPTIONS[selectedProfile].key,
     });
   };
+
+  if (isRoomLoading) {
+    return (
+      <MobileLayout
+        header={
+          <>
+            <BackButton />
+            <HeaderTitle>방 입장하기</HeaderTitle>
+          </>
+        }
+      >
+        <div className='pt-16 text-center text-sm text-white/50'>
+          방 정보를 불러오는 중...
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  if (isRoomInvalid) {
+    return (
+      <MobileLayout
+        header={
+          <>
+            <BackButton />
+            <HeaderTitle>방 입장하기</HeaderTitle>
+          </>
+        }
+      >
+        <div className='flex flex-col items-center gap-3 pt-16 text-center'>
+          <p className='text-base font-bold text-white'>
+            존재하지 않거나 종료된 방이에요.
+          </p>
+          <p className='text-sm text-white/50'>방 코드를 다시 확인해주세요.</p>
+          <Button
+            onClick={() => router.push('/')}
+            className='mt-3 h-12 rounded-[14px] px-6 font-bold text-white'
+            style={{
+              background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
+            }}
+          >
+            홈으로
+          </Button>
+        </div>
+      </MobileLayout>
+    );
+  }
 
   return (
     <>
@@ -195,7 +282,7 @@ export const JoinRoom = () => {
               placeholder='방에서 사용할 닉네임을 입력해주세요'
               maxLength={10}
               value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
+              onChange={(e) => setNicknameInput(e.target.value)}
               className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
             />
             <span className='text-xs text-[#6B7280] text-right'>
@@ -205,7 +292,7 @@ export const JoinRoom = () => {
 
           <ProfileImagePicker
             selectedProfile={selectedProfile}
-            onSelectProfile={setSelectedProfile}
+            onSelectProfile={setProfileInput}
           />
 
           {/* 비밀번호 */}

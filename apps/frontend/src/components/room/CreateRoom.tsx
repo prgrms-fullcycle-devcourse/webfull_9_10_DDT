@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Users, Lightbulb } from 'lucide-react';
@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dialog';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
+import { useAuthStore } from '@/store/useAuthStore';
 
 type Step = 'form' | 'complete';
 /* ── 완료 화면 ── */
@@ -108,9 +110,21 @@ function CreateRoomComplete({
 /* ── 메인 컴포넌트 ── */
 export const CreateRoom = () => {
   const router = useRouter();
+  const me = useAuthStore((state) => state.me);
+  const fetchMe = useAuthStore((state) => state.fetchMe);
+  const isGuest = me?.role === 'guest';
 
   const onBack = () => {
     router.back();
+  };
+
+  // 로그인 팝업(/terms) 열기
+  const handleOpenLogin = () => {
+    window.open(
+      '/terms',
+      'Terms Agreement',
+      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
+    );
   };
   const [step, setStep] = useState<Step>('form');
   const [roomName, setRoomName] = useState('');
@@ -134,9 +148,26 @@ export const CreateRoom = () => {
       setStep('complete');
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : '방 생성 실패');
+      const serverMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      toast.error(
+        serverMessage ?? (err instanceof Error ? err.message : '방 생성 실패'),
+      );
     },
   });
+
+  // 로그인 팝업에서 OAUTH_SUCCESS를 받으면 회원 정보 갱신 → 게스트 화면 해제
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'OAUTH_SUCCESS') {
+        void fetchMe();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [fetchMe]);
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -150,6 +181,39 @@ export const CreateRoom = () => {
     await navigator.clipboard.writeText(text);
     toast.success('초대 정보가 복사되었어요');
   };
+
+  if (isGuest) {
+    return (
+      <MobileLayout
+        header={
+          <>
+            <BackButton onClick={onBack} />
+            <HeaderTitle>방 만들기</HeaderTitle>
+          </>
+        }
+      >
+        <div className='flex flex-col items-center gap-3 pt-16 text-center'>
+          <p className='text-base font-bold text-white'>
+            방을 만들려면 로그인이 필요해요.
+          </p>
+          <p className='text-sm text-white/50'>
+            게스트는 방을 만들 수 없어요.
+            <br />
+            회원으로 로그인 후 이용해주세요.
+          </p>
+          <Button
+            onClick={handleOpenLogin}
+            className='mt-3 h-12 rounded-[14px] px-6 font-bold text-white'
+            style={{
+              background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
+            }}
+          >
+            로그인하기
+          </Button>
+        </div>
+      </MobileLayout>
+    );
+  }
 
   return (
     <>

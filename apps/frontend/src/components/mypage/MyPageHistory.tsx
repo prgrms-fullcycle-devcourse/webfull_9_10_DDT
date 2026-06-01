@@ -35,25 +35,17 @@ export function MyPageHistory() {
 
   const loadPage = useCallback(async (nextPage: number) => {
     if (loadingRef.current) return;
-
-    const token = getCookieToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     loadingRef.current = true;
-    if (nextPage === 1) setIsLoading(true);
-    else setIsLoadingMore(true);
 
     try {
+      const token = getCookieToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
       const axiosInstance = axios.create({ baseURL: apiUrl });
       const usersApi = getUsers(axiosInstance);
 
       const response = await usersApi.usersControllerGetMyHistory(
         { page: nextPage, limit: PAGE_SIZE },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token ?? ''}` } },
       );
 
       const result = response.data as ApiEnvelope<{
@@ -78,9 +70,10 @@ export function MyPageHistory() {
   }, []);
 
   // 최초 1페이지 로드
+  // effect 본문에서 동기적으로 setState가 일어나지 않도록 마이크로태스크로 미뤄 호출한다
+  // (react-hooks/set-state-in-effect: cascading render 방지)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadPage(1);
+    void Promise.resolve().then(() => loadPage(1));
   }, [loadPage]);
 
   // 무한 스크롤: 센티넬이 보이면 다음 페이지 로드
@@ -91,6 +84,7 @@ export function MyPageHistory() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !loadingRef.current) {
+          setIsLoadingMore(true);
           void loadPage(page + 1);
         }
       },
