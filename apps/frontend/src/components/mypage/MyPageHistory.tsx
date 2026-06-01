@@ -79,6 +79,7 @@ export function MyPageHistory() {
 
   // 최초 1페이지 로드
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPage(1);
   }, [loadPage]);
 
