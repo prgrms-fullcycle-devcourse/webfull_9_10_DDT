@@ -5,7 +5,7 @@ import { ChevronRight } from 'lucide-react';
 import { formatDateWithDots, formatDuration } from '@/lib/format';
 
 export type HistoryItem = {
-  roomId: string;
+  roomCode: string;
   roomTitle: string;
   profileImage?: string;
   totalEscapeMs: number;
@@ -57,8 +57,8 @@ export const MyPageHistoryList = ({
       ) : (
         history.map((item) => (
           <Link
-            key={item.roomId}
-            href={`/result/${item.roomId}`}
+            key={item.roomCode}
+            href={`/room/${item.roomCode}/result`}
             className='flex min-h-[95px] items-center justify-between rounded-[12px] bg-[#1D1C31] px-[14px] py-4 transition hover:bg-[#24223A]'
           >
             <div className='min-w-0'>

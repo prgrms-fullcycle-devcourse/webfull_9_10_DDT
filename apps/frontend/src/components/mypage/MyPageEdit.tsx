@@ -123,7 +123,10 @@ export function MyPageEdit() {
         router.push('/mypage');
       }, 800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+      const serverMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      setError(serverMessage ?? '저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -159,7 +162,10 @@ export function MyPageEdit() {
       logout();
       router.push('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '회원 탈퇴에 실패했습니다.');
+      const serverMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      setError(serverMessage ?? '회원 탈퇴에 실패했습니다.');
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
