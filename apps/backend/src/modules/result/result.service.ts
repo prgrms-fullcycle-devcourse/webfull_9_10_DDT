@@ -73,9 +73,11 @@ export class ResultService {
         (acc, p) => acc + p.count,
         0,
       );
-      // 남은 룰렛 스핀 수 = 미공개 '행(row)' 개수 (룰렛은 content 행 단위 1회 공개, count는 표시용 배수)
+      // 남은 룰렛 스핀 수 = 미공개 행들의 count 합산 (중복 포함)
       const remainingSpins =
-        m.result?.penalties.filter((p) => !p.isRevealed).length ?? 0;
+        m.result?.penalties
+          .filter((p) => !p.isRevealed)
+          .reduce((acc, p) => acc + p.count, 0) ?? 0;
 
       return {
         memberId: m.id,

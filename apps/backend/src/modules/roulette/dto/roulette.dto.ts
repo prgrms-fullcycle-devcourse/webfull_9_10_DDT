@@ -4,9 +4,10 @@ import { IsInt, Min } from 'class-validator';
 export class SpinRouletteDto {
   @ApiProperty({
     description:
-      '공개할 벌칙 행 인덱스(1부터). result 응답 penalties와 동일한 content 오름차순 ' +
-      '고정 순서의 "절대 위치"이며 이미 공개된 행도 포함해 셉니다. 다음 미공개 인덱스를 ' +
-      '보내세요(이미 공개된 인덱스 재전송 시 409).',
+      '전역 스핀 순번(1부터 remainingSpins까지). content 오름차순을 count만큼 펼친 ' +
+      '인스턴스 순번이며, 1부터 순차 증가시켜 보냅니다. 마지막 순번(= count 총합)에서 ' +
+      '전체 공개 + result:revealed 브로드캐스트가 발생합니다. 범위를 벗어나면 400, ' +
+      '이미 전부 공개된 뒤 재호출 시 409.',
     example: 1,
   })
   @IsInt({ message: '스핀 인덱스는 정수여야 합니다.' })
@@ -32,7 +33,8 @@ export class SpinRouletteResponseDto {
 
   @ApiProperty({
     example: 2,
-    description: '남은 스핀 수(미공개 벌칙 행 개수). 0이면 종료.',
+    description:
+      '남은 스핀 수(미공개 벌칙 count 합산). 매 호출 1씩 감소, 0이면 종료.',
   })
   remainingSpins!: number;
 

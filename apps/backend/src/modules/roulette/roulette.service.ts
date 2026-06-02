@@ -34,41 +34,49 @@ export class RouletteService {
     if (!member || !member.result)
       throw new BadRequestException('룰렛 정보가 없습니다.');
 
-    // spinIndex는 content 오름차순 고정 순서를 전제로 한다.
-    const penalty = member.result.penalties[spinIndex - 1];
-    if (!penalty)
+    const penalties = member.result.penalties;
+
+    // 이미 전부 공개된 상태면 더 돌릴 수 없음
+    if (penalties.length > 0 && penalties.every((p) => p.isRevealed))
+      throw new ConflictException('이미 완료된 룰렛입니다.');
+
+    // spinIndex = content 오름차순을 count만큼 펼친 '전역 스핀 순번'(1..총합)
+    const totalSpins = penalties.reduce((acc, p) => acc + p.count, 0);
+    if (spinIndex < 1 || spinIndex > totalSpins)
       throw new BadRequestException('해당 스핀의 벌칙이 존재하지 않습니다.');
-    if (penalty.isRevealed)
-      throw new ConflictException('이미 실행된 룰렛입니다.');
+
+    // spinIndex번째 인스턴스가 속한 행(content)을 결정적으로 계산 (중간 상태 미저장)
+    let cumulative = 0;
+    let target: (typeof penalties)[number] | undefined;
+    for (const p of penalties) {
+      cumulative += p.count;
+      if (spinIndex <= cumulative) {
+        target = p;
+        break;
+      }
+    }
+    if (!target)
+      throw new BadRequestException('해당 스핀의 벌칙이 존재하지 않습니다.');
+
+    const remainingSpins = totalSpins - spinIndex;
+    const isFinished = remainingSpins === 0;
+
+    // 마지막 스핀에서만 전체 공개 + 브로드캐스트 (중간 스핀은 DB 무변경)
+    if (isFinished) {
+      await this.prisma.resultPenalty.updateMany({
+        where: { roomMemberId: member.id, isRevealed: false },
+        data: { isRevealed: true },
+      });
+      await this.broadcastRevealed(roomCode, member);
+    }
 
     // content → PENALTY_ITEM.id 매핑 (휠 정지 위치 식별용)
     const penaltyItemMap = this.buildPenaltyItemMap(member);
 
-    // 공개 + 잔여 개수 산정을 원자적으로 처리 (remainingSpins 정합성 보장)
-    const remainingSpins = await this.prisma.$transaction(async (tx) => {
-      await tx.resultPenalty.update({
-        where: {
-          roomMemberId_content: {
-            roomMemberId: member.id,
-            content: penalty.content,
-          },
-        },
-        data: { isRevealed: true },
-      });
-      return tx.resultPenalty.count({
-        where: { roomMemberId: member.id, isRevealed: false },
-      });
-    });
-
-    const isFinished = remainingSpins === 0;
-
-    // 마지막 스핀 → 다른 멤버 화면 실시간 동기화
-    if (isFinished) await this.broadcastRevealed(roomCode, member);
-
     return {
       spinIndex,
-      penaltyItemId: penaltyItemMap.get(penalty.content) ?? null,
-      penaltyContent: penalty.content,
+      penaltyItemId: penaltyItemMap.get(target.content) ?? null,
+      penaltyContent: target.content,
       remainingSpins,
       isFinished,
     };
