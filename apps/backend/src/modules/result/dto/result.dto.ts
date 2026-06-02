@@ -104,7 +104,11 @@ export class ResultRuleDto {
   @ApiProperty({ example: 4 })
   rounds!: number;
 
-  @ApiProperty({ type: [ResultRulePenaltyDto], description: '벌칙 풀(공개)' })
+  @ApiProperty({
+    type: [ResultRulePenaltyDto],
+    description:
+      '벌칙 풀(공개). 룰렛 휠 항목을 이 목록으로 구성. 본인 미공개 벌칙 content는 멤버 penalties에 오지 않음(count만).',
+  })
   penalties!: ResultRulePenaltyDto[];
 
   @ApiProperty({
@@ -142,11 +146,19 @@ export class ResultResponseDto {
     nullable: true,
     type: String,
     format: 'date-time',
-    description: '룰렛 카운트다운 종료 시각(ISO). null이면 미정',
+    description:
+      '룰렛 카운트다운 종료 시각(절대 ISO, "초" 아님). 남은초 = max(0,(rouletteEndsAt-serverTime)/1000)로 FE 계산. ' +
+      '00:00 도달 시 POST /roulette/exit 호출. (현재 제한 10분은 임시값, 정책 미확정) null이면 미정.',
   })
   rouletteEndsAt!: Date | null;
 
-  @ApiProperty({ example: 4, nullable: true, type: Number })
+  @ApiProperty({
+    example: 4,
+    nullable: true,
+    type: Number,
+    description:
+      '현재는 계획 라운드 수(계약서 rounds). force-end 시 실제 완수 라운드와 다를 수 있음(추후 보정 예정).',
+  })
   completedRounds!: number | null;
 
   @ApiProperty({ example: 2, description: '벌칙 대상 인원수' })
