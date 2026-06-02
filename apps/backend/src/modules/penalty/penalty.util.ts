@@ -40,7 +40,7 @@ export function calculatePenaltyTier(
     return { penaltyTier: 0, penaltyCount: 0, isForceAll: false };
   }
 
-  // 2. 이탈 비율 계산 (기획서 공식 적용)
+  // 2. 이탈 비율 계산
   const totalFocusMs = focusMin * rounds * 60 * 1000;
   const escapePercent = (totalEscapeMs / totalFocusMs) * 100;
 

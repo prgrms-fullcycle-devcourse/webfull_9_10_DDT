@@ -23,7 +23,7 @@ type RoomWithDetails = NonNullable<
   }>
 >;
 
-// 결과/룰렛 체류 제한 시간. 화면상 임시 10분 (도메인 §8 미결 — 팀 확정 후 변경 가능).
+// 결과/룰렛 체류 제한 시간. 화면상 10분으로 임시 지정
 const ROULETTE_TIMEOUT_MS = 10 * 60 * 1000;
 
 @Injectable()
@@ -156,7 +156,7 @@ export class ResultService {
     const memberIds = room.roomMembers.map((m) => m.id);
     if (memberIds.length === 0) return false;
 
-    // 자동공개로 상태가 바뀔 멤버(미공개 보유) — 로드된 데이터로 판정, 추가 쿼리 없음
+    // 자동공개로 상태가 바뀔 멤버(미공개 보유) — 로드된 데이터로 판정
     const affected = room.roomMembers.filter((m) =>
       m.result?.penalties.some((p) => !p.isRevealed),
     );
@@ -224,7 +224,7 @@ export class ResultService {
       if (!room) throw new NotFoundException('결과를 찾을 수 없습니다.');
     }
 
-    // 룰렛 제한 시간 경과 시: 미공개 벌칙 일괄 자동 공개 (자리 뜬 멤버 보강)
+    // 룰렛 제한 시간 경과 시: 미공개 벌칙 일괄 자동 공개 (자리 뜬 멤버)
     if (await this.revealExpiredPenalties(room)) {
       room = (await this.fetchRoom(roomCode)) ?? room;
     }
