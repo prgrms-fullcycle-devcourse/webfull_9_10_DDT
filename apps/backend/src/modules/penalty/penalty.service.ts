@@ -41,19 +41,35 @@ export class PenaltyService {
     });
     const processedIds = new Set(existingResults.map((r) => r.roomMemberId));
 
+    // 세션 종료 기준 시각. 미설정 시 현재 시각으로 방어(음수 가드와 함께 사용).
+    // 미복귀 EscapeLog 마감·포기자 잔여 시간 합산의 공통 기준이다.
+    const sessionEndedAt = room.endedAt ?? new Date();
+
     await this.prisma.$transaction(async (tx) => {
       for (const member of room.roomMembers) {
         if (processedIds.has(member.id)) continue;
 
-        let totalEscapeMs = member.escapeLogs.reduce(
-          (acc, log) => acc + (log.durationMs ?? 0),
-          0,
-        );
+        // 미복귀(returnedAt=null) EscapeLog를 endedAt으로 마감 후 합산.
+        // domain-rules.md §2 — 세션 종료 시 미복귀 유저 이탈 시간 미집계 방지(어뷰징 차단).
+        let totalEscapeMs = 0;
+        for (const log of member.escapeLogs) {
+          if (log.returnedAt === null) {
+            const durationMs = Math.max(
+              0,
+              sessionEndedAt.getTime() - log.escapedAt.getTime(),
+            );
+            await tx.escapeLog.update({
+              where: { id: log.id },
+              data: { returnedAt: sessionEndedAt, durationMs },
+            });
+            totalEscapeMs += durationMs;
+          } else {
+            totalEscapeMs += log.durationMs ?? 0;
+          }
+        }
 
-        // 중도 포기자(탈주): 포기~종료 잔여 시간을 이탈 시간에 합산(UI 표기용).
-        // endedAt 미설정 시 현재 시각으로 방어 + 음수 가드.
+        // 중도 포기자(탈주): 포기~종료 잔여 시간을 이탈 시간에 합산(UI 표기용). 음수 가드.
         if (member.gaveUpAt) {
-          const sessionEndedAt = room.endedAt ?? new Date();
           totalEscapeMs += Math.max(
             0,
             sessionEndedAt.getTime() - member.gaveUpAt.getTime(),
@@ -68,30 +84,31 @@ export class PenaltyService {
           where: { roomMemberId: member.id },
         });
 
+        // 멱등성 + 동시성: 결과 미존재일 때만 생성·배정.
+        // upsert(update:{}) 대신 create를 써서, 동시 트랜잭션 충돌 시 roomMemberId PK
+        // 위반으로 전체 롤백시켜 벌칙 행 중복 INSERT(remainingSpins 과대)를 차단한다.
         if (!existing) {
-          await tx.roomResult.upsert({
-            where: { roomMemberId: member.id },
-            create: {
+          await tx.roomResult.create({
+            data: {
               roomMemberId: member.id,
               roomCode,
               totalEscapeMs,
               penaltyTier,
             },
-            update: {},
           });
-        }
 
-        if (penaltyCount > 0 && penaltyPool.length > 0) {
-          const assigned = this.assignPenalties(penaltyPool, penaltyCount);
-          await tx.resultPenalty.createMany({
-            data: Object.entries(assigned).map(([content, count]) => ({
-              roomMemberId: member.id,
-              content,
-              count,
-              isRevealed: isForceAll,
-            })),
-            skipDuplicates: true,
-          });
+          if (penaltyCount > 0 && penaltyPool.length > 0) {
+            const assigned = this.assignPenalties(penaltyPool, penaltyCount);
+            await tx.resultPenalty.createMany({
+              data: Object.entries(assigned).map(([content, count]) => ({
+                roomMemberId: member.id,
+                content,
+                count,
+                isRevealed: isForceAll,
+              })),
+              skipDuplicates: true,
+            });
+          }
         }
       }
     });
