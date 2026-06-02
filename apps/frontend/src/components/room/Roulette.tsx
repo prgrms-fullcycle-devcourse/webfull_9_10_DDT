@@ -32,6 +32,11 @@ type RoulettePenalty = {
   label: string;
 };
 
+type ResultRulePenalty = {
+  itemId: string;
+  content: string;
+};
+
 type ResultMember = {
   userId: string | null;
   remainingSpins: number;
@@ -46,7 +51,7 @@ type ResultResponse = {
   rouletteEndsAt: string | null;
   members: ResultMember[];
   rule: {
-    penalties: { itemId: string; content: string }[];
+    penalties: ResultRulePenalty[];
   } | null;
 };
 
@@ -84,6 +89,12 @@ const getRemainingSeconds = (
   return Math.max(0, Math.floor(remainingMs / 1000));
 };
 
+const toRouletteItems = (penalties: ResultRulePenalty[] = []) =>
+  penalties.map((item) => ({
+    id: item.itemId,
+    label: item.content,
+  }));
+
 export function Roulette() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
@@ -104,6 +115,7 @@ export function Roulette() {
   const {
     data: result,
     dataUpdatedAt,
+    isError: isResultError,
     isLoading: isResultLoading,
   } = useQuery({
     queryKey: ['result', params.code],
@@ -114,11 +126,7 @@ export function Roulette() {
   });
 
   const rouletteItems = useMemo<RoulettePenalty[]>(
-    () =>
-      result?.rule?.penalties.map((item) => ({
-        id: item.itemId,
-        label: item.content,
-      })) ?? [],
+    () => toRouletteItems(result?.rule?.penalties),
     [result],
   );
 
@@ -198,6 +206,7 @@ export function Roulette() {
   const hasInvalidTarget = !!currentSpinResult && targetIndex < 0;
   const cannotStart =
     isResultLoading ||
+    isResultError ||
     spinMutation.isPending ||
     isSpinning ||
     !hasRouletteItems ||
@@ -310,6 +319,11 @@ export function Roulette() {
             onStopSpinning={handleStopSpinning}
             items={rouletteLabels}
           />
+          {isResultError ? (
+            <p className='mt-4 text-sm text-destructive'>
+              룰렛 목록을 불러오지 못했습니다.
+            </p>
+          ) : null}
           {!isResultLoading && !hasRouletteItems ? (
             <p className='mt-4 text-sm text-destructive'>
               룰렛에 사용할 벌칙 목록이 없습니다.
