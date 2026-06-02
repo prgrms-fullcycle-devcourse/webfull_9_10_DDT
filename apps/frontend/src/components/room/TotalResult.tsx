@@ -1,0 +1,448 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { Award, ChevronDown, ThumbsUp, Trophy } from 'lucide-react';
+import { getResultApi } from '@/api/generated/result-api-결과-조회/result-api-결과-조회';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { MobileLayout } from '@/components/layout/mobileLayout';
+import { useAuthStore } from '@/store/useAuthStore';
+
+type ResultPenaltyItem = {
+  content: string;
+  count: number;
+};
+
+type ResultMember = {
+  memberId: string;
+  userId: string | null;
+  nickname: string;
+  profileImage: string | null;
+  isHost: boolean;
+  rank: number;
+  totalEscapeMs: number;
+  penaltyTier: number;
+  isAllClear: boolean;
+  penaltyCount: number;
+  gaveUpAt: string | null;
+  penalties: {
+    totalCount: number;
+    items: ResultPenaltyItem[];
+  };
+};
+
+type ResultRule = {
+  focusMin: number;
+  breakMin: number;
+  rounds: number;
+  penalties: { itemId: string; content: string }[];
+  tierConfig: {
+    tiers?: {
+      tier: number;
+      minPct: number;
+      maxPct: number | null;
+      count: number;
+    }[];
+  };
+};
+
+type ResultResponse = {
+  roomTitle: string;
+  totalSessionMs: number | null;
+  completedRounds: number | null;
+  penaltyMemberCount: number;
+  allClear: boolean;
+  members: ResultMember[];
+  rule: ResultRule | null;
+};
+
+const formatSessionTime = (totalMs: number | null) => {
+  if (totalMs === null) return '-';
+
+  const totalMinutes = Math.floor(totalMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) return `${minutes}분`;
+  if (minutes <= 0) return `${hours}시간`;
+  return `${hours}시간 ${minutes}분`;
+};
+
+const formatTierRange = (minPct: number, maxPct: number | null) =>
+  maxPct === null ? `${minPct}% ~` : `${minPct} ~ ${maxPct}%`;
+
+export function TotalResult() {
+  const router = useRouter();
+  const params = useParams<{ code: string }>();
+  const { me, fetchMe } = useAuthStore();
+  const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
+  const [selectedPenaltyMember, setSelectedPenaltyMember] =
+    useState<ResultMember | null>(null);
+
+  useEffect(() => {
+    if (!me) void fetchMe();
+  }, [fetchMe, me]);
+
+  const {
+    data: result,
+    isError,
+    isLoading,
+  } = useQuery({
+    queryKey: ['result', params.code],
+    queryFn: async () => {
+      const res = await getResultApi().resultControllerGetResult(params.code);
+      return res.data as ResultResponse;
+    },
+  });
+
+  const rankedMembers = [...(result?.members ?? [])].sort(
+    (a, b) => a.rank - b.rank || b.totalEscapeMs - a.totalEscapeMs,
+  );
+  const penaltyMembers = rankedMembers.filter(
+    (member) => member.penaltyCount > 0,
+  );
+  const tiers = result?.rule?.tierConfig?.tiers ?? [];
+  const totalTime = formatSessionTime(result?.totalSessionMs ?? null);
+  const completedSessions = result?.rule
+    ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
+    : '-';
+
+  const handleShare = () => {
+    if (navigator.share) {
+      void navigator.share({
+        title: 'DDT 통합 결과',
+        url: window.location.href,
+      });
+      return;
+    }
+
+    void navigator.clipboard.writeText(window.location.href);
+  };
+
+  const HeaderComponent = (
+    <div className='relative flex w-full items-center justify-center text-foreground'>
+      <h1 className='text-base font-medium tracking-tight'>통합 결과</h1>
+    </div>
+  );
+
+  return (
+    <>
+      <MobileLayout header={HeaderComponent}>
+        <div className='flex min-w-0 flex-col gap-4 pb-[150px] text-foreground'>
+          {isLoading ? (
+            <div className='py-10 text-center text-sm text-muted-foreground'>
+              통합 결과를 불러오는 중...
+            </div>
+          ) : null}
+          {isError ? (
+            <div className='py-10 text-center text-sm text-destructive'>
+              통합 결과를 불러오지 못했습니다.
+            </div>
+          ) : null}
+          {result ? (
+            <>
+          <section className='flex flex-col items-center px-4 py-5 text-center'>
+            <div className='mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-primary'>
+              <Trophy className='h-5 w-5' />
+            </div>
+            <h2 className='text-xl font-bold text-[#FBBF24]'>
+              모두 고생했어요!
+            </h2>
+            <p className='mt-2 text-sm font-medium text-foreground/80'>
+              약속한 집중 시간을 완료했어요.
+            </p>
+          </section>
+
+          <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/50'>
+            <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
+              <span>총 진행 시간</span>
+              <strong className='text-base text-white/85'>
+                {totalTime}
+              </strong>
+            </div>
+            <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
+              <span>완료한 반복</span>
+              <strong className='text-base text-white/85'>
+                {completedSessions}
+              </strong>
+            </div>
+            <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
+              <span>벌칙 수행자</span>
+              <strong className='text-base text-white/85'>
+                {result.allClear ? '0명' : `${result.penaltyMemberCount}명`}
+              </strong>
+            </div>
+          </section>
+
+          <section className='flex flex-col gap-2'>
+            <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
+              이탈 시간 순위
+            </h3>
+            <div className='overflow-hidden rounded-2xl border border-slate-800/70 bg-[#151926]'>
+              {rankedMembers.map((member) => {
+                const isMe = me?.role === 'user' && member.userId === me.id;
+
+                return (
+                  <div
+                    key={member.memberId}
+                    className='flex items-center justify-between border-b border-slate-800/50 px-4 py-3 last:border-b-0'
+                  >
+                    <div className='flex min-w-0 items-center gap-3'>
+                      {member.isAllClear ? (
+                        <ThumbsUp className='h-4 w-7 shrink-0 text-[#FBBF24]' />
+                      ) : (
+                        <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F85A5A]/15 text-xs font-bold text-[#F85A5A]'>
+                          {member.rank}
+                        </div>
+                      )}
+                      <Avatar className='h-9 w-9 border border-slate-700 bg-[#22293F]'>
+                        <AvatarFallback className='bg-transparent text-xs text-slate-300'>
+                          {member.nickname.slice(0, 1)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className='min-w-0'>
+                        <div className='flex min-w-0 items-center gap-1.5'>
+                          <span className='truncate text-sm font-semibold text-slate-100'>
+                            {member.nickname}
+                            {member.isHost ? ' (방장)' : ''}
+                            {isMe ? ' (나)' : ''}
+                          </span>
+                          {member.gaveUpAt ? (
+                            <Badge className='h-5 shrink-0 border-none bg-[#F85A5A] px-1.5 text-[10px] font-bold text-white hover:bg-[#F85A5A]'>
+                              중도 포기
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <p className='mt-0.5 text-xs text-slate-500'>
+                          {member.isAllClear ? '이탈 없음' : `${member.rank}위`}
+                        </p>
+                      </div>
+                    </div>
+                    <span className='shrink-0 text-xs font-medium text-slate-400'>
+                      {member.penaltyCount > 0
+                        ? `벌칙 ${member.penaltyCount}개`
+                        : '-'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className='flex flex-col gap-2'>
+            <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
+              멤버별 벌칙 결과
+            </h3>
+            <div className='flex flex-col gap-2'>
+              {penaltyMembers.length > 0 ? (
+                penaltyMembers.map((member) => {
+                  const isMe = me?.role === 'user' && member.userId === me.id;
+
+                  return (
+                  <div
+                    key={member.memberId}
+                    className='flex min-w-0 items-center justify-between rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-3'
+                  >
+                    <div className='flex min-w-0 items-center gap-3'>
+                      <Award className='h-4 w-4 shrink-0 text-[#FBBF24]' />
+                      <span className='truncate text-sm font-semibold text-slate-100'>
+                        {member.nickname}
+                        {isMe ? ' (나)' : ''}
+                      </span>
+                    </div>
+                    <button
+                      type='button'
+                      onClick={() => setSelectedPenaltyMember(member)}
+                      className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors hover:bg-white/5'
+                      aria-label={`${member.nickname} 벌칙 상세 보기`}
+                    >
+                      벌칙 {member.penaltyCount}개
+                      <ChevronDown className='h-4 w-4 text-white/35' />
+                    </button>
+                  </div>
+                  );
+                })
+              ) : (
+                <div className='flex items-center gap-3 rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-4 text-sm text-slate-300'>
+                  <ThumbsUp className='h-4 w-4 text-[#FBBF24]' />
+                  벌칙 결과가 없어요.
+                </div>
+              )}
+            </div>
+          </section>
+            </>
+          ) : null}
+        </div>
+      </MobileLayout>
+
+      <div className='fixed bottom-0 left-1/2 z-50 w-full max-w-[390px] -translate-x-1/2 border-t border-white/10 bg-[#0F111A] px-[18px] pb-5 pt-3'>
+        <div className='flex flex-col gap-2.5'>
+          <Button
+            type='button'
+            onClick={() => setIsContractDialogOpen(true)}
+            className='h-[54px] w-full rounded-[14px] bg-primary text-sm font-bold text-primary-foreground'
+          >
+            계약서 보기
+          </Button>
+          <div className='grid grid-cols-2 gap-2.5'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={handleShare}
+              className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-sm font-bold text-white/85'
+            >
+              공유하기
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => router.push('/mypage')}
+              className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-sm font-bold text-white/85'
+            >
+              마이페이지
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Dialog
+        open={!!selectedPenaltyMember}
+        onOpenChange={(open) => !open && setSelectedPenaltyMember(null)}
+      >
+        <DialogContent className='w-[calc(100%-36px)] max-w-[354px] overflow-hidden rounded-xl border border-white/10 bg-[#1A1F31] p-0 text-left text-white/85'>
+          {selectedPenaltyMember ? (
+            <>
+              <div className='px-4 pb-3 pt-4'>
+                <DialogTitle className='text-base font-bold text-white/90'>
+                  {selectedPenaltyMember.nickname}
+                  {me?.role === 'user' &&
+                  selectedPenaltyMember.userId === me.id
+                    ? ' (본인)'
+                    : ''}
+                </DialogTitle>
+              </div>
+
+              <div className='flex flex-col'>
+                {selectedPenaltyMember.penalties.items.map(
+                  (penalty, index) => (
+                    <div
+                      key={`${selectedPenaltyMember.memberId}-${penalty.content}-${index}`}
+                      className='flex items-center gap-[9.7px] border-t border-white/5 px-4 py-[9px]'
+                    >
+                      <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
+                      <div className='flex min-w-0 flex-1 flex-col'>
+                        <span className='truncate text-sm font-medium text-white/85'>
+                          {penalty.content}
+                        </span>
+                      </div>
+                      <span className='shrink-0 text-xs text-white/75'>
+                        {penalty.count}개
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
+        <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] text-left text-white/85'>
+          <div className='flex flex-col gap-4'>
+            <div className='flex items-center'>
+              <div className='flex h-9 min-w-0 items-center gap-0.5 pr-5'>
+                <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
+                <DialogTitle className='truncate text-base font-medium text-white/85'>
+                  {result?.roomTitle ?? params.code}의 계약서
+                </DialogTitle>
+              </div>
+            </div>
+
+            <section className='flex flex-col gap-3'>
+              <h3 className='text-sm font-medium text-white/45'>타이머</h3>
+              <div className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/40'>
+                <div className='flex h-[61px] flex-col items-center justify-center gap-1 border-r border-white/10 px-[9px]'>
+                  <span>집중 시간</span>
+                  <strong className='text-base text-white/85'>
+                    {result?.rule?.focusMin ?? '-'}분
+                  </strong>
+                </div>
+                <div className='flex h-[61px] flex-col items-center justify-center gap-1 border-r border-white/10 px-2.5'>
+                  <span>휴식 시간</span>
+                  <strong className='text-base text-white/85'>
+                    {result?.rule?.breakMin ?? '-'}분
+                  </strong>
+                </div>
+                <div className='flex h-[61px] flex-col items-center justify-center gap-1 px-2.5'>
+                  <span>반복 횟수</span>
+                  <strong className='text-base text-white/85'>
+                    {result?.rule?.rounds ?? '-'}회
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            <section className='flex flex-col gap-3'>
+              <h3 className='text-sm font-medium text-white/45'>벌칙 목록</h3>
+              <div className='overflow-hidden rounded-[14px] bg-[#1A1F31] text-sm font-medium text-white/85'>
+                {(result?.rule?.penalties ?? []).map((penalty, index) => (
+                  <div
+                    key={penalty.itemId}
+                    className={`flex min-h-[46px] items-center px-4 py-3.5 ${
+                      index > 0 ? 'border-t border-white/5' : ''
+                    }`}
+                  >
+                    {penalty.content}
+                  </div>
+                ))}
+                {result?.rule?.penalties.length === 0 ? (
+                  <div className='flex min-h-[46px] items-center px-4 py-3.5 text-white/50'>
+                    벌칙 목록이 없습니다.
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <section className='flex flex-col gap-3'>
+              <h3 className='text-sm font-medium text-white/45'>벌칙 강도</h3>
+              <div className='overflow-hidden rounded-[14px] bg-[#1A1F31] text-sm font-medium text-white/85'>
+                {tiers.map((tier, index) => (
+                  <div
+                    key={`${tier.tier}-${tier.minPct}-${tier.maxPct}`}
+                    className={`flex items-center gap-2 px-4 py-3.5 ${
+                      index > 0 ? 'border-t border-white/5' : ''
+                    }`}
+                  >
+                    <div className='flex min-w-0 flex-1 items-center gap-[5px]'>
+                      <span className='flex h-[22px] w-[42.6px] shrink-0 items-center justify-center rounded-[20px] bg-[rgba(124,77,255,0.15)] text-[11px] font-bold leading-[120%] text-[#7c4dff]'>
+                        {tier.tier}단계
+                      </span>
+                      <span className='truncate'>
+                        {formatTierRange(tier.minPct, tier.maxPct)}
+                      </span>
+                    </div>
+                    <span className='shrink-0'>{tier.count}개</span>
+                  </div>
+                ))}
+                {tiers.length === 0 ? (
+                  <div className='flex min-h-[46px] items-center px-4 py-3.5 text-white/50'>
+                    벌칙 강도 설정이 없습니다.
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
