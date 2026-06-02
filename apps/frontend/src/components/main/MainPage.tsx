@@ -62,7 +62,7 @@ export const MainPage = () => {
       <div className='absolute right-0 top-0 z-20 p-4'>
         {isLoggedIn && me?.role === 'user' ? (
           <Button
-           variant='ghost'
+            variant='ghost'
             size='sm'
             asChild
             className='border border-white/20 px-3 py-3 rounded-sm!'

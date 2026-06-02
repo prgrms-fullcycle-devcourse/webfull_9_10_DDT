@@ -44,7 +44,7 @@ export default function RootLayout({
       lang='ko'
       className={`${notoSansKR.variable} h-full antialiased dark`}
     >
-      <body className='min-h-full flex justify-center bg-black/80'>
+      <body className='min-h-full flex justify-center bg-zinc-500'>
         <QueryProvider>
           <AuthInitializer>
             <OAuthMessageHandler />

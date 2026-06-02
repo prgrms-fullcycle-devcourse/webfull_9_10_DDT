@@ -187,11 +187,9 @@ export function LoadContractDialog({
                   <AccordionTrigger className='flex-1 p-3 hover:no-underline'>
                     <div className='flex-1 text-left'>
                       <p className='font-medium'>{item.title}</p>
-                      <DialogDescription className='text-xs flex gap-2 mt-1'>
-                        <span>집중 {item.focusMin}분</span>
-                        <span>휴식 {item.breakMin}분</span>
-                        <span>{item.rounds}회</span>
-                        <span>벌칙 {item.penalties.length}개</span>
+                      <DialogDescription className='text-xs mt-1'>
+                        집중 {item.focusMin}분 · 휴식 {item.breakMin}분 ·{' '}
+                        {item.rounds}회 · 벌칙 {item.penalties.length}개
                       </DialogDescription>
                     </div>
                   </AccordionTrigger>
