@@ -25,6 +25,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '../ui/accordion';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface LoadContractDialogProps {
   open: boolean;
@@ -45,6 +47,8 @@ export function LoadContractDialog({
     penalties: true,
     penaltyMode: 'replace',
   });
+
+  const { confirm, confirmProps } = useConfirm();
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
@@ -106,7 +110,12 @@ export function LoadContractDialog({
   };
 
   const handleDelete = async (ruleId: string, title: string) => {
-    if (!confirm(`"${title}"을 삭제하시겠습니까?`)) {
+    const ok = await confirm({
+      title: `${title}을 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      variant: 'destructive',
+    });
+    if (!ok) {
       return;
     }
 
@@ -178,11 +187,9 @@ export function LoadContractDialog({
                   <AccordionTrigger className='flex-1 p-3 hover:no-underline'>
                     <div className='flex-1 text-left'>
                       <p className='font-medium'>{item.title}</p>
-                      <DialogDescription className='text-xs flex gap-2 mt-1'>
-                        <span>집중 {item.focusMin}분</span>
-                        <span>휴식 {item.breakMin}분</span>
-                        <span>{item.rounds}회</span>
-                        <span>벌칙 {item.penalties.length}개</span>
+                      <DialogDescription className='text-xs mt-1'>
+                        집중 {item.focusMin}분 · 휴식 {item.breakMin}분 ·{' '}
+                        {item.rounds}회 · 벌칙 {item.penalties.length}개
                       </DialogDescription>
                     </div>
                   </AccordionTrigger>
@@ -210,13 +217,13 @@ export function LoadContractDialog({
                           등록된 벌칙이 없어요.
                         </p>
                       ) : (
-                        <ul className='grid grid-cols-1 text-sm space-y-1 max-h-32 overflow-y-auto'>
+                        <ul className='flex flex-wrap text-sm space-y-1 max-h-32 overflow-y-auto p-1 gap-1.5'>
                           {item.penalties.map((p) => (
                             <li
                               key={p.itemId}
-                              className='text-muted-foreground'
+                              className='text-foreground/80 px-3 py-1.5 border border-white/20 rounded-sm bg-white/5'
                             >
-                              • {p.content}
+                              {p.content}
                             </li>
                           ))}
                         </ul>
@@ -341,6 +348,7 @@ export function LoadContractDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog {...confirmProps} />
     </Dialog>
   );
 }

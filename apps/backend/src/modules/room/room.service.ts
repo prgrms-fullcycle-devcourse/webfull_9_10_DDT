@@ -6,10 +6,13 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { RoomGateway } from '../gateway/room/room.gateway';
 import { ConfigService } from '@nestjs/config';
 import { nanoid } from 'nanoid';
 import * as bcrypt from 'bcrypt';
@@ -51,6 +54,8 @@ export class RoomService {
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => RoomGateway))
+    private readonly roomGateway: RoomGateway,
   ) {}
 
   private readonly logger = new Logger(RoomService.name);
@@ -101,6 +106,70 @@ export class RoomService {
       code: room.code,
       url: `${frontendUrl}/room/${room.code}`,
     };
+  }
+  async leaveRoom(
+    roomCode: string,
+    userId: string | null,
+    guestToken: string | null,
+  ) {
+    const targetId = userId ?? guestToken;
+    if (!targetId) throw new UnauthorizedException('인증 정보가 없습니다.');
+
+    const room = await this.prismaService.room.findUnique({
+      where: { code: roomCode },
+    });
+
+    if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
+    if (room.phase !== 'lobby' && room.phase !== 'contract') {
+      throw new ForbiddenException(
+        '타이머 진행 중이거나 종료된 방은 퇴장할 수 없습니다. (진행 중일 경우 중도 포기를 이용하세요)',
+      );
+    }
+
+    const isGuest = !userId && !!guestToken;
+    const memberRecord = await this.prismaService.roomMember.findFirst({
+      where: { roomCode, ...(isGuest ? { guestToken } : { userId }) },
+    });
+
+    if (!memberRecord)
+      throw new NotFoundException('참여 정보를 찾을 수 없습니다.');
+
+    const isHost = room.hostId === userId;
+
+    if (isHost) {
+      await this.prismaService.room.update({
+        where: { code: roomCode },
+        data: { phase: 'closed' },
+      });
+      await this.redisService.instance.del(`room:state:${roomCode}`);
+
+      this.roomGateway.server.to(roomCode).emit('room:closed', {
+        reason: '방장이 퇴장하여 방이 폐쇄되었습니다.',
+      });
+      this.roomGateway.server.in(roomCode).disconnectSockets();
+    } else {
+      await this.prismaService.roomMember.delete({
+        where: { id: memberRecord.id },
+      });
+
+      const raw = await this.redisService.instance.get(
+        `room:state:${roomCode}`,
+      );
+      if (raw) {
+        const state = JSON.parse(raw) as RoomState;
+        delete state.members[targetId];
+        await this.redisService.instance.set(
+          `room:state:${roomCode}`,
+          JSON.stringify(state),
+          'EX',
+          7200,
+        );
+      }
+      this.roomGateway.server
+        .to(roomCode)
+        .emit('member:left', { userId: targetId });
+    }
+    return { isHost, targetId };
   }
 
   /**
@@ -594,5 +663,26 @@ export class RoomService {
       },
       select: { code: true, phase: true, title: true },
     });
+  }
+
+  async isMember(
+    roomCode: string,
+    userId: string | null,
+    guestToken: string | null,
+  ): Promise<boolean> {
+    const targetId = userId ?? guestToken;
+    if (!targetId) {
+      return false;
+    }
+
+    const isGuest = !!guestToken;
+    const member = await this.prismaService.roomMember.findFirst({
+      where: {
+        roomCode,
+        ...(isGuest ? { guestToken: targetId } : { userId: targetId }),
+      },
+    });
+
+    return !!member;
   }
 }

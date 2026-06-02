@@ -277,7 +277,7 @@ export function useYjsContract(
     doc.transact(() => {
       if (data.fields) {
         const yjsFields = doc.getMap<number>('fields');
-        yjsFields.set('focusMin', data.fields?.focusMin);
+        yjsFields.set('focusMin', data.fields.focusMin);
         yjsFields.set('breakMin', data.fields.breakMin);
         yjsFields.set('rounds', data.fields.rounds);
       }

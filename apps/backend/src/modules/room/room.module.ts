@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { GatewayModule } from '../gateway/gateway.module';
 import { RoomService } from './room.service';
 import { RoomController } from './room.controller';
 
 @Module({
+  imports: [forwardRef(() => GatewayModule)],
   controllers: [RoomController],
   providers: [RoomService],
   exports: [RoomService],

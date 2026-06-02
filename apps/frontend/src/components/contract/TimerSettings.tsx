@@ -151,7 +151,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
                 updateField('rounds', val);
               }}
             />
-            <span>분</span>
+            <span>회</span>
           </div>
         </div>
         <div className='space-y-2'>

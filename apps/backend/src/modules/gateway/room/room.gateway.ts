@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, forwardRef, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -43,6 +43,7 @@ interface JwtPayload {
 export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => RoomService))
     private readonly roomService: RoomService,
     private readonly escapeService: EscapeService,
   ) {}
@@ -87,6 +88,27 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (!roomState) {
       client.disconnect();
+      return;
+    }
+
+    if (['closed', 'result'].includes(roomState.phase)) {
+      client.emit('force-disconnect', { reason: 'room-closed' });
+      setTimeout(() => client.disconnect(), 100);
+      return;
+    }
+
+    const userId = client.data.role === 'user' ? client.data.userId : null;
+    const guestToken = client.data.role === 'guest' ? client.data.userId : null;
+
+    const isValid = await this.roomService.isMember(
+      roomCode,
+      userId,
+      guestToken,
+    );
+
+    if (!isValid) {
+      client.emit('force-disconnect', { reason: 'not-a-member' });
+      setTimeout(() => client.disconnect(), 100);
       return;
     }
 

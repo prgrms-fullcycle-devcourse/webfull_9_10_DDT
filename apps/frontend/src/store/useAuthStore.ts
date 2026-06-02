@@ -87,7 +87,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkLoginStatus: () => {
     const hasToken = document.cookie.includes('access_token=');
-    set({ isLoggedIn: hasToken });
+    set((state) => ({
+      isLoggedIn: hasToken,
+      me: hasToken ? state.me : null,
+    }));
     return hasToken;
   },
 

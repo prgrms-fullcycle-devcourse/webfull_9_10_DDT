@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useYjsContract } from '@/hooks/useYjsContract';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { getRoomApi } from '@/api/generated/room-api/room-api';
+
 import { MobileLayout } from '../layout/mobileLayout';
 import { BackButton } from '../layout/BackButton';
 import { HeaderTitle } from '../layout/HeaderTitle';
@@ -20,6 +21,8 @@ import TierSettings from './TierSettings';
 import PenaltyList from './PenaltyList';
 import { Separator } from '../ui/separator';
 import { ContractActions } from './ContractActions';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface ContractFormValues {
   focusMin: number;
@@ -28,6 +31,7 @@ interface ContractFormValues {
 }
 
 const ContractForm = () => {
+  const router = useRouter();
   const room = useRoom();
   const me = useAuthStore((state) => state.me);
   const members = useRoomStore((state) => state.members);
@@ -53,26 +57,31 @@ const ContractForm = () => {
     applyAll,
   } = useYjsContract(room.code, !!me, isHost);
 
-  const [arrayError, setArrayError] = useState<string | null>(null);
+  const { confirm, confirmProps } = useConfirm();
+
   const methods = useForm<ContractFormValues>({
     values: fields,
     defaultValues: { focusMin: 0, breakMin: 0, rounds: 0 },
   });
 
-  const validateArrays = (): string | null => {
-    if (tiers.length === 0) return '벌칙 강도를 1단계 이상 설정해주세요';
-    if (penalties.length === 0) return '벌칙을 1개 이상 입력해주세요';
-    return null;
-  };
-
-  const onSubmit = (data: ContractFormValues) => {
-    const error = validateArrays();
-    if (error) {
-      setArrayError(error);
+  const handleLeaveRoom = async () => {
+    const ok = await confirm({
+      title: isHost
+        ? '방장이 나가면 방이 폭파됩니다. 정말 나가시겠어요?'
+        : '정말 방에서 나가시겠어요?',
+      confirmText: '나가기',
+      variant: 'destructive',
+    });
+    if (!ok) {
       return;
     }
-    setArrayError(null);
-    console.log('서명 완료:', data, tiers, penalties);
+
+    try {
+      await getRoomApi().roomControllerLeaveRoom(room.code);
+      router.replace('/');
+    } catch {
+      toast.error('퇴장 처리에 실패했습니다.');
+    }
   };
 
   if (!me) {
@@ -112,10 +121,7 @@ const ContractForm = () => {
           />
           {isHost && <EditPermissionToggle />}
           <FormProvider {...methods}>
-            <form
-              onSubmit={methods.handleSubmit(onSubmit)}
-              className='flex flex-col gap-5'
-            >
+            <form className='flex flex-col gap-5'>
               <TimerSettings
                 yjs={{
                   fields,
@@ -147,13 +153,6 @@ const ContractForm = () => {
                   handleBlur,
                 }}
               />
-              {arrayError && (
-                <Alert variant='destructive'>
-                  <AlertCircle className='h-4 w-4' />
-                  <AlertTitle>오류</AlertTitle>
-                  <AlertDescription>{arrayError}</AlertDescription>
-                </Alert>
-              )}
             </form>
           </FormProvider>
         </div>
@@ -169,6 +168,7 @@ const ContractForm = () => {
           <Button
             type='button'
             className='flex-1 py-5! rounded-sm! bg-card! border border-white/10'
+            onClick={handleLeaveRoom}
           >
             나가기
           </Button>
@@ -188,6 +188,7 @@ const ContractForm = () => {
           )}
         </div>
       </div>
+      <ConfirmDialog {...confirmProps} />
     </MobileLayout>
   );
 };

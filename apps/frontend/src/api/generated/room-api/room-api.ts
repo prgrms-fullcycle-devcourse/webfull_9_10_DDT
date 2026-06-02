@@ -34,6 +34,18 @@ const roomControllerCreate = (
     );
   }
 /**
+ * 타이머 시작 전 방에서 퇴장합니다. 방장이 퇴장하면 방이 폐쇄됩니다.
+ * @summary 방 퇴장
+ */
+const roomControllerLeaveRoom = (
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.post(
+      `/rooms/${roomCode}/leave`,
+      undefined,options
+    );
+  }
+/**
  * 방 코드로 방 기본 정보를 조회합니다. 종료된 방(result/closed)은 조회할 수 없습니다.
  * @summary 방 코드로 방 정보 조회
  */
@@ -64,8 +76,9 @@ const roomControllerGetMyActiveRoom = (
       `/rooms/me/active`,options
     );
   }
-return {roomControllerCreate,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom}};
+return {roomControllerCreate,roomControllerLeaveRoom,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom}};
 export type RoomControllerCreateResult = AxiosResponse<unknown>
+export type RoomControllerLeaveRoomResult = AxiosResponse<void>
 export type RoomControllerFindByIdResult = AxiosResponse<unknown>
 export type RoomControllerJoinByIdResult = AxiosResponse<unknown>
 export type RoomControllerGetMyActiveRoomResult = AxiosResponse<void>

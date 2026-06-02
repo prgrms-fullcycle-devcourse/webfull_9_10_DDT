@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { RoomGateway } from './room/room.gateway';
 import { YjsGateway } from './yjs/yjs.gateway';
 import { JwtModule } from '@nestjs/jwt';
@@ -14,7 +14,7 @@ import { EscapeModule } from '../escape/escape.module';
         secret: configService.getOrThrow<string>('JWT_SECRET'),
       }),
     }),
-    RoomModule,
+    forwardRef(() => RoomModule),
     EscapeModule,
   ],
   providers: [RoomGateway, YjsGateway],

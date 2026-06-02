@@ -26,16 +26,19 @@ export function RequireAuth({
   useEffect(() => {
     const hasToken = checkLoginStatus();
 
-    if (!hasToken) {
-      toast.error(message, { id: AUTH_REQUIRED_TOAST_ID });
-
-      const redirectTimer = window.setTimeout(() => {
-        router.replace(redirectTo);
-      }, REDIRECT_DELAY_MS);
-
-      return () => window.clearTimeout(redirectTimer);
+    if (hasToken || isLoggedIn) {
+      toast.dismiss(AUTH_REQUIRED_TOAST_ID);
+      return;
     }
-  }, [checkLoginStatus, message, redirectTo, router]);
+
+    toast.error(message, { id: AUTH_REQUIRED_TOAST_ID });
+
+    const redirectTimer = window.setTimeout(() => {
+      router.replace(redirectTo);
+    }, REDIRECT_DELAY_MS);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [checkLoginStatus, isLoggedIn, message, redirectTo, router]);
 
   if (!isLoggedIn) {
     return null;

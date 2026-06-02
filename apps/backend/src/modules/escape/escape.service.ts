@@ -64,21 +64,16 @@ export class EscapeService {
       orderBy: { escapedAt: 'desc' },
     });
 
-    if (activeEscape) {
-      const returnedAt = new Date();
-      const durationMs =
-        returnedAt.getTime() - activeEscape.escapedAt.getTime();
+    if (!activeEscape) return;
 
-      await this.prisma.$transaction([
-        this.prisma.escapeLog.update({
-          where: { id: activeEscape.id },
-          data: { returnedAt, durationMs },
-        }),
-        this.prisma.roomResult.update({
-          where: { roomMemberId: member.id },
-          data: { totalEscapeMs: { increment: durationMs } },
-        }),
-      ]);
-    }
+    const returnedAt = new Date();
+    const durationMs = returnedAt.getTime() - activeEscape.escapedAt.getTime();
+
+    // RoomResult는 세션 종료 시 calculateAndSave가 EscapeLog.durationMs 합산으로
+    // 생성·확정한다. timer phase에는 아직 존재하지 않으므로 여기서 갱신하지 않는다.
+    await this.prisma.escapeLog.update({
+      where: { id: activeEscape.id },
+      data: { returnedAt, durationMs },
+    });
   }
 }

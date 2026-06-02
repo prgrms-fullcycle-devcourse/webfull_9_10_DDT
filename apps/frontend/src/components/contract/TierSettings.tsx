@@ -1,6 +1,12 @@
 import { Plus, User, X } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -39,6 +45,23 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
   const myMember = members[me.id];
   const canEdit = myMember?.canEdit ?? false;
   const myNickname = myMember?.nickname ?? me.nickname;
+
+  const canAddTier = (() => {
+    if (!canEdit) {
+      return false;
+    }
+    if (tiers.length === 0) {
+      return true;
+    }
+
+    const last = tiers[tiers.length - 1];
+
+    if (tiers.length === 1) {
+      return last.maxPct !== null && last.maxPct > 0 && last.maxPct < 99;
+    }
+
+    return last.minPct < 99;
+  })();
 
   return (
     <Card>
@@ -81,6 +104,8 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                       className='bg-background! h-12 w-15 border-white/20'
                       type='number'
                       value={tier.maxPct ?? ''}
+                      min={0}
+                      max={100}
                       disabled={
                         !canEdit ||
                         (tiers.length > 1 && i === tiers.length - 1) ||
@@ -89,7 +114,15 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                       onFocus={() => handleFocus(tierKey, me.id, myNickname)}
                       onBlur={handleBlur}
                       onChange={(e) => {
-                        const newMaxPct = Number(e.target.value);
+                        const val = e.target.value;
+                        const newMaxPct =
+                          val === '' ? 0 : Number(e.target.value);
+
+                        if (newMaxPct < 0 || newMaxPct > 100) {
+                          return;
+                        }
+
+                        if (i > 0 && newMaxPct <= tiers[i - 1].minPct) return;
                         updateTier(i, { maxPct: newMaxPct });
                         if (i + 1 < tiers.length) {
                           updateTier(i + 1, { minPct: newMaxPct });
@@ -104,12 +137,15 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                       className='bg-background! h-12 w-15 border-white/20'
                       type='number'
                       value={tier.count}
+                      min={0}
                       disabled={!canEdit || isLockedByOther}
                       onFocus={() => handleFocus(tierKey, me.id, myNickname)}
                       onBlur={handleBlur}
-                      onChange={(e) =>
-                        updateTier(i, { count: Number(e.target.value) })
-                      }
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (val < 1) return;
+                        updateTier(i, { count: Number(e.target.value) });
+                      }}
                     />
                     <span className='text-sm'>개</span>
                   </div>
@@ -132,15 +168,23 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
           })}
 
           {canEdit && (
-            <Button
-              type='button'
-              variant='ghost'
-              size='lg'
-              onClick={addTier}
-              className='w-full ring-1 ring-ring'
-            >
-              <Plus className='w-4 h-4 mr-1' /> 단계 추가
-            </Button>
+            <>
+              {!canAddTier && (
+                <CardDescription className='text-xs'>
+                  더 이상 추가할 수 없습니다. 입력값을 확인해주세요
+                </CardDescription>
+              )}
+              <Button
+                type='button'
+                variant='ghost'
+                size='lg'
+                onClick={addTier}
+                disabled={!canAddTier}
+                className='w-full ring-1 ring-ring'
+              >
+                <Plus className='w-4 h-4 mr-1' /> 단계 추가
+              </Button>
+            </>
           )}
         </div>
       </CardContent>
