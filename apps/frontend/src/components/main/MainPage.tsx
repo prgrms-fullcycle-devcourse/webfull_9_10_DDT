@@ -28,7 +28,7 @@ export const MainPage = () => {
     window.open(
       '/terms',
       'Terms Agreement',
-      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
+      'width=367,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
     );
   };
 
