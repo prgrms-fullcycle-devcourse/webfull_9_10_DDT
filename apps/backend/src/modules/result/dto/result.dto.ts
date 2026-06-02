@@ -79,7 +79,8 @@ export class ResultMemberDto {
 
   @ApiProperty({
     example: 0,
-    description: '남은 룰렛 스핀 수(미공개 행 개수). 0이면 룰렛 스킵',
+    description:
+      '남은 룰렛 스핀 수(미공개 벌칙 count 합산, 중복 포함). 0이면 룰렛 스킵',
   })
   remainingSpins!: number;
 
