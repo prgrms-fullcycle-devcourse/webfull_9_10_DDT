@@ -9,12 +9,21 @@ export class ResultPenaltyItemDto {
 }
 
 export class ResultMemberPenaltiesDto {
-  @ApiProperty({ example: 1, description: '배정된 전체 벌칙 수(미공개 포함)' })
+  @ApiProperty({
+    example: 1,
+    description:
+      '배정된 전체 벌칙 수(미공개 포함). ' +
+      '0이면 벌칙 없음(All Clear/tier1). ' +
+      '0보다 크면 벌칙이 배정된 것이며 items가 []여도 미공개 상태임',
+  })
   totalCount!: number;
 
   @ApiProperty({
     type: [ResultPenaltyItemDto],
-    description: '공개된 벌칙만 content 포함 (미공개는 미반환)',
+    description:
+      '공개된 벌칙 목록. 미공개 벌칙은 보안상 content 미반환(core-rules §1.7). ' +
+      '[]이어도 totalCount > 0이면 벌칙이 배정된 것 — remainingSpins > 0이면 룰렛 진행 필요. ' +
+      '[]이고 totalCount === 0이면 실제로 벌칙 없음',
   })
   items!: ResultPenaltyItemDto[];
 }
@@ -61,7 +70,11 @@ export class ResultMemberDto {
   @ApiProperty({ example: false })
   isAllClear!: boolean;
 
-  @ApiProperty({ example: 1, description: '공개된 벌칙 수' })
+  @ApiProperty({
+    example: 1,
+    description:
+      '공개된 벌칙 수(count 합계). 미공개분 미포함 — 전체 배정 수는 penalties.totalCount 참조',
+  })
   penaltyCount!: number;
 
   @ApiProperty({
@@ -81,6 +94,8 @@ export class ResultMemberDto {
   @ApiProperty({
     type: ResultMemberPenaltiesDto,
     description:
+      '벌칙 목록 및 상태. ' +
+      'items=[]이어도 totalCount > 0이면 미공개 상태(보안규칙). ' +
       '포기자/최고등급은 룰렛 없이 즉시 공개되어 items에 바로 포함됨(remainingSpins=0)',
   })
   penalties!: ResultMemberPenaltiesDto;
