@@ -3,15 +3,15 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { BackButton } from '@/components/layout/BackButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
-import { MyPageDeleteButton } from '@/components/mypage/MyPageDeleteButton';
 import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
@@ -43,7 +43,6 @@ export function MyPageEdit() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const selectedProfileKey = PROFILE_IMAGE_OPTIONS[selectedProfile]?.key;
   const logout = useAuthStore((state) => state.logout);
@@ -100,7 +99,6 @@ export function MyPageEdit() {
 
     setIsSaving(true);
     setError('');
-    setSuccess('');
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const axiosInstance = axios.create({ baseURL: apiUrl });
@@ -118,10 +116,7 @@ export function MyPageEdit() {
         },
       });
 
-      setSuccess('프로필이 저장되었습니다.');
-      setTimeout(() => {
-        router.push('/mypage');
-      }, 800);
+      toast.success('프로필이 저장되었습니다.');
     } catch (err) {
       const serverMessage = axios.isAxiosError(err)
         ? (err.response?.data as { message?: string })?.message
@@ -146,7 +141,6 @@ export function MyPageEdit() {
 
     setIsDeleting(true);
     setError('');
-    setSuccess('');
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const axiosInstance = axios.create({ baseURL: apiUrl });
@@ -180,19 +174,28 @@ export function MyPageEdit() {
           <BackButton />
           <HeaderTitle>프로필 수정</HeaderTitle>
           <div className="flex-1" />
-          <MyPageDeleteButton
+          <Button
+            type='button'
+            variant='ghost'
+            size='sm'
+            className='border border-white/20 px-3 py-3 rounded-sm!'
             onClick={handleDelete}
             disabled={isSaving || isDeleting}
-            isDeleting={isDeleting}
-          />
+          >
+            {isDeleting ? '탈퇴 중...' : '회원 탈퇴'}
+          </Button>
         </>
       }
         bottomButton={
           <Button
             onClick={handleSave}
             disabled={!isValid || isSaving || isLoading}
-            className='w-full rounded-[24px] text-base font-bold'
-            size='main'
+            style={{
+              background: isValid
+                ? 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)'
+                : undefined,
+            }}
+            className='w-full h-14 rounded-[14px] text-base font-bold text-white hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
             {isSaving ? '저장 중...' : '저장하기'}
           </Button>
@@ -201,13 +204,12 @@ export function MyPageEdit() {
         <div className='flex flex-col gap-6 pt-2'>
           <div className='flex flex-col gap-2'>
             <Label className='text-[15px] font-bold text-white/85'>내 닉네임</Label>
-            <Input
+            <FormInput
               type='text'
               placeholder='닉네임을 입력해주세요'
               maxLength={20}
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
             />
             <span className='text-xs text-[#6B7280] text-right'>
               {nickname.length}/20
@@ -226,11 +228,6 @@ export function MyPageEdit() {
             </div>
           ) : null}
 
-          {success ? (
-            <div className='rounded-[14px] border border-[#A78BFA]/20 bg-[#1F1A33] px-4 py-3 text-sm text-[#C3B5FF]'>
-              {success}
-            </div>
-          ) : null}
         </div>
       </MobileLayout>
 
@@ -242,16 +239,15 @@ export function MyPageEdit() {
           </DialogHeader>
           <DialogFooter>
             <Button
-              variant='outline'
-              className='flex-1 h-12 rounded-[14px] border-white/[0.18] text-white/80 bg-transparent hover:bg-white/5'
+              variant='ghost'
+              className='flex-1 py-6! border border-white/20'
               onClick={() => setShowDeleteDialog(false)}
               disabled={isDeleting}
             >
               아니요
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold text-white'
-              style={{ background: 'linear-gradient(135deg, #EF4444 0%, #F97316 100%)' }}
+              className='flex-1 py-6! bg-destructive'
               onClick={confirmDelete}
               disabled={isDeleting}
             >
