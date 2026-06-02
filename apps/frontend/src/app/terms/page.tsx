@@ -1,18 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { ChevronRight } from 'lucide-react';
 import { CenterLayout } from '@/components/layout/centerLayout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronRight } from 'lucide-react';
-import Image from 'next/image';
-import { useAuthStore } from '@/store/useAuthStore';
+
+const PENDING_TERMS_KEY = 'pending_google_terms_agreement';
+
+type TermsAgreement = {
+  termsOfService: boolean;
+  privacyPolicy: boolean;
+  ageVerification: boolean;
+};
+
+const readPendingTerms = (): TermsAgreement | null => {
+  try {
+    const value = sessionStorage.getItem(PENDING_TERMS_KEY);
+    if (!value) return null;
+
+    const parsed = JSON.parse(value) as Partial<TermsAgreement>;
+    return {
+      termsOfService: !!parsed.termsOfService,
+      privacyPolicy: !!parsed.privacyPolicy,
+      ageVerification: !!parsed.ageVerification,
+    };
+  } catch {
+    return null;
+  }
+};
 
 const TermsPage = () => {
-  const router = useRouter();
-  const { checkLoginStatus } = useAuthStore();
-
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   const [isOver14, setIsOver14] = useState(false);
@@ -28,71 +47,32 @@ const TermsPage = () => {
   };
 
   useEffect(() => {
-    const receiveMessage = async (event: MessageEvent) => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const pendingTerms = readPendingTerms();
+    if (!pendingTerms) return;
 
-      // 💡 구글 OAuth 팝업 등 내부 검증이 필요한 경우 origin 체크 추가 가능
-      if (event.data?.type === 'OAUTH_SUCCESS') {
-        const token = event.data.token;
-
-        // 쿠키 저장
-        document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24}`;
-        
-        // 전역 auth 상태 갱신
-        await checkLoginStatus();
-
-        try {
-          setIsLoading(true);
-          const response = await fetch(`${apiUrl}/auth/terms`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              termsOfService: terms,
-              privacyPolicy: privacy,
-              ageVerification: isOver14,
-            }),
-          });
-
-          if (!response.ok) {
-            if (response.status === 409) {
-              console.log('이미 약관 동의가 완료된 계정입니다.');
-            } else {
-              throw new Error('약관 동의 처리에 실패했습니다.');
-            }
-          }
-
-          // 💡 부모 창(메인 레이아웃)이 존재한다면 로그인 성공 메시지를 전달해 상태를 즉시 동기화
-          if (window.opener) {
-            window.opener.postMessage({ type: 'OAUTH_SUCCESS' }, window.location.origin);
-            // 만약 이 페이지가 팝업 창으로 열린 것이라면 동의 후 창을 닫아주는 것이 자연스러움
-            window.close();
-          } else {
-            // 팝업이 아니라 일반 페이지 이동이었을 경우 메인으로 리다이렉트
-            router.push('/');
-          }
-        } catch (error) {
-          console.error('Terms Agreement Error:', error);
-          alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    window.addEventListener('message', receiveMessage);
-    return () => window.removeEventListener('message', receiveMessage);
-  }, [terms, privacy, isOver14, router, checkLoginStatus]);
+    setTerms(pendingTerms.termsOfService);
+    setPrivacy(pendingTerms.privacyPolicy);
+    setIsOver14(pendingTerms.ageVerification);
+  }, []);
 
   const handleGoogleLogin = () => {
+    if (!allChecked) return;
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    window.open(
-      `${apiUrl}/auth/google`,
-      'Google Login',
-      'width=500,height=600,left=200,top=200',
+    const agreement = {
+      termsOfService: terms,
+      privacyPolicy: privacy,
+      ageVerification: isOver14,
+    };
+
+    sessionStorage.setItem(PENDING_TERMS_KEY, JSON.stringify(agreement));
+    window.opener?.postMessage(
+      { type: 'TERMS_AGREEMENT_READY', agreement },
+      window.location.origin,
     );
+
+    setIsLoading(true);
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (
@@ -114,7 +94,7 @@ const TermsPage = () => {
         <p className='text-gray-400'>
           서비스 이용을 위해
           <br />
-          약관에 동의해주세요.
+          약관에 동의해 주세요.
         </p>
       </div>
 
@@ -158,6 +138,7 @@ const TermsPage = () => {
           </div>
           <ChevronRight className='text-gray-500' />
         </div>
+
         <div className='flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10'>
           <div className='flex items-center'>
             <Checkbox
@@ -183,7 +164,7 @@ const TermsPage = () => {
       </Button>
 
       <p className='text-center text-xs text-gray-500 mt-6 flex items-center justify-center gap-1'>
-        🔒 안전한 보안 환경에서 로그인 진행 중
+        안전한 보안 환경에서 로그인 진행 중
       </p>
     </CenterLayout>
   );
