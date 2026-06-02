@@ -5,7 +5,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,forwardRef, Inject
+  UnauthorizedException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { PrismaService } from '../../common/prisma.service';
@@ -105,58 +107,70 @@ export class RoomService {
       url: `${frontendUrl}/room/${room.code}`,
     };
   }
-  async leaveRoom(roomCode: string, userId: string | null, guestToken: string | null) {
+  async leaveRoom(
+    roomCode: string,
+    userId: string | null,
+    guestToken: string | null,
+  ) {
     const targetId = userId ?? guestToken;
     if (!targetId) throw new UnauthorizedException('인증 정보가 없습니다.');
 
     const room = await this.prismaService.room.findUnique({
-      where: { code: roomCode }
+      where: { code: roomCode },
     });
 
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (room.phase !== 'lobby' && room.phase !== 'contract') {
-      throw new ForbiddenException('타이머 진행 중이거나 종료된 방은 퇴장할 수 없습니다. (진행 중일 경우 중도 포기를 이용하세요)');
+      throw new ForbiddenException(
+        '타이머 진행 중이거나 종료된 방은 퇴장할 수 없습니다. (진행 중일 경우 중도 포기를 이용하세요)',
+      );
     }
 
     const isGuest = !userId && !!guestToken;
     const memberRecord = await this.prismaService.roomMember.findFirst({
-      where: { roomCode, ...(isGuest ? { guestToken } : { userId }) }
+      where: { roomCode, ...(isGuest ? { guestToken } : { userId }) },
     });
 
-    if (!memberRecord) throw new NotFoundException('참여 정보를 찾을 수 없습니다.');
+    if (!memberRecord)
+      throw new NotFoundException('참여 정보를 찾을 수 없습니다.');
 
     const isHost = room.hostId === userId;
 
     if (isHost) {
       await this.prismaService.room.update({
         where: { code: roomCode },
-        data: { phase: 'closed' }
+        data: { phase: 'closed' },
       });
       await this.redisService.instance.del(`room:state:${roomCode}`);
 
-      this.roomGateway.server.to(roomCode).emit('room:closed', { reason: '방장이 퇴장하여 방이 폐쇄되었습니다.' });
+      this.roomGateway.server.to(roomCode).emit('room:closed', {
+        reason: '방장이 퇴장하여 방이 폐쇄되었습니다.',
+      });
       this.roomGateway.server.in(roomCode).disconnectSockets();
     } else {
       await this.prismaService.roomMember.delete({
-        where: { id: memberRecord.id }
+        where: { id: memberRecord.id },
       });
 
-      const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
+      const raw = await this.redisService.instance.get(
+        `room:state:${roomCode}`,
+      );
       if (raw) {
-        const state = JSON.parse(raw);
+        const state = JSON.parse(raw) as RoomState;
         delete state.members[targetId];
         await this.redisService.instance.set(
           `room:state:${roomCode}`,
           JSON.stringify(state),
           'EX',
-          7200
+          7200,
         );
       }
-      this.roomGateway.server.to(roomCode).emit('member:left', { userId: targetId });
+      this.roomGateway.server
+        .to(roomCode)
+        .emit('member:left', { userId: targetId });
     }
     return { isHost, targetId };
   }
-
 
   /**
    * nanoid 코드가 PK(code)와 충돌(P2002)하면 새 코드로 재시도한다.
