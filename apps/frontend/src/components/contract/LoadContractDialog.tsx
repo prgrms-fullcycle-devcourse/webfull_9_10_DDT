@@ -25,6 +25,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '../ui/accordion';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface LoadContractDialogProps {
   open: boolean;
@@ -45,6 +47,8 @@ export function LoadContractDialog({
     penalties: true,
     penaltyMode: 'replace',
   });
+
+  const { confirm, confirmProps } = useConfirm();
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
@@ -106,7 +110,12 @@ export function LoadContractDialog({
   };
 
   const handleDelete = async (ruleId: string, title: string) => {
-    if (!confirm(`"${title}"을 삭제하시겠습니까?`)) {
+    const ok = await confirm({
+      title: `${title}을 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      variant: 'destructive',
+    });
+    if (!ok) {
       return;
     }
 
@@ -210,13 +219,13 @@ export function LoadContractDialog({
                           등록된 벌칙이 없어요.
                         </p>
                       ) : (
-                        <ul className='grid grid-cols-1 text-sm space-y-1 max-h-32 overflow-y-auto'>
+                        <ul className='flex flex-wrap text-sm space-y-1 max-h-32 overflow-y-auto p-1 gap-1.5'>
                           {item.penalties.map((p) => (
                             <li
                               key={p.itemId}
-                              className='text-muted-foreground'
+                              className='text-foreground/80 px-3 py-1.5 border border-white/20 rounded-sm bg-white/5'
                             >
-                              • {p.content}
+                              {p.content}
                             </li>
                           ))}
                         </ul>
@@ -341,6 +350,7 @@ export function LoadContractDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog {...confirmProps} />
     </Dialog>
   );
 }

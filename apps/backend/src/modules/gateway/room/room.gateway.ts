@@ -91,6 +91,27 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    if (['closed', 'result'].includes(roomState.phase)) {
+      client.emit('force-disconnect', { reason: 'room-closed' });
+      setTimeout(() => client.disconnect(), 100);
+      return;
+    }
+
+    const userId = client.data.role === 'user' ? client.data.userId : null;
+    const guestToken = client.data.role === 'guest' ? client.data.userId : null;
+
+    const isValid = await this.roomService.isMember(
+      roomCode,
+      userId,
+      guestToken,
+    );
+
+    if (!isValid) {
+      client.emit('force-disconnect', { reason: 'not-a-member' });
+      setTimeout(() => client.disconnect(), 100);
+      return;
+    }
+
     const existingSocketId = roomState.members[client.data.userId]?.socketId;
 
     if (existingSocketId) {

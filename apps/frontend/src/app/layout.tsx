@@ -31,7 +31,7 @@ export default function RootLayout({
         <QueryProvider>
           <AuthInitializer>
             <SessionRestorer />
-            <div className='relative w-full max-w-[390px] min-h-screen flex flex-col bg-background sm:border-x sm:border-border sm:shadow-[0_0_40px_rgba(0,0,0,0.6)]'>
+            <div className='relative w-full max-w-97.5 min-h-screen flex flex-col bg-background sm:border-x sm:border-border sm:shadow-[0_0_40px_rgba(0,0,0,0.6)]'>
               {children}
             </div>
             <Toaster position='top-center' richColors />

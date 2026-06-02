@@ -40,8 +40,8 @@ export function ContractActions({
     const payload = toBackendFormat(fields, tiers, penalties);
 
     try {
-      const cashed = queryClient.getQueryData<SavedRule[]>(['saved-rules']);
-      const existing = cashed?.find((r) => r.title === title);
+      const cached = queryClient.getQueryData<SavedRule[]>(['saved-rules']);
+      const existing = cached?.find((r) => r.title === title);
 
       if (existing) {
         await getRuleApi().ruleControllerUpdateRuleTemplate(existing.ruleId, {
@@ -67,7 +67,7 @@ export function ContractActions({
     applyAll(data);
   };
 
-  if (isGuest) return null;
+  if (!me || isGuest) return null;
 
   return (
     <div className='flex gap-1'>
