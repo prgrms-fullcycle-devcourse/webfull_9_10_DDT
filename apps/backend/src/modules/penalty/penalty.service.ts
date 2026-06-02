@@ -31,7 +31,7 @@ export class PenaltyService {
     if (!room.template) throw new NotFoundException('계약서 정보가 없습니다.');
 
     const tiers = parseTierConfig(room.template.tierConfig);
-    const { focusMin, rounds } = room.template;
+    const { focusMin, breakMin, rounds } = room.template;
     const penaltyPool = room.template.penalties;
 
     // 멱등성: 트랜잭션 진입 전 기존 결과 일괄 조회 (N+1 제거)
@@ -41,9 +41,15 @@ export class PenaltyService {
     });
     const processedIds = new Set(existingResults.map((r) => r.roomMemberId));
 
-    // 세션 종료 기준 시각. 미설정 시 현재 시각으로 방어(음수 가드와 함께 사용).
-    // 미복귀 EscapeLog 마감·포기자 잔여 시간 합산의 공통 기준이다.
-    const sessionEndedAt = room.endedAt ?? new Date();
+    // 세션 종료 기준 시각(미복귀 EscapeLog 마감·포기자 잔여 합산의 공통 anchor).
+    // 정상 경로에선 endedAt이 채워져 있다. 누락 시 now()를 쓰면 lazy 산정이 늦을수록
+    // 잔여 시간이 과대 합산되므로, '계획된 종료 시각'(시작 + 계획 세션 길이)으로 결정적 대체한다.
+    const plannedDurationMs = (focusMin + breakMin) * rounds * 60 * 1000;
+    const sessionEndedAt =
+      room.endedAt ??
+      (room.startedAt
+        ? new Date(room.startedAt.getTime() + plannedDurationMs)
+        : new Date());
 
     await this.prisma.$transaction(async (tx) => {
       for (const member of room.roomMembers) {

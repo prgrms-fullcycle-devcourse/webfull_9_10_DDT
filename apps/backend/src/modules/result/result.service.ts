@@ -99,8 +99,19 @@ export class ResultService {
       };
     });
 
-    members.sort((a, b) => b.totalEscapeMs - a.totalEscapeMs);
-    members.forEach((m, idx) => (m.rank = idx + 1));
+    // 이탈 시간 내림차순. 동점은 memberId로 결정적 정렬(호출마다 동일 순서 보장).
+    members.sort(
+      (a, b) =>
+        b.totalEscapeMs - a.totalEscapeMs ||
+        a.memberId.localeCompare(b.memberId),
+    );
+    // 표준 경쟁 순위(1-2-2-4): 동일 이탈 시간은 같은 순위, 다음 순위는 인원수만큼 건너뜀.
+    members.forEach((m, idx) => {
+      m.rank =
+        idx > 0 && m.totalEscapeMs === members[idx - 1].totalEscapeMs
+          ? members[idx - 1].rank
+          : idx + 1;
+    });
 
     const penaltyMemberCount = members.filter((m) => m.penaltyTier > 0).length;
 
