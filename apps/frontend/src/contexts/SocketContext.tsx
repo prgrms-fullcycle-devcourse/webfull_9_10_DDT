@@ -54,7 +54,15 @@ export function SocketProvider({
     });
 
     s.on('force-disconnect', (data) => {
-      console.warn('강제 연결 해제', data);
+      if (data.reason === 'not-a-member') {
+        toast.error('방에 참여하지 않으셨습니다.');
+        router.replace(`/room/${roomCode}`);
+      } else if (data.reason === 'room-closed') {
+        toast.error('이미 종료된 방입니다.');
+        router.replace('/');
+      } else if (data.reason === 'duplicate-connection') {
+        toast.error('다른 곳에서 접속했습니다.');
+      }
     });
 
     s.on('room:closed', ({ reason }: { reason?: string }) => {

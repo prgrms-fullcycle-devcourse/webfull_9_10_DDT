@@ -664,4 +664,25 @@ export class RoomService {
       select: { code: true, phase: true, title: true },
     });
   }
+
+  async isMember(
+    roomCode: string,
+    userId: string | null,
+    guestToken: string | null,
+  ): Promise<boolean> {
+    const targetId = userId ?? guestToken;
+    if (!targetId) {
+      return false;
+    }
+
+    const isGuest = !!guestToken;
+    const member = await this.prismaService.roomMember.findFirst({
+      where: {
+        roomCode,
+        ...(isGuest ? { guestToken: targetId } : { userId: targetId }),
+      },
+    });
+
+    return !!member;
+  }
 }

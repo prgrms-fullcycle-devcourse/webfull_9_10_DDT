@@ -22,7 +22,10 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
-import { PROFILE_IMAGE_OPTIONS, getProfileImageOptionKey } from '@/lib/profileImage';
+import {
+  PROFILE_IMAGE_OPTIONS,
+  getProfileImageOptionKey,
+} from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 
 // 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
@@ -36,11 +39,13 @@ export const JoinRoom = () => {
 
   // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
   const isMember = isLoggedIn && me?.role === 'user';
-  const defaultNickname = isMember ? me?.nickname ?? '' : '';
+  const defaultNickname = isMember ? (me?.nickname ?? '') : '';
   const defaultProfile = (() => {
     if (!isMember) return 0;
     const optionKey = getProfileImageOptionKey(me?.profileImage);
-    const idx = PROFILE_IMAGE_OPTIONS.findIndex((item) => item.key === optionKey);
+    const idx = PROFILE_IMAGE_OPTIONS.findIndex(
+      (item) => item.key === optionKey,
+    );
     return idx >= 0 ? idx : 0;
   })();
 
@@ -112,8 +117,6 @@ export const JoinRoom = () => {
       return res.data as { id: string; isReturning: boolean };
     },
     onSuccess: () => {
-      sessionStorage.removeItem(`isHost:${code}`);
-      sessionStorage.removeItem(`hostPassword:${code}`);
       router.push(`/room/${code}/contract`);
     },
     onError: (err) => {
@@ -127,10 +130,7 @@ export const JoinRoom = () => {
   });
 
   // 입장 페이지 진입 시 방 존재/유효 여부 검증 (없는 방=404, 종료된 방=403 → isError)
-  const {
-    isLoading: isRoomLoading,
-    isError: isRoomInvalid,
-  } = useQuery({
+  const { isLoading: isRoomLoading, isError: isRoomInvalid } = useQuery({
     queryKey: ['room', code],
     queryFn: async () => {
       const res = await getRoomApi().roomControllerFindById(code);
@@ -283,7 +283,7 @@ export const JoinRoom = () => {
           />
 
           {/* 비밀번호 */}
-          {!isHost && (
+          {!isHost && isHydrated && (
             <div className='flex flex-col gap-2'>
               <Label className='text-[15px] font-bold text-white/85'>
                 방 비밀번호

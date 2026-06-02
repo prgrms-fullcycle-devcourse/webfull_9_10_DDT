@@ -1,9 +1,10 @@
 'use client';
 
 import { RoomProvider, useRoom } from '@/contexts/RoomContext';
-import { use } from 'react';
+import { use, useEffect } from 'react';
 import { getToken } from '@/lib/getToken';
 import { SocketProvider } from '@/contexts/SocketContext';
+import { RoomNotFound } from '@/components/room/RoomNotFound';
 
 export default function JoinedLayout({
   children,
@@ -13,6 +14,11 @@ export default function JoinedLayout({
   params: Promise<{ code: string }>;
 }) {
   const { code } = use(params);
+
+  useEffect(() => {
+    sessionStorage.removeItem(`isHost:${code}`);
+    sessionStorage.removeItem(`hostPassword:${code}`);
+  }, [code]);
 
   return (
     <RoomProvider code={code}>
@@ -26,7 +32,7 @@ function SocketWrapper({ children }: { children: React.ReactNode }) {
   const token = getToken();
 
   if (!token) {
-    return <div>인증 정보 없음</div>;
+    return <RoomNotFound primaryMessage='로그인이 필요해요.' />;
   }
 
   return (

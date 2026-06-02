@@ -15,12 +15,15 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/hooks/useConfirm';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 export default function MemberSignList() {
   const socket = useSocket();
   const me = useAuthStore((state) => state.me);
   const members = useRoomStore((state) => state.members);
   const hostId = useRoomStore((state) => state.hostId);
+  const { confirm, confirmProps } = useConfirm();
 
   if (!me) {
     return;
@@ -38,11 +41,18 @@ export default function MemberSignList() {
     socket?.emit('member:sign', { signed: !isMeSigned });
   };
 
-  const handleKickMember = (targetId: string) => {
+  const handleKickMember = async (targetId: string) => {
     if (!isHost) {
       return;
     }
-    if (!confirm('이 멤버를 강퇴하시겠습니까?')) {
+    const ok = await confirm({
+      title: `${members[targetId].nickname} 님을 강제 퇴장 하시겠어요?`,
+      description: '강퇴당한 멤버는 재입장이 안됩니다.',
+      confirmText: '퇴장시키기',
+      cancelText: '아니요',
+      variant: 'destructive',
+    });
+    if (!ok) {
       return;
     }
 
@@ -200,6 +210,7 @@ export default function MemberSignList() {
           <CardDescription>서명하지 않으면 강퇴되요</CardDescription>
         </div>
       </div>
+      <ConfirmDialog {...confirmProps} />
     </Card>
   );
 }

@@ -3,6 +3,8 @@
 import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
+import { RoomNotFound } from '@/components/room/RoomNotFound';
+import { RoomLoading } from '@/components/room/RoomLoading';
 
 interface RoomContextValue {
   code: string;
@@ -41,8 +43,8 @@ export function RoomProvider({
     };
   }, [data]);
 
-  if (isLoading) return <div>로딩...</div>;
-  if (error || !value) return <div>방 정보 조회 실패</div>;
+  if (isLoading) return <RoomLoading />;
+  if (error || !value) return <RoomNotFound />;
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
 }
