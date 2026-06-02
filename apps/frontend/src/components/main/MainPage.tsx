@@ -13,34 +13,22 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export const MainPage = () => {
   const router = useRouter();
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const me = useAuthStore((state) => state.me);
   const logout = useAuthStore((state) => state.logout);
-  const fetchMe = useAuthStore((state) => state.fetchMe);
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
-
-  // 로그인 팝업에서 OAUTH_SUCCESS를 받으면 회원 정보 갱신
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type === 'OAUTH_SUCCESS') {
-        void fetchMe();
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [fetchMe]);
 
   const handleOpenTerms = () => {
     window.open(
       '/terms',
       'Terms Agreement',
-      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
+      'width=367,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
     );
   };
 
@@ -72,7 +60,7 @@ export const MainPage = () => {
 
       {/* 우측 상단 로그인 / 마이페이지 */}
       <div className='absolute right-0 top-0 z-20 p-4'>
-        {me?.role === 'user' ? (
+        {isLoggedIn && me?.role === 'user' ? (
           <Button
             variant='outline'
             size='sm'
@@ -81,7 +69,7 @@ export const MainPage = () => {
           >
             <Link href='/mypage'>마이페이지</Link>
           </Button>
-        ) : me?.role === 'guest' ? (
+        ) : isLoggedIn && me?.role === 'guest' ? (
           <Button
             variant='outline'
             size='sm'
