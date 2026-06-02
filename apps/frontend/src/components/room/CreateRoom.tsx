@@ -9,7 +9,7 @@ import { CloseButton } from '@/components/layout/CloseButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -203,10 +203,7 @@ export const CreateRoom = () => {
           </p>
           <Button
             onClick={handleOpenLogin}
-            className='mt-3 h-12 rounded-[14px] px-6 font-bold text-white'
-            style={{
-              background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
-            }}
+            className='mt-3 h-12 rounded-[14px] px-6 font-bold'
           >
             로그인하기
           </Button>
@@ -233,10 +230,6 @@ export const CreateRoom = () => {
         bottomButton={
           step === 'complete' ? (
             <Button
-              style={{
-                background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
-                boxShadow: '0 0 40px rgba(124,58,237,0.45)',
-              }}
               className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98]'
               onClick={() => router.push(`/room/${roomCode}`)}
             >
@@ -246,14 +239,6 @@ export const CreateRoom = () => {
             <Button
               disabled={!isValid || createRoomMutation.isPending}
               onClick={handleSubmit}
-              style={{
-                background: isValid
-                  ? 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)'
-                  : undefined,
-                boxShadow: isValid
-                  ? '0 0 40px rgba(124,58,237,0.45)'
-                  : undefined,
-              }}
               className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
             >
               {createRoomMutation.isPending ? '생성 중...' : '방 만들기'}
@@ -289,13 +274,12 @@ export const CreateRoom = () => {
                 <Label className='text-[15px] font-bold text-white/85'>
                   방 이름
                 </Label>
-                <Input
+                <FormInput
                   type='text'
                   placeholder='방 이름을 입력해주세요'
                   maxLength={20}
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
-                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
                 />
                 <span className='text-xs text-[#6B7280] text-right'>
                   {roomName.length}/20
@@ -307,12 +291,12 @@ export const CreateRoom = () => {
                   비밀번호
                 </Label>
                 <div className='relative flex items-center'>
-                  <Input
+                  <FormInput
                     type={showPassword ? 'text' : 'password'}
                     placeholder='비밀번호를 입력해주세요'
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 pr-10 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+                    className='pr-10'
                   />
                   <Button
                     type='button'
@@ -355,9 +339,6 @@ export const CreateRoom = () => {
             </Button>
             <Button
               className='flex-1 h-12 rounded-[14px] font-bold'
-              style={{
-                background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
-              }}
               onClick={() => {
                 setShowExitDialog(false);
                 onBack?.();

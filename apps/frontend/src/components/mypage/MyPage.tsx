@@ -285,15 +285,14 @@ export const MyPage = () => {
           </DialogHeader>
           <DialogFooter className='flex gap-3 pt-3'>
             <Button
-              variant='outline'
-              className='flex-1 h-12 rounded-[14px] border-white/[0.18] text-white/80 bg-transparent hover:bg-white/5'
+               variant='ghost'
+              className='flex-1 py-6! border border-white/20'
               onClick={() => setIsLogoutConfirmOpen(false)}
             >
               아니요
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold text-white'
-              style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)' }}
+              className='flex-1 h-12 rounded-[14px] font-bold'
               onClick={async () => {
                 setIsLogoutConfirmOpen(false);
                 await executeLogout();

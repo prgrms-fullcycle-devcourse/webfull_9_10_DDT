@@ -50,7 +50,7 @@ export class RuleService {
         focusMin: dto.focusMin,
         breakMin: dto.breakMin,
         rounds: dto.rounds,
-        tierConfig: dto.tierConfig as unknown as Prisma.InputJsonArray,
+        tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
         penalties: {
           create: dto.penalties.map((content) => ({ content })),
         },
@@ -119,7 +119,7 @@ export class RuleService {
         focusMin: dto.focusMin,
         breakMin: dto.breakMin,
         rounds: dto.rounds,
-        tierConfig: dto.tierConfig as unknown as Prisma.InputJsonArray,
+        tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
         penalties: { create: dto.penalties.map((content) => ({ content })) },
       },
     });
@@ -156,7 +156,7 @@ export class RuleService {
           focusMin: dto.focusMin,
           breakMin: dto.breakMin,
           rounds: dto.rounds,
-          tierConfig: dto.tierConfig as unknown as Prisma.InputJsonArray,
+          tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
           penalties: { create: dto.penalties.map((content) => ({ content })) },
         },
       });

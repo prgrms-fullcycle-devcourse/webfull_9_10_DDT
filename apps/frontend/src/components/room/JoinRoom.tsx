@@ -7,7 +7,7 @@ import { BackButton } from '@/components/layout/BackButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
 import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import {
@@ -203,10 +203,7 @@ export const JoinRoom = () => {
           <p className='text-sm text-white/50'>방 코드를 다시 확인해주세요.</p>
           <Button
             onClick={() => router.push('/')}
-            className='mt-3 h-12 rounded-[14px] px-6 font-bold text-white'
-            style={{
-              background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
-            }}
+            className='mt-3 h-12 rounded-[14px] px-6 font-bold'
           >
             홈으로
           </Button>
@@ -236,10 +233,7 @@ export const JoinRoom = () => {
               게스트로 시작
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold text-white'
-              style={{
-                background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
-              }}
+              className='flex-1 h-12 rounded-[14px] font-bold'
               onClick={handleGoogleLogin}
             >
               구글 로그인
@@ -259,13 +253,7 @@ export const JoinRoom = () => {
           <Button
             disabled={!isValid || joinMutation.isPending}
             onClick={handleSubmit}
-            style={{
-              background: isValid
-                ? 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)'
-                : undefined,
-              boxShadow: isValid ? '0 0 40px rgba(124,58,237,0.45)' : undefined,
-            }}
-            className='w-full h-14 rounded-[24px] text-base font-bold text-white hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
             {joinMutation.isPending ? '입장 중...' : '입장하기'}
           </Button>
@@ -277,13 +265,12 @@ export const JoinRoom = () => {
             <Label className='text-[15px] font-bold text-white/85'>
               내 닉네임
             </Label>
-            <Input
+            <FormInput
               type='text'
               placeholder='방에서 사용할 닉네임을 입력해주세요'
               maxLength={10}
               value={nickname}
               onChange={(e) => setNicknameInput(e.target.value)}
-              className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
             />
             <span className='text-xs text-[#6B7280] text-right'>
               {nickname.length}/10
@@ -302,12 +289,12 @@ export const JoinRoom = () => {
                 방 비밀번호
               </Label>
               <div className='relative flex items-center'>
-                <Input
+                <FormInput
                   type={showPassword ? 'text' : 'password'}
                   placeholder='비밀번호를 입력해주세요'
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className='h-[52px] rounded-[16px] border-white/[0.12] bg-[#1A1A2E] px-4 pr-10 text-sm text-white placeholder:text-white/30 focus-visible:border-[#8B5CF6] focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/30'
+                  className='pr-10'
                 />
                 <Button
                   type='button'
