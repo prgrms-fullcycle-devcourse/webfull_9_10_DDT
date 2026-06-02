@@ -109,17 +109,28 @@ export class TimerService {
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.escapeLog.updateMany({
-        where: { roomMemberId: member.id, returnedAt: null },
-        data: { returnedAt: now },
+      // 탈주(중도 포기) 벌칙 산정은 PenaltyService.calculateAndSave(gaveUpAt 분기)에서 처리됨.
+      // 여기선 포기 멤버의 열린 EscapeLog를 durationMs까지 계산해 마감.
+      const openLogs = await tx.escapeLog.findMany({
+        where: { roomMemberId: member.id, returnedAt: null, deletedAt: null },
+        select: { id: true, escapedAt: true },
       });
+      for (const log of openLogs) {
+        await tx.escapeLog.update({
+          where: { id: log.id },
+          data: {
+            returnedAt: now,
+            durationMs: now.getTime() - log.escapedAt.getTime(),
+          },
+        });
+      }
 
       await tx.roomMember.update({
         where: { id: member.id },
         data: { gaveUpAt: now },
       });
     });
-    //탈주 처리 로직 추가 필요
+
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
 
