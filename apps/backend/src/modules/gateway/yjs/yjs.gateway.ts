@@ -62,7 +62,11 @@ export class YjsGateway implements OnModuleDestroy {
       return;
     }
 
-    if (state?.phase === 'timer') {
+    if (
+      state?.phase === 'timer' ||
+      state?.phase === 'result' ||
+      state?.phase === 'closed'
+    ) {
       this.logger.log(`연결 종료(타이머 페이즈): ${roomCode}`);
       ws.close();
       return;

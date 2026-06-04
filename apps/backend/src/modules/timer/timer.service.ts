@@ -8,6 +8,9 @@ import {
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
+import { RoomService } from '../room/room.service';
+import { PenaltyService } from '../penalty/penalty.service';
+import { YjsGateway } from '../gateway/yjs/yjs.gateway';
 
 @Injectable()
 export class TimerService {
@@ -15,6 +18,9 @@ export class TimerService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly roomGateway: RoomGateway,
+    private readonly roomService: RoomService,
+    private readonly penaltyService: PenaltyService,
+    private readonly yjsGateway: YjsGateway,
   ) {}
 
   private async verifyHost(roomCode: string, userId: string) {
@@ -29,6 +35,19 @@ export class TimerService {
 
   async startTimer(roomCode: string, userId: string) {
     await this.verifyHost(roomCode, userId);
+
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+      include: { template: true },
+    });
+
+    if (!room?.template) {
+      throw new NotFoundException('계약서가 없습니다.');
+    }
+
+    if (room.phase !== 'contract') {
+      throw new ConflictException('이미 시작된 세션입니다.');
+    }
 
     const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
     if (rawState) {
@@ -51,16 +70,31 @@ export class TimerService {
       data: { phase: 'timer', startedAt: now },
     });
 
+    await this.roomService.updateRedisPhase(roomCode, 'timer');
+
     const responseData = {
       startedAt: now,
-      currentPhase: 'focus',
-      currentRound: 1,
-      totalRounds: 4,
-      phaseEndsAt: new Date(now.getTime() + 25 * 60000),
+      focusMin: room.template.focusMin,
+      breakMin: room.template.breakMin,
+      totalRounds: room.template.rounds,
       serverTime: now,
     };
 
+    this.yjsGateway.destroyRoom(roomCode);
+
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
+
+    const totalMs =
+      (room.template.focusMin + room.template.breakMin) *
+      room.template.rounds *
+      60 *
+      1000;
+
+    setTimeout(() => {
+      this.endSession(roomCode).catch((err) =>
+        console.error('endSession 실패:', err),
+      );
+    }, totalMs);
     return responseData;
   }
 
@@ -135,5 +169,19 @@ export class TimerService {
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
 
     return responseData;
+  }
+
+  async endSession(roomCode: string) {
+    await this.prisma.room.update({
+      where: { code: roomCode },
+      data: { phase: 'result', endedAt: new Date() },
+    });
+
+    await this.roomService.updateRedisPhase(roomCode, 'result');
+    await this.penaltyService.calculateAndSave(roomCode);
+
+    this.roomGateway.server.to(roomCode).emit('session:ended', {
+      endedAt: new Date(),
+    });
   }
 }

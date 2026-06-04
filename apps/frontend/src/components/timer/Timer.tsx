@@ -19,17 +19,9 @@ import { useRoom } from '@/contexts/RoomContext';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { toast } from 'sonner';
-
-type TimerMode = 'FOCUS' | 'BREAK';
-
-interface TimerTick {
-  timeLeft: number;
-  mode: TimerMode;
-  currentSession: number;
-  totalSessions: number;
-  focusDuration: number;
-  breakDuration: number;
-}
+import { useMutation } from '@tanstack/react-query';
+import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
+import axios from 'axios';
 
 export default function Timer() {
   const router = useRouter();
@@ -37,35 +29,19 @@ export default function Timer() {
   const room = useRoom();
   const me = useAuthStore((s) => s.me);
   const phase = useRoomStore((s) => s.phase);
+  const sessionInfo = useRoomStore((s) => s.sessionInfo);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
-  // 타이머 상태 (백엔드 timer:tick 수신)
-  const [timer, setTimer] = useState<TimerTick>({
-    timeLeft: 0,
-    mode: 'FOCUS',
-    currentSession: 1,
-    totalSessions: 1,
-    focusDuration: 0,
-    breakDuration: 0,
-  });
-
-  // 백엔드 timer:tick 수신
   useEffect(() => {
-    if (!socket) return;
+    if (!sessionInfo) return;
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionInfo]);
 
-    const handleTick = (data: TimerTick) => {
-      setTimer(data);
-    };
-
-    socket.on('timer:tick', handleTick);
-
-    return () => {
-      socket.off('timer:tick', handleTick);
-    };
-  }, [socket]);
-
-  // phase 변경 시 자동 이동
   useEffect(() => {
     if (!phase) return;
     if (phase === 'contract') {
@@ -75,17 +51,76 @@ export default function Timer() {
     }
   }, [phase, room.code, router]);
 
+  useEffect(() => {
+    if (!socket || !sessionInfo) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      socket.emit('heartbeat');
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [socket, sessionInfo]);
+
+  useEffect(() => {
+    if (!socket || !sessionInfo) {
+      return;
+    }
+    const handler = () => {
+      if (document.hidden) {
+        socket.emit('escape:start');
+      } else {
+        socket.emit('escape:end');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, [socket, sessionInfo]);
+
+  const giveUpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await getTimerApi().timerControllerGiveUp(room.code);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.info('중도 포기 처리됬습니다.');
+    },
+    onError: (error) => {
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data as { message?: string })?.message
+        : undefined;
+      toast.error(message);
+    },
+  });
+
   const handleForfeit = () => {
-    if (!socket) return;
-    socket.emit('member:giveup');
+    giveUpMutation.mutate();
     setIsModalOpen(false);
-    toast.info('중도 포기 처리됩니다.');
   };
 
   if (!me) return null;
+  if (!sessionInfo) return <div>로딩 중...</div>;
 
-  const isFocus = timer.mode === 'FOCUS';
-  const totalDuration = isFocus ? timer.focusDuration : timer.breakDuration;
+  const adjustedNow = now + sessionInfo.serverOffset;
+  const elapsed = adjustedNow - sessionInfo.startedAt;
+  const cycleMs = (sessionInfo.focusMin + sessionInfo.breakMin) * 60 * 1000;
+  const focusMs = sessionInfo.focusMin * 60 * 1000;
+  const breakMs = sessionInfo.breakMin * 60 * 1000;
+
+  const round = Math.floor(elapsed / cycleMs) + 1;
+  const cycleElapsed = elapsed % cycleMs;
+  const isFocus = cycleElapsed < focusMs;
+  const phaseRemainingMs = isFocus
+    ? focusMs - cycleElapsed
+    : cycleMs - cycleElapsed;
+  const phaseTotalMs = isFocus ? focusMs : breakMs;
+
+  // 초 단위 변환 (컴포넌트가 초 기대)
+  const phaseRemainingSec = Math.ceil(phaseRemainingMs / 1000);
+  const phaseTotalSec = Math.ceil(phaseTotalMs / 1000);
+  const focusDurationSec = sessionInfo.focusMin * 60;
+  const breakDurationSec = sessionInfo.breakMin * 60;
 
   const theme = {
     textColor: isFocus ? 'text-primary' : 'text-success',
@@ -99,7 +134,7 @@ export default function Timer() {
       header={
         <div className='w-full text-center'>
           <h1 className={`text-xl font-bold ${theme.textColor}`}>
-            {theme.statusText} {timer.currentSession}/{timer.totalSessions}
+            {theme.statusText} {round} / {sessionInfo.totalRounds}
           </h1>
         </div>
       }
@@ -146,18 +181,18 @@ export default function Timer() {
     >
       <div className='flex flex-col items-center justify-center w-full py-6'>
         <TimerProgressBar
-          mode={timer.mode}
-          currentSession={timer.currentSession}
-          totalSessions={timer.totalSessions}
-          timeLeft={timer.timeLeft}
-          totalDuration={totalDuration}
-          focusDuration={timer.focusDuration}
-          breakDuration={timer.breakDuration}
+          mode={isFocus ? 'FOCUS' : 'BREAK'}
+          currentSession={round}
+          totalSessions={sessionInfo.totalRounds}
+          timeLeft={phaseRemainingSec}
+          totalDuration={phaseTotalSec}
+          focusDuration={focusDurationSec}
+          breakDuration={breakDurationSec}
         />
 
         <TimerCircle
-          timeLeft={timer.timeLeft}
-          totalDuration={totalDuration}
+          timeLeft={phaseRemainingSec}
+          totalDuration={phaseTotalSec}
           strokeColor={theme.strokeColor}
           subStatusText={theme.subStatusText}
         />

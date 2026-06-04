@@ -23,6 +23,12 @@ import { Separator } from '../ui/separator';
 import { ContractActions } from './ContractActions';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
+import axios from 'axios';
+import { ContractDataForSave, toBackendFormat } from '@/lib/contractTransform';
+import { getRuleApi } from '@/api/generated/rule-api-계약서-관리/rule-api-계약서-관리';
 
 interface ContractFormValues {
   focusMin: number;
@@ -36,6 +42,7 @@ const ContractForm = () => {
   const me = useAuthStore((state) => state.me);
   const members = useRoomStore((state) => state.members);
   const hostId = useRoomStore((s) => s.hostId);
+  const phase = useRoomStore((s) => s.phase);
 
   const isHost = me?.id === hostId;
 
@@ -55,7 +62,7 @@ const ContractForm = () => {
     updatePenalty,
     removePenalty,
     applyAll,
-  } = useYjsContract(room.code, !!me, isHost);
+  } = useYjsContract(room.code, !!me || phase === 'contract', isHost);
 
   const { confirm, confirmProps } = useConfirm();
 
@@ -63,6 +70,52 @@ const ContractForm = () => {
     values: fields,
     defaultValues: { focusMin: 0, breakMin: 0, rounds: 0 },
   });
+
+  const createRoomRuleMutation = useMutation({
+    mutationFn: async (dto: ContractDataForSave) => {
+      const res = await getRuleApi().ruleControllerCreateRoomRule(
+        room.code,
+        dto,
+      );
+      return res.data;
+    },
+  });
+
+  const startTimerMutation = useMutation({
+    mutationFn: async () => {
+      const res = await getTimerApi().timerControllerStartTimer(room.code);
+      return res.data;
+    },
+    onError: (err) => {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      toast.error(message ?? '시작 실패');
+    },
+  });
+
+  const handleStartFocus = async () => {
+    try {
+      const dto = toBackendFormat(fields, tiers, penalties);
+
+      await createRoomRuleMutation.mutateAsync(dto);
+
+      await startTimerMutation.mutateAsync();
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      toast.error(message ?? '시작 실패');
+    }
+  };
+
+  useEffect(() => {
+    if (phase === 'timer') {
+      router.replace(`/room/${room.code}/timer`);
+    } else if (phase === 'result') {
+      router.replace(`/room/${room.code}/result-before`);
+    }
+  }, [phase, room.code, router]);
 
   const handleLeaveRoom = async () => {
     const ok = await confirm({
@@ -182,8 +235,15 @@ const ContractForm = () => {
             </Button>
           )}
           {isHost && allSigned && (
-            <Button type='button' className='flex-1 py-5! rounded-sm!'>
-              집중 시작
+            <Button
+              type='button'
+              disabled={startTimerMutation.isPending}
+              onClick={async () => {
+                await handleStartFocus();
+              }}
+              className='flex-1 py-5! rounded-sm!'
+            >
+              {startTimerMutation.isPending ? '시작 중...' : '집중 시작'}
             </Button>
           )}
         </div>

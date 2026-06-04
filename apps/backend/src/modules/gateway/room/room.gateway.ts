@@ -142,6 +142,10 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId: client.data.userId,
       ...roomState.members[client.data.userId],
     });
+
+    if (roomState.phase === 'timer') {
+      await this.emitSessionStartedIfTimer(client, roomCode);
+    }
   }
 
   async handleDisconnect(client: RoomSocket): Promise<void> {
@@ -338,5 +342,43 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .to(roomCode)
       .emit('edit:all-updated', { canEdit: body.canEdit });
+  }
+
+  @SubscribeMessage('heartbeat')
+  async handleHeartbeat(@ConnectedSocket() client: RoomSocket) {
+    const { roomCode, userId } = client.data;
+    await this.escapeService.updateHeartbeat(roomCode, userId);
+  }
+
+  @SubscribeMessage('escape:start')
+  async handleEscapeStart(@ConnectedSocket() client: RoomSocket) {
+    const { roomCode, userId } = client.data;
+    await this.escapeService.logEscapeStart(roomCode, userId);
+  }
+
+  @SubscribeMessage('escape:end')
+  async handleEscapeEnd(@ConnectedSocket() client: RoomSocket) {
+    const { roomCode, userId } = client.data;
+    await this.escapeService.logEscapeEnd(roomCode, userId);
+  }
+
+  private async emitSessionStartedIfTimer(
+    client: RoomSocket,
+    roomCode: string,
+  ) {
+    const room = await this.roomService.findRoomWithTemplate(roomCode);
+
+    if (!room?.startedAt || !room.template) {
+      this.logger.warn(`timer phase인데 정보 부족: ${roomCode}`);
+      return;
+    }
+
+    client.emit('session:started', {
+      startedAt: room.startedAt,
+      focusMin: room.template.focusMin,
+      breakMin: room.template.breakMin,
+      totalRounds: room.template.rounds,
+      serverTime: new Date(),
+    });
   }
 }
