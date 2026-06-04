@@ -52,8 +52,9 @@ export function useYjsContract(
     const yjsTiers = doc.getArray<Tier>('tiers');
     const yjsPenalties = doc.getArray<Penalty>('penalties');
 
-    const serverUrl = 'ws://localhost:8080/yjs?roomCode=' + roomCode;
-
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const serverUrl = `${apiUrl.replace('http', 'ws')}/yjs?roomCode=${roomCode}`;
+    
     const provider = new WebsocketProvider(serverUrl, '', doc);
     const awareness = provider.awareness;
 
