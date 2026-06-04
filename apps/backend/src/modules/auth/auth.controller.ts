@@ -15,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiResponse,
-  ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
