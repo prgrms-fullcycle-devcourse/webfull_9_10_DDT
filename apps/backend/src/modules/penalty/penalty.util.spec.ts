@@ -53,7 +53,12 @@ describe('calculatePenaltyTier', () => {
 
   it('150%(초과) → 최고 티어', () => {
     expect(
-      calculatePenaltyTier(msFromPercent(150), FOCUS_MIN, ROUNDS, DEFAULT_TIERS),
+      calculatePenaltyTier(
+        msFromPercent(150),
+        FOCUS_MIN,
+        ROUNDS,
+        DEFAULT_TIERS,
+      ),
     ).toEqual({ penaltyTier: 3, penaltyCount: 2, isForceAll: true });
   });
 
@@ -79,7 +84,9 @@ describe('resolveForfeitTier', () => {
   });
 
   it('maxPct=null 티어가 없으면 throw', () => {
-    const noTop: PenaltyTier[] = [{ tier: 1, minPct: 0, maxPct: 100, count: 1 }];
+    const noTop: PenaltyTier[] = [
+      { tier: 1, minPct: 0, maxPct: 100, count: 1 },
+    ];
     expect(() => resolveForfeitTier(noTop)).toThrow();
   });
 });
