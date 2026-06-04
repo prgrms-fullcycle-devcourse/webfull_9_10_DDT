@@ -436,6 +436,20 @@ export class RoomService {
     });
   }
 
+  async updateRedisPhase(roomCode: string, phase: string) {
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
+    if (!raw) return;
+
+    const state = JSON.parse(raw) as RoomState;
+    state.phase = phase;
+    await this.redisService.instance.set(
+      `room:state:${roomCode}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
+  }
+
   async getRoomState(roomCode: string): Promise<RoomState | null> {
     const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
 
@@ -684,5 +698,12 @@ export class RoomService {
     });
 
     return !!member;
+  }
+
+  async findRoomWithTemplate(roomCode: string) {
+    return this.prismaService.room.findUnique({
+      where: { code: roomCode },
+      include: { template: true },
+    });
   }
 }

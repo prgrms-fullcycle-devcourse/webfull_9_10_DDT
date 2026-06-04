@@ -10,27 +10,41 @@ export interface RoomMember {
   socketId?: string;
   isSigned?: boolean;
   canEdit?: boolean;
+  gaveUpAt?: boolean;
+}
+
+interface SessionInfo {
+  startedAt: number;
+  focusMin: number;
+  breakMin: number;
+  totalRounds: number;
+  serverOffset: number;
 }
 
 interface RoomStore {
   hostId: string | null;
   members: Record<string, RoomMember>;
   phase: string | null;
+  sessionInfo: SessionInfo | null;
 
-  setState: (data: {
-    hostId: string;
-    members: Record<string, RoomMember>;
-    phase: string;
-  }) => void;
+  setState: (
+    data: Partial<{
+      hostId: string;
+      members: Record<string, RoomMember>;
+      phase: string;
+    }>,
+  ) => void;
   upsertMember: (userId: string, member: Partial<RoomMember>) => void;
   removeMember: (userId: string) => void;
   reset: () => void;
+  setSessionInfo: (info: SessionInfo | null) => void;
 }
 
 export const useRoomStore = create<RoomStore>((set) => ({
   hostId: null,
   members: {},
   phase: null,
+  sessionInfo: null,
 
   setState: (data) => set(data),
 
@@ -49,5 +63,8 @@ export const useRoomStore = create<RoomStore>((set) => ({
       return { members: next };
     }),
 
-  reset: () => set({ hostId: null, members: {}, phase: null }),
+  reset: () =>
+    set({ hostId: null, members: {}, phase: null, sessionInfo: null }),
+
+  setSessionInfo: (info) => set({ sessionInfo: info }),
 }));
