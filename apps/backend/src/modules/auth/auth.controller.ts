@@ -135,22 +135,4 @@ export class AuthController {
     const data = await this.authService.logout(token);
     return { message: '로그아웃이 완료되었습니다.', data };
   }
-
-  @ApiExcludeEndpoint()
-  @Get('test-token')
-  testToken() {
-    const fakeUser = {
-      id: 'test-user-id-1234',
-      nickname: 'fakeUser',
-      email: 'test@test.com',
-      isTermsAgreed: true,
-      provider: '',
-      providerId: '',
-      profileImage: '',
-      deletedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    return { token: this.authService.generateJwt(fakeUser) };
-  }
 }
