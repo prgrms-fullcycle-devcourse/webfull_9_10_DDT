@@ -114,7 +114,7 @@ const ContractForm = () => {
     if (phase === 'timer') {
       router.replace(`/room/${room.code}/timer`);
     } else if (phase === 'result') {
-      router.replace(`/room/${room.code}/result-before`);
+      router.replace(`/room/${room.code}/semi-result`);
     }
   }, [phase, room.code, router]);
 
