@@ -338,7 +338,9 @@ export function TotalResult() {
                       aria-label={`${member.nickname} 벌칙 상세 보기`}
                     >
                       벌칙 {member.penalties.totalCount}개
-                      {unknownPenaltyCount > 0 ? ` (미정 ${unknownPenaltyCount})` : ''}
+                      {unknownPenaltyCount > 0
+                        ? ` (룰렛 대기중 ${unknownPenaltyCount})`
+                        : ''}
                       <ChevronDown className='h-4 w-4 text-white/35' />
                     </button>
                   </div>
@@ -428,7 +430,7 @@ export function TotalResult() {
                     <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
                     <div className='flex min-w-0 flex-1 flex-col'>
                       <span className='truncate text-sm font-medium text-white/50'>
-                        미정
+                        룰렛 대기중
                       </span>
                     </div>
                     <span className='shrink-0 text-xs text-white/75'>
