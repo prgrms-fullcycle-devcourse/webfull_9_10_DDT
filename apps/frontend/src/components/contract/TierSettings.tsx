@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Plus, User, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
@@ -20,11 +21,145 @@ interface TierSettingsProps {
     | 'tiers'
     | 'addTier'
     | 'updateTier'
+    | 'setTierBoundary'
     | 'removeTier'
     | 'fieldOwners'
     | 'handleFocus'
     | 'handleBlur'
   >;
+}
+
+// 자연수만 허용: 소수점(.), 부호(+/-), 지수(e/E) 키 입력을 차단한다.
+function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>): void {
+  if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+    e.preventDefault();
+  }
+}
+
+interface PenaltyCountInputProps {
+  value: number;
+  disabled: boolean;
+  onFocus: () => void;
+  onBlur: () => void;
+  onCommit: (value: number) => void;
+}
+
+// 입력 중에는 로컬 문자열로 자유롭게 편집(0 지우기 가능)하고,
+// 포커스가 없을 때만 외부(yjs) 값을 반영한다. (숫자에 묶이면 "0"이 안 지워지는 문제 방지)
+function PenaltyCountInput({
+  value,
+  disabled,
+  onFocus,
+  onBlur,
+  onCommit,
+}: PenaltyCountInputProps) {
+  const [draft, setDraft] = useState(String(value));
+  const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditingRef.current) {
+      setDraft(String(value));
+    }
+  }, [value]);
+
+  return (
+    <Input
+      className='bg-background! h-12 w-15 border-white/20'
+      type='number'
+      min={0}
+      step={1}
+      value={draft}
+      disabled={disabled}
+      onFocus={() => {
+        isEditingRef.current = true;
+        onFocus();
+      }}
+      onKeyDown={blockNonInteger}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw !== '') {
+          const n = Math.floor(Number(raw));
+          if (Number.isFinite(n) && n >= 0) {
+            onCommit(n);
+          }
+        }
+      }}
+      onBlur={() => {
+        isEditingRef.current = false;
+        const n = Math.floor(Number(draft));
+        const final = Number.isFinite(n) && n >= 0 ? n : 0;
+        setDraft(String(final));
+        onCommit(final);
+        onBlur();
+      }}
+    />
+  );
+}
+
+interface TierPctInputProps {
+  value: number | null;
+  minPct: number;
+  disabled: boolean;
+  onFocus: () => void;
+  onBlur: () => void;
+  onCommit: (value: number) => void;
+}
+
+// 종료%(maxPct) 입력. 입력 중에는 로컬 문자열로 자유 편집하고,
+// 포커스가 없을 때만 외부(yjs) 값을 반영한다. blur 시 minPct 초과 & 1~99로 보정.
+function TierPctInput({
+  value,
+  minPct,
+  disabled,
+  onFocus,
+  onBlur,
+  onCommit,
+}: TierPctInputProps) {
+  const [draft, setDraft] = useState(value === null ? '' : String(value));
+  const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditingRef.current) {
+      setDraft(value === null ? '' : String(value));
+    }
+  }, [value]);
+
+  return (
+    <Input
+      className='bg-background! h-12 w-15 border-white/20'
+      type='number'
+      min={minPct + 1}
+      max={99}
+      step={1}
+      value={draft}
+      disabled={disabled}
+      onFocus={() => {
+        isEditingRef.current = true;
+        onFocus();
+      }}
+      onKeyDown={blockNonInteger}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw !== '') {
+          const n = Math.floor(Number(raw));
+          if (Number.isFinite(n) && n > minPct && n <= 99) {
+            onCommit(n);
+          }
+        }
+      }}
+      onBlur={() => {
+        isEditingRef.current = false;
+        const n = Math.floor(Number(draft));
+        const valid = Number.isFinite(n) && n > minPct && n <= 99;
+        const final = valid ? n : Math.min(99, minPct + 1);
+        setDraft(String(final));
+        onCommit(final);
+        onBlur();
+      }}
+    />
+  );
 }
 
 export default function TierSettings({ yjs }: TierSettingsProps) {
@@ -37,6 +172,7 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
     tiers,
     addTier,
     updateTier,
+    setTierBoundary,
     removeTier,
     fieldOwners,
     handleFocus,
@@ -54,12 +190,8 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
       return true;
     }
 
+    // 마지막 단계는 100%까지이므로, 그 시작값이 99% 미만일 때만 더 쪼갤 수 있다.
     const last = tiers[tiers.length - 1];
-
-    if (tiers.length === 1) {
-      return last.maxPct !== null && last.maxPct > 0 && last.maxPct < 99;
-    }
-
     return last.minPct < 99;
   })();
 
@@ -75,9 +207,10 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
             const tierKey = `tier_${i}`;
             const tierOwner = fieldOwners[tierKey];
             const isLockedByOther = !!tierOwner && tierOwner.userId !== me.id;
+            const isLastTier = i === tiers.length - 1;
 
             return (
-              <div key={tier.tier} className='flex flex-col gap-1'>
+              <div key={`tier-${i}`} className='flex flex-col gap-1'>
                 <div className='w-full rounded-sm h-7 bg-primary relative flex justify-center items-center p-0'>
                   <p>{tier.tier}단계</p>
                 </div>
@@ -100,52 +233,30 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                     {tier.minPct}% ~
                   </span>
                   <div className='flex-1 flex gap-2 p-0 items-center'>
-                    <Input
-                      className='bg-background! h-12 w-15 border-white/20'
-                      type='number'
-                      value={tier.maxPct ?? ''}
-                      min={0}
-                      max={100}
-                      disabled={
-                        !canEdit ||
-                        (tiers.length > 1 && i === tiers.length - 1) ||
-                        isLockedByOther
-                      }
-                      onFocus={() => handleFocus(tierKey, me.id, myNickname)}
-                      onBlur={handleBlur}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const newMaxPct =
-                          val === '' ? 0 : Number(e.target.value);
-
-                        if (newMaxPct < 0 || newMaxPct > 100) {
-                          return;
-                        }
-
-                        if (i > 0 && newMaxPct <= tiers[i - 1].minPct) return;
-                        updateTier(i, { maxPct: newMaxPct });
-                        if (i + 1 < tiers.length) {
-                          updateTier(i + 1, { minPct: newMaxPct });
-                        }
-                      }}
-                    />
+                    {isLastTier ? (
+                      <span className='flex h-12 w-15 items-center justify-center text-sm font-mono text-muted-foreground'>
+                        100
+                      </span>
+                    ) : (
+                      <TierPctInput
+                        value={tier.maxPct}
+                        minPct={tier.minPct}
+                        disabled={!canEdit || isLockedByOther}
+                        onFocus={() => handleFocus(tierKey, me.id, myNickname)}
+                        onBlur={handleBlur}
+                        onCommit={(val) => setTierBoundary(i, val)}
+                      />
+                    )}
                     <span>%</span>
                   </div>
                   <div className='flex-1 flex gap-1 ml-3 p-0 items-center'>
                     <span className='flex-1 text-sm w-8'>벌칙</span>
-                    <Input
-                      className='bg-background! h-12 w-15 border-white/20'
-                      type='number'
+                    <PenaltyCountInput
                       value={tier.count}
-                      min={0}
                       disabled={!canEdit || isLockedByOther}
                       onFocus={() => handleFocus(tierKey, me.id, myNickname)}
                       onBlur={handleBlur}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        if (val < 0) return;
-                        updateTier(i, { count: val });
-                      }}
+                      onCommit={(val) => updateTier(i, { count: val })}
                     />
                     <span className='text-sm'>개</span>
                   </div>

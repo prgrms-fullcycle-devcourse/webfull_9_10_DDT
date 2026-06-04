@@ -1,11 +1,10 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { ContractFormValues } from '@/types/contract';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { UseContractYjsReturn } from '@/types/yjs';
-import { useFormContext } from 'react-hook-form';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { cn } from '@/lib/utils';
@@ -34,10 +33,87 @@ function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>): void {
   }
 }
 
+interface TimerNumberInputProps {
+  id: string;
+  value: number;
+  min: number;
+  max?: number;
+  disabled: boolean;
+  isOwned: boolean;
+  ownerColor?: string;
+  className: string;
+  onFocus: () => void;
+  onBlur: () => void;
+  onCommit: (value: number) => void;
+}
+
+// 입력 중에는 로컬 문자열로 자유롭게 편집(기존 값 지우기 가능)하고,
+// 포커스가 없을 때만 외부(yjs) 값을 반영한다. blur 시 min/max로 보정.
+function TimerNumberInput({
+  id,
+  value,
+  min,
+  max,
+  disabled,
+  isOwned,
+  ownerColor,
+  className,
+  onFocus,
+  onBlur,
+  onCommit,
+}: TimerNumberInputProps) {
+  const [draft, setDraft] = useState(String(value));
+  const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditingRef.current) {
+      setDraft(String(value));
+    }
+  }, [value]);
+
+  return (
+    <Input
+      id={id}
+      type='number'
+      min={min}
+      max={max}
+      step={1}
+      value={draft}
+      className={cn(isOwned && 'outline-2 outline-offset-1', className)}
+      style={{ outlineColor: ownerColor }}
+      disabled={disabled}
+      onFocus={() => {
+        isEditingRef.current = true;
+        onFocus();
+      }}
+      onKeyDown={blockNonInteger}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw !== '') {
+          const n = Math.floor(Number(raw));
+          if (Number.isFinite(n) && n >= min && (max === undefined || n <= max)) {
+            onCommit(n);
+          }
+        }
+      }}
+      onBlur={() => {
+        isEditingRef.current = false;
+        const n = Math.floor(Number(draft));
+        let final = Number.isFinite(n) ? n : min;
+        final = Math.max(min, final);
+        if (max !== undefined) final = Math.min(max, final);
+        setDraft(String(final));
+        onCommit(final);
+        onBlur();
+      }}
+    />
+  );
+}
+
 export default function TimerSettings({ yjs }: TimerSettingsProps) {
   const me = useAuthStore((state) => state.me);
   const members = useRoomStore((state) => state.members);
-  const { register, setValue } = useFormContext<ContractFormValues>();
 
   if (!me) return null;
   const { fields, fieldOwners, updateField, handleFocus, handleBlur } = yjs;
@@ -64,22 +140,14 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
             <OwnerIndicator fieldKey='focusMin' fieldOwners={fieldOwners} />
           </div>
           <div className='flex w-full h-fit p-0 items-center gap-2'>
-            <Input
+            <TimerNumberInput
               id='focusMin'
-              type='number'
+              value={focusMin}
               min={1}
               max={120}
-              step={1}
-              {...register('focusMin', {
-                required: true,
-                min: 1,
-                max: 120,
-              })}
-              className={cn(
-                fieldOwners['focusMin'] && 'outline-2 outline-offset-1',
-                'bg-background! h-12 w-26 border-white/20',
-              )}
-              style={{ outlineColor: fieldOwners['focusMin']?.color }}
+              className='bg-background! h-12 w-26 border-white/20'
+              isOwned={!!fieldOwners['focusMin']}
+              ownerColor={fieldOwners['focusMin']?.color}
               disabled={
                 !canEdit ||
                 (!!fieldOwners['focusMin'] &&
@@ -87,12 +155,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               }
               onFocus={() => handleFocus('focusMin', me.id, myNickname)}
               onBlur={handleBlur}
-              onKeyDown={blockNonInteger}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setValue('focusMin', val);
-                updateField('focusMin', val);
-              }}
+              onCommit={(val) => updateField('focusMin', val)}
             />
             <span>분</span>
           </div>
@@ -106,17 +169,13 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
             <OwnerIndicator fieldKey='breakMin' fieldOwners={fieldOwners} />
           </div>
           <div className='flex w-full h-fit p-0 items-center gap-2'>
-            <Input
+            <TimerNumberInput
               id='breakMin'
-              type='number'
+              value={breakMin}
               min={1}
-              step={1}
-              {...register('breakMin', { required: true, min: 1 })}
-              className={cn(
-                fieldOwners['breakMin'] && 'outline-2 outline-offset-1',
-                'bg-background! h-12 w-26 border-white/20',
-              )}
-              style={{ outlineColor: fieldOwners['breakMin']?.color }}
+              className='bg-background! h-12 w-26 border-white/20'
+              isOwned={!!fieldOwners['breakMin']}
+              ownerColor={fieldOwners['breakMin']?.color}
               disabled={
                 !canEdit ||
                 (!!fieldOwners['breakMin'] &&
@@ -124,12 +183,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               }
               onFocus={() => handleFocus('breakMin', me.id, myNickname)}
               onBlur={handleBlur}
-              onKeyDown={blockNonInteger}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setValue('breakMin', val);
-                updateField('breakMin', val);
-              }}
+              onCommit={(val) => updateField('breakMin', val)}
             />
             <span>분</span>
           </div>
@@ -143,17 +197,13 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
             <OwnerIndicator fieldKey='rounds' fieldOwners={fieldOwners} />
           </div>
           <div className='flex w-full h-fit p-0 items-center gap-2'>
-            <Input
+            <TimerNumberInput
               id='rounds'
-              type='number'
+              value={rounds}
               min={1}
-              step={1}
-              {...register('rounds', { required: true, min: 1 })}
-              className={cn(
-                fieldOwners['rounds'] && 'outline-2 outline-offset-1',
-                'bg-background! h-12 w-26 border border-white/20',
-              )}
-              style={{ outlineColor: fieldOwners['rounds']?.color }}
+              className='bg-background! h-12 w-26 border border-white/20'
+              isOwned={!!fieldOwners['rounds']}
+              ownerColor={fieldOwners['rounds']?.color}
               disabled={
                 !canEdit ||
                 (!!fieldOwners['rounds'] &&
@@ -161,12 +211,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               }
               onFocus={() => handleFocus('rounds', me.id, myNickname)}
               onBlur={handleBlur}
-              onKeyDown={blockNonInteger}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                setValue('rounds', val);
-                updateField('rounds', val);
-              }}
+              onCommit={(val) => updateField('rounds', val)}
             />
             <span>회</span>
           </div>
