@@ -28,7 +28,12 @@ const ROOM_CODE = 'TESTCODE';
 type MemberFlags = { isHost?: boolean; isSigned?: boolean };
 
 function buildRawState(members: Record<string, MemberFlags>): string {
-  return JSON.stringify({ roomCode: ROOM_CODE, hostId: HOST_ID, phase: 'contract', members });
+  return JSON.stringify({
+    roomCode: ROOM_CODE,
+    hostId: HOST_ID,
+    phase: 'contract',
+    members,
+  });
 }
 
 describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
@@ -53,8 +58,16 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
     roomEmit = jest.fn();
 
     fetchSockets = jest.fn().mockResolvedValue([
-      { data: { userId: 'guest_unsigned' }, emit: socketEmit, disconnect: socketDisconnect },
-      { data: { userId: 'member_unsigned' }, emit: socketEmit, disconnect: socketDisconnect },
+      {
+        data: { userId: 'guest_unsigned' },
+        emit: socketEmit,
+        disconnect: socketDisconnect,
+      },
+      {
+        data: { userId: 'member_unsigned' },
+        emit: socketEmit,
+        disconnect: socketDisconnect,
+      },
     ]);
 
     roomFindUnique.mockResolvedValue({
@@ -70,7 +83,9 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
         TimerService,
         {
           provide: PrismaService,
-          useValue: { room: { findUnique: roomFindUnique, update: roomUpdate } },
+          useValue: {
+            room: { findUnique: roomFindUnique, update: roomUpdate },
+          },
         },
         { provide: RedisService, useValue: { instance: { get: redisGet } } },
         {
@@ -109,7 +124,10 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
 
     expect(kickMember).not.toHaveBeenCalled();
     expect(roomUpdate).not.toHaveBeenCalled();
-    expect(roomEmit).not.toHaveBeenCalledWith('session:started', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'session:started',
+      expect.anything(),
+    );
   });
 
   it('방이 없으면 404를 던진다', async () => {
@@ -149,7 +167,10 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
 
     expect(kickMember).not.toHaveBeenCalled();
     expect(roomUpdate).not.toHaveBeenCalled();
-    expect(roomEmit).not.toHaveBeenCalledWith('session:started', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'session:started',
+      expect.anything(),
+    );
   });
 
   // ── 정상 강퇴 분기 ────────────────────────────────────────────────
@@ -170,7 +191,9 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
 
     expect(kickMember).toHaveBeenCalledWith(ROOM_CODE, 'guest_unsigned');
     expect(result.kickedMemberIds).toEqual(['guest_unsigned']);
-    expect(roomEmit).toHaveBeenCalledWith('member:kicked', { targetId: 'guest_unsigned' });
+    expect(roomEmit).toHaveBeenCalledWith('member:kicked', {
+      targetId: 'guest_unsigned',
+    });
   });
 
   it('방장(isHost)이 미서명이면 강제 시작도 차단된다 (방장은 강퇴 불가)', async () => {
@@ -187,7 +210,10 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
 
     expect(kickMember).not.toHaveBeenCalled();
     expect(roomUpdate).not.toHaveBeenCalled();
-    expect(roomEmit).not.toHaveBeenCalledWith('session:started', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'session:started',
+      expect.anything(),
+    );
   });
 
   it('isSigned 필드가 아예 없는(미설정) 멤버도 강퇴 대상이다', async () => {
@@ -237,7 +263,10 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
 
     const result = await service.forceStartTimer(ROOM_CODE, HOST_ID);
 
-    expect(result.kickedMemberIds).toEqual(['guest_unsigned', 'member_unsigned']);
+    expect(result.kickedMemberIds).toEqual([
+      'guest_unsigned',
+      'member_unsigned',
+    ]);
     expect(socketEmit).toHaveBeenCalledWith('kicked');
     expect(socketEmit).toHaveBeenCalledTimes(2);
 
@@ -263,7 +292,10 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
 
     expect(kickMember).toHaveBeenCalledTimes(3);
     expect(roomUpdate).not.toHaveBeenCalled();
-    expect(roomEmit).not.toHaveBeenCalledWith('session:started', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'session:started',
+      expect.anything(),
+    );
   });
 
   it('이중 안전장치: 강퇴 성공해도 재검사 시 미서명자가 남아있으면 500을 던진다', async () => {
@@ -288,7 +320,10 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
     expect(kickMember).toHaveBeenCalledWith(ROOM_CODE, 'guest_unsigned');
     expect(Sentry.captureException).toHaveBeenCalled();
     expect(roomUpdate).not.toHaveBeenCalled();
-    expect(roomEmit).not.toHaveBeenCalledWith('session:started', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'session:started',
+      expect.anything(),
+    );
   });
 
   it('⑤ phase 전환(room.update) 실패 시 Sentry 기록 후 500을 던지고 세션을 시작하지 않는다', async () => {
@@ -303,6 +338,9 @@ describe('TimerService.forceStartTimer (미서명자 강퇴 로직)', () => {
     ).rejects.toBeInstanceOf(InternalServerErrorException);
 
     expect(Sentry.captureException).toHaveBeenCalled();
-    expect(roomEmit).not.toHaveBeenCalledWith('session:started', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'session:started',
+      expect.anything(),
+    );
   });
 });

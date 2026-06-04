@@ -21,7 +21,10 @@ const KICK_MAX_RETRIES = 2;
 // 강퇴 대상 소켓 disconnect 지연(ms) — kicked 이벤트 수신 여유 확보.
 const KICK_DISCONNECT_DELAY_MS = 100;
 
-type RoomStateMembers = Record<string, { isSigned?: boolean; isHost?: boolean }>;
+type RoomStateMembers = Record<
+  string,
+  { isSigned?: boolean; isHost?: boolean }
+>;
 
 type UnsignedSummary = {
   hostUnsigned: boolean;
@@ -70,7 +73,10 @@ export class TimerService {
     }
   }
 
-  private async kickWithRetry(roomCode: string, targetId: string): Promise<void> {
+  private async kickWithRetry(
+    roomCode: string,
+    targetId: string,
+  ): Promise<void> {
     let lastErr: unknown;
     for (let attempt = 0; attempt <= KICK_MAX_RETRIES; attempt++) {
       try {
@@ -107,7 +113,9 @@ export class TimerService {
 
     const { hostUnsigned, memberIds } = extractUnsignedSummary(rawState);
     if (hostUnsigned) {
-      throw new BadRequestException('방장이 서명을 완료해야 시작할 수 있습니다.');
+      throw new BadRequestException(
+        '방장이 서명을 완료해야 시작할 수 있습니다.',
+      );
     }
     if (memberIds.length > 0) {
       throw new BadRequestException(
@@ -136,7 +144,8 @@ export class TimerService {
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
 
     const totalMs =
-      (roomWithTemplate.template.focusMin + roomWithTemplate.template.breakMin) *
+      (roomWithTemplate.template.focusMin +
+        roomWithTemplate.template.breakMin) *
       roomWithTemplate.template.rounds *
       60 *
       1000;
@@ -173,11 +182,14 @@ export class TimerService {
       );
     }
 
-    const { hostUnsigned, memberIds: targetIds } = extractUnsignedSummary(rawState);
+    const { hostUnsigned, memberIds: targetIds } =
+      extractUnsignedSummary(rawState);
 
     // 방장은 강퇴 대상이 아니므로, 방장이 미서명이면 강제 시작도 불가하다.
     if (hostUnsigned) {
-      throw new BadRequestException('방장이 서명을 완료해야 시작할 수 있습니다.');
+      throw new BadRequestException(
+        '방장이 서명을 완료해야 시작할 수 있습니다.',
+      );
     }
 
     if (targetIds.length > 0) {
@@ -198,7 +210,9 @@ export class TimerService {
           setTimeout(() => targetSocket.disconnect(), KICK_DISCONNECT_DELAY_MS);
         }
 
-        this.roomGateway.server.to(roomCode).emit('member:kicked', { targetId });
+        this.roomGateway.server
+          .to(roomCode)
+          .emit('member:kicked', { targetId });
         kickedMemberIds.push(targetId);
       }
 
@@ -210,7 +224,9 @@ export class TimerService {
       }
 
       // 2차 게이트: phase 전환 직전 최신 state 재검사 (동시 unsign 재발생 차단)
-      const freshState = await this.redis.instance.get(`room:state:${roomCode}`);
+      const freshState = await this.redis.instance.get(
+        `room:state:${roomCode}`,
+      );
       const fresh = extractUnsignedSummary(freshState);
       if (fresh.hostUnsigned || fresh.memberIds.length > 0) {
         Sentry.captureException(
@@ -254,7 +270,8 @@ export class TimerService {
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
 
     const totalMs =
-      (roomWithTemplate.template.focusMin + roomWithTemplate.template.breakMin) *
+      (roomWithTemplate.template.focusMin +
+        roomWithTemplate.template.breakMin) *
       roomWithTemplate.template.rounds *
       60 *
       1000;

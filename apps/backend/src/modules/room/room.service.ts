@@ -676,8 +676,12 @@ export class RoomService {
         phase: { notIn: ['closed', 'result'] },
         OR: [
           { hostId: userId },
-          { roomMembers: { some: isGuest ? { guestToken: userId } : { userId } } }
-        ]
+          {
+            roomMembers: {
+              some: isGuest ? { guestToken: userId } : { userId },
+            },
+          },
+        ],
       },
       select: { code: true, phase: true, title: true },
     });
