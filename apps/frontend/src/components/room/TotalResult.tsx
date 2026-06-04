@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { jwtDecode } from 'jwt-decode';
 import { Award, ChevronDown, ThumbsUp, Trophy } from 'lucide-react';
 import { getResultApi } from '@/api/generated/result-api-결과-조회/result-api-결과-조회';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { useAuthStore } from '@/store/useAuthStore';
+import { getToken } from '@/lib/getToken';
 
 type ResultPenaltyItem = {
   content: string;
@@ -64,6 +66,10 @@ type ResultResponse = {
   rule: ResultRule | null;
 };
 
+type JwtPayload = {
+  role?: string;
+};
+
 const formatSessionTime = (totalMs: number | null) => {
   if (totalMs === null) return '-';
 
@@ -78,6 +84,22 @@ const formatSessionTime = (totalMs: number | null) => {
 
 const formatTierRange = (minPct: number, maxPct: number | null) =>
   maxPct === null ? `${minPct}% ~` : `${minPct} ~ ${maxPct}%`;
+
+const clearAccessTokenCookie = () => {
+  document.cookie =
+    'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+};
+
+const isGuestToken = () => {
+  const token = getToken();
+  if (!token) return false;
+
+  try {
+    return jwtDecode<JwtPayload>(token).role === 'guest';
+  } catch {
+    return false;
+  }
+};
 
 export function TotalResult() {
   const router = useRouter();
@@ -102,6 +124,12 @@ export function TotalResult() {
       return res.data as ResultResponse;
     },
   });
+
+  useEffect(() => {
+    if (!result) return;
+
+    if (isGuestToken()) clearAccessTokenCookie();
+  }, [result]);
 
   const rankedMembers = [...(result?.members ?? [])].sort(
     (a, b) => a.rank - b.rank || b.totalEscapeMs - a.totalEscapeMs,

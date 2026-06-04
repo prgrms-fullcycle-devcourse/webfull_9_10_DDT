@@ -215,7 +215,7 @@ export function Roulette() {
 
   const handleStartSpinning = async () => {
     if (isAllCompleted) {
-      router.push(`/room/${params.code}/result-After`);
+      router.push(`/room/${params.code}/total-result`);
       return;
     }
 
