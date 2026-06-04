@@ -213,9 +213,8 @@ export class ResultService {
         '세션이 종료된 후 결과를 확인할 수 있습니다.',
       );
 
-    // [Fallback] 로그인 멤버 중 ROOM_RESULT 미존재 시 재계산
-    const loggedInMembers = room.roomMembers.filter((m) => m.isLoggedIn);
-    const hasUnprocessed = loggedInMembers.some((m) => m.result === null);
+    // [Fallback] 게스트 포함 멤버 중 ROOM_RESULT 미존재 시 재계산
+    const hasUnprocessed = room.roomMembers.some((m) => m.result === null);
     if (hasUnprocessed) {
       try {
         await this.penaltyService.calculateAndSave(roomCode);

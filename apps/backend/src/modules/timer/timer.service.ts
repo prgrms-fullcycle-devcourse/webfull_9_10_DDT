@@ -4,13 +4,41 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  InternalServerErrorException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
 import { RoomService } from '../room/room.service';
 import { PenaltyService } from '../penalty/penalty.service';
 import { YjsGateway } from '../gateway/yjs/yjs.gateway';
+
+// 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
+const KICK_MAX_RETRIES = 2;
+// 강퇴 대상 소켓 disconnect 지연(ms) — kicked 이벤트 수신 여유 확보.
+const KICK_DISCONNECT_DELAY_MS = 100;
+
+type RoomStateMembers = Record<string, { isSigned?: boolean; isHost?: boolean }>;
+
+type UnsignedSummary = {
+  hostUnsigned: boolean;
+  memberIds: string[];
+};
+
+function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
+  if (!rawState) return { hostUnsigned: false, memberIds: [] };
+  const state = JSON.parse(rawState) as { members?: RoomStateMembers };
+  const entries = Object.entries(state.members ?? {});
+  return {
+    hostUnsigned: entries.some(([, m]) => m.isHost && !m.isSigned),
+    memberIds: entries
+      .filter(([, m]) => !m.isHost && !m.isSigned)
+      .map(([key]) => key),
+  };
+}
 
 @Injectable()
 export class TimerService {
@@ -33,35 +61,58 @@ export class TimerService {
     return room;
   }
 
-  async startTimer(roomCode: string, userId: string) {
-    await this.verifyHost(roomCode, userId);
+  private ensureContractPhase(phase: string) {
+    if (phase !== 'contract') {
+      throw new HttpException(
+        { message: '계약서 단계에서만 시작할 수 있습니다.', error: 'LOCKED' },
+        HttpStatus.LOCKED,
+      );
+    }
+  }
 
-    const room = await this.prisma.room.findUnique({
+  private async kickWithRetry(roomCode: string, targetId: string): Promise<void> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= KICK_MAX_RETRIES; attempt++) {
+      try {
+        await this.roomService.kickMember(roomCode, targetId);
+        return;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  }
+
+  async startTimer(roomCode: string, userId: string) {
+    const room = await this.verifyHost(roomCode, userId);
+    this.ensureContractPhase(room.phase);
+
+    const roomWithTemplate = await this.prisma.room.findUnique({
       where: { code: roomCode },
       include: { template: true },
     });
 
-    if (!room?.template) {
+    if (!roomWithTemplate?.template) {
       throw new NotFoundException('계약서가 없습니다.');
     }
 
-    if (room.phase !== 'contract') {
-      throw new ConflictException('이미 시작된 세션입니다.');
+    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
+    // room:state가 없으면(TTL 만료/Redis 장애) 서명 여부를 검증할 수 없다.
+    // 정상 시작은 "전원 서명"이 전제이므로 fail-closed로 차단한다.
+    if (!rawState) {
+      throw new ConflictException(
+        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
+      );
     }
 
-    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
-    if (rawState) {
-      const state = JSON.parse(rawState) as {
-        members?: Record<string, { isSigned?: boolean }>;
-      };
-      const unsignedExists = Object.values(state.members || {}).some(
-        (m) => !m.isSigned,
+    const { hostUnsigned, memberIds } = extractUnsignedSummary(rawState);
+    if (hostUnsigned) {
+      throw new BadRequestException('방장이 서명을 완료해야 시작할 수 있습니다.');
+    }
+    if (memberIds.length > 0) {
+      throw new BadRequestException(
+        '아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.',
       );
-      if (unsignedExists) {
-        throw new BadRequestException(
-          '아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.',
-        );
-      }
     }
 
     const now = new Date();
@@ -74,9 +125,9 @@ export class TimerService {
 
     const responseData = {
       startedAt: now,
-      focusMin: room.template.focusMin,
-      breakMin: room.template.breakMin,
-      totalRounds: room.template.rounds,
+      focusMin: roomWithTemplate.template.focusMin,
+      breakMin: roomWithTemplate.template.breakMin,
+      totalRounds: roomWithTemplate.template.rounds,
       serverTime: now,
     };
 
@@ -85,41 +136,133 @@ export class TimerService {
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
 
     const totalMs =
-      (room.template.focusMin + room.template.breakMin) *
-      room.template.rounds *
+      (roomWithTemplate.template.focusMin + roomWithTemplate.template.breakMin) *
+      roomWithTemplate.template.rounds *
       60 *
       1000;
 
     setTimeout(() => {
-      this.endSession(roomCode).catch((err) =>
-        console.error('endSession 실패:', err),
-      );
+      this.endSession(roomCode).catch((err) => Sentry.captureException(err));
     }, totalMs);
     return responseData;
   }
 
   async forceStartTimer(roomCode: string, userId: string) {
-    await this.verifyHost(roomCode, userId);
+    const room = await this.verifyHost(roomCode, userId);
+    this.ensureContractPhase(room.phase);
 
-    const kickedMemberIds: string[] = []; // Redis 기반 미서명자 추출 로직 추가 필요
+    const roomWithTemplate = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+      include: { template: true },
+    });
+
+    if (!roomWithTemplate?.template) {
+      throw new NotFoundException('계약서가 없습니다.');
+    }
+
+    const kickedMemberIds: string[] = [];
+    const failedMemberIds: string[] = [];
+
+    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
+    // room:state가 없으면(TTL 만료/Redis 장애) 서명 여부를 검증할 수 없다.
+    // null이면 extractUnsignedSummary가 미서명자 0건을 반환해 강퇴 없이 시작되므로,
+    // startTimer와 동일하게 fail-closed로 차단한다.
+    if (!rawState) {
+      throw new ConflictException(
+        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
+      );
+    }
+
+    const { hostUnsigned, memberIds: targetIds } = extractUnsignedSummary(rawState);
+
+    // 방장은 강퇴 대상이 아니므로, 방장이 미서명이면 강제 시작도 불가하다.
+    if (hostUnsigned) {
+      throw new BadRequestException('방장이 서명을 완료해야 시작할 수 있습니다.');
+    }
+
+    if (targetIds.length > 0) {
+      const sockets = await this.roomGateway.server.in(roomCode).fetchSockets();
+
+      for (const targetId of targetIds) {
+        try {
+          await this.kickWithRetry(roomCode, targetId);
+        } catch (err) {
+          Sentry.captureException(err);
+          failedMemberIds.push(targetId);
+          continue;
+        }
+
+        const targetSocket = sockets.find((s) => s.data.userId === targetId);
+        if (targetSocket) {
+          targetSocket.emit('kicked');
+          setTimeout(() => targetSocket.disconnect(), KICK_DISCONNECT_DELAY_MS);
+        }
+
+        this.roomGateway.server.to(roomCode).emit('member:kicked', { targetId });
+        kickedMemberIds.push(targetId);
+      }
+
+      // 1차 게이트: 강퇴 실패 멤버가 있으면 세션 시작 차단 (fail-closed)
+      if (failedMemberIds.length > 0) {
+        throw new InternalServerErrorException(
+          '일부 멤버 강퇴에 실패했습니다. 다시 시도해주세요.',
+        );
+      }
+
+      // 2차 게이트: phase 전환 직전 최신 state 재검사 (동시 unsign 재발생 차단)
+      const freshState = await this.redis.instance.get(`room:state:${roomCode}`);
+      const fresh = extractUnsignedSummary(freshState);
+      if (fresh.hostUnsigned || fresh.memberIds.length > 0) {
+        Sentry.captureException(
+          new Error(
+            `force-start 2차 게이트 차단: 강퇴 후에도 미서명자 잔존 ` +
+              `(room=${roomCode}, hostUnsigned=${fresh.hostUnsigned}, ` +
+              `members=${fresh.memberIds.join(',')})`,
+          ),
+        );
+        throw new InternalServerErrorException(
+          '일부 멤버 강퇴에 실패했습니다. 다시 시도해주세요.',
+        );
+      }
+    }
 
     const now = new Date();
-    await this.prisma.room.update({
-      where: { code: roomCode },
-      data: { phase: 'timer', startedAt: now },
-    });
+    try {
+      await this.prisma.room.update({
+        where: { code: roomCode },
+        data: { phase: 'timer', startedAt: now },
+      });
+    } catch (err) {
+      Sentry.captureException(err);
+      throw new InternalServerErrorException(
+        '세션 시작 중 오류가 발생했습니다. 다시 시도해주세요.',
+      );
+    }
+
+    await this.roomService.updateRedisPhase(roomCode, 'timer');
 
     const responseData = {
       kickedMemberIds,
       startedAt: now,
-      currentPhase: 'focus',
-      currentRound: 1,
-      totalRounds: 4,
-      phaseEndsAt: new Date(now.getTime() + 25 * 60000),
+      focusMin: roomWithTemplate.template.focusMin,
+      breakMin: roomWithTemplate.template.breakMin,
+      totalRounds: roomWithTemplate.template.rounds,
       serverTime: now,
     };
 
+    this.yjsGateway.destroyRoom(roomCode);
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
+
+    const totalMs =
+      (roomWithTemplate.template.focusMin + roomWithTemplate.template.breakMin) *
+      roomWithTemplate.template.rounds *
+      60 *
+      1000;
+
+    setTimeout(() => {
+      this.endSession(roomCode).catch((err) => Sentry.captureException(err));
+    }, totalMs);
+
     return responseData;
   }
 
