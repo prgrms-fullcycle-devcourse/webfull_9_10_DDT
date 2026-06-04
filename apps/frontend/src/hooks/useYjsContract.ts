@@ -29,9 +29,9 @@ export function useYjsContract(
 
   const [isConnected, setIsConnected] = useState(false);
   const [fields, setFields] = useState<ContractFields>({
-    focusMin: 0,
-    breakMin: 0,
-    rounds: 0,
+    focusMin: 1,
+    breakMin: 1,
+    rounds: 1,
   });
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
@@ -102,9 +102,9 @@ export function useYjsContract(
 
     yjsFields.observe(() => {
       setFields({
-        focusMin: yjsFields.get('focusMin') ?? 0,
-        breakMin: yjsFields.get('breakMin') ?? 0,
-        rounds: yjsFields.get('rounds') ?? 0,
+        focusMin: yjsFields.get('focusMin') ?? 1,
+        breakMin: yjsFields.get('breakMin') ?? 1,
+        rounds: yjsFields.get('rounds') ?? 1,
       });
     });
 
@@ -190,7 +190,7 @@ export function useYjsContract(
           tier: yjsTiers.length + 1,
           minPct: newMinPct,
           maxPct: null,
-          count: 1,
+          count: 0,
         },
       ]);
     });
@@ -207,6 +207,38 @@ export function useYjsContract(
     doc.transact(() => {
       yjsTiers.delete(index, 1);
       yjsTiers.insert(index, [{ ...current, ...updated }]);
+    });
+  }, []);
+
+  // index 단계의 종료%(maxPct)를 설정하고, 이후 모든 단계의 시작/종료%를 연쇄로 재정렬한다.
+  const setTierBoundary = useCallback((index: number, maxPct: number) => {
+    const doc = docRef.current;
+    if (!doc) return;
+
+    const yjsTiers = doc.getArray<Tier>('tiers');
+    const list = yjsTiers.toArray();
+    if (index < 0 || index >= list.length - 1) return; // 마지막 단계는 100% 고정
+
+    doc.transact(() => {
+      const rebuilt = list.map((t) => ({ ...t }));
+      rebuilt[index].maxPct = maxPct;
+
+      // index 다음부터 끝까지 minPct는 이전 단계의 maxPct를 이어받고,
+      // maxPct가 minPct 이하로 역전되면 minPct+1로 밀어 올린다. 마지막은 100%(null).
+      for (let j = index + 1; j < rebuilt.length; j++) {
+        rebuilt[j].minPct = rebuilt[j - 1].maxPct ?? 0;
+        if (j === rebuilt.length - 1) {
+          rebuilt[j].maxPct = null;
+        } else if (
+          rebuilt[j].maxPct === null ||
+          (rebuilt[j].maxPct as number) <= rebuilt[j].minPct
+        ) {
+          rebuilt[j].maxPct = Math.min(99, rebuilt[j].minPct + 1);
+        }
+      }
+
+      yjsTiers.delete(0, yjsTiers.length);
+      yjsTiers.insert(0, rebuilt);
     });
   }, []);
 
@@ -326,6 +358,7 @@ export function useYjsContract(
     updateField,
     addTier,
     updateTier,
+    setTierBoundary,
     removeTier,
     addPenalty,
     updatePenalty,

@@ -37,6 +37,7 @@ export interface UseContractYjsReturn {
   updateField: (key: keyof ContractFields, value: number) => void;
   addTier: () => void;
   updateTier: (index: number, updated: Partial<Tier>) => void;
+  setTierBoundary: (index: number, maxPct: number) => void;
   removeTier: (index: number) => void;
   addPenalty: (content: string) => void;
   updatePenalty: (index: number, content: string) => void;
