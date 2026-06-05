@@ -249,21 +249,21 @@ export const MyPage = () => {
       </section>
 
       <Dialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
-        <DialogContent className='bg-[#141A2B] border-white/10 rounded-2xl'>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>로그아웃 하시겠어요?</DialogTitle>
-            <DialogDescription className='text-[#D3D3E3]'>로그아웃하면 다시 로그인해야 합니다.</DialogDescription>
+            <DialogDescription>로그아웃하면 다시 로그인해야 합니다.</DialogDescription>
           </DialogHeader>
-          <DialogFooter className='flex gap-3 pt-3'>
+          <DialogFooter>
             <Button
-               variant='ghost'
+              variant='ghost'
               className='flex-1 py-6! border border-white/20'
               onClick={() => setIsLogoutConfirmOpen(false)}
             >
               아니요
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold'
+              className='flex-1 py-6!'
               onClick={async () => {
                 setIsLogoutConfirmOpen(false);
                 await executeLogout();

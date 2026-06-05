@@ -55,9 +55,7 @@ export class ResultService {
         : null;
 
     const now = new Date();
-    // 카운트다운 기준 시각(anchor): 현재는 '세션 종료(결과 진입)' = endedAt 기준.
-    // 정책이 '룰렛 화면 진입' 기준으로 바뀌어도 이 anchor 한 줄만 교체하면 되며,
-    // 응답은 절대 시각(rouletteEndsAt)이라 프론트 카운트다운 로직은 영향 없음.
+    // rouletteAnchor = endedAt. 기준 변경 시 이 한 줄만 교체.
     const rouletteAnchor = room.endedAt;
     const rouletteEndsAt = rouletteAnchor
       ? new Date(rouletteAnchor.getTime() + ROULETTE_TIMEOUT_MS)
@@ -102,13 +100,12 @@ export class ResultService {
       };
     });
 
-    // 이탈 시간 내림차순. 동점은 memberId로 결정적 정렬(호출마다 동일 순서 보장).
     members.sort(
       (a, b) =>
         b.totalEscapeMs - a.totalEscapeMs ||
         a.memberId.localeCompare(b.memberId),
     );
-    // 표준 경쟁 순위(1-2-2-4): 동일 이탈 시간은 같은 순위, 다음 순위는 인원수만큼 건너뜀.
+    // 표준 경쟁 순위(1-2-2-4): 동점은 동일 순위, 다음 순위는 인원수만큼 건너뜀.
     members.forEach((m, idx) => {
       m.rank =
         idx > 0 && m.totalEscapeMs === members[idx - 1].totalEscapeMs
@@ -146,12 +143,7 @@ export class ResultService {
     };
   }
 
-  /**
-   * 룰렛 제한 시간 경과 시 미공개 벌칙을 일괄 자동 공개한다.
-   * 벌칙 결과는 세션 종료 시 이미 확정돼 있으므로, 여기선 공개(isRevealed) 플래그만
-   * 전환하여 자리를 뜬 멤버의 벌칙도 전원에게 보이도록 보강한다.
-   * @returns 실제 공개 처리된 항목이 있었는지 여부
-   */
+  /** 룰렛 제한 시간 경과 시 미공개 벌칙을 일괄 자동 공개. 실제 공개 여부를 반환. */
   private async revealExpiredPenalties(
     room: RoomWithDetails,
   ): Promise<boolean> {
@@ -200,7 +192,7 @@ export class ResultService {
 
     if (!room) throw new NotFoundException('결과를 찾을 수 없습니다.');
 
-    // 멤버십 인가: 요청자가 해당 방 멤버가 아니면 차단 (로드된 members 재사용, 추가 쿼리 없음)
+    // 로드된 members 재사용해 추가 쿼리 없이 멤버십 검증.
     const isMember = room.roomMembers.some(
       (m) =>
         (userId !== null && m.userId === userId) ||
@@ -209,9 +201,7 @@ export class ResultService {
     if (!isMember)
       throw new ForbiddenException('해당 방의 결과 조회 권한이 없습니다.');
 
-    // 룰렛/결과 창 동안 빈 방 정리(소켓 0 → 10초 후 phase='closed')가 돌아도
-    // 결과는 계속 조회 가능해야 한다. 단, 세션을 실제로 끝낸(endedAt 존재) 방만 허용 —
-    // 로비/계약 단계에서 폐쇄된 방(결과 없음)은 차단한다.
+    // phase='closed'여도 endedAt 있으면 결과 조회 허용 (빈 방 정리와 결과 조회 공존).
     const isViewable =
       room.phase === 'result' ||
       (room.phase === 'closed' && room.endedAt !== null);

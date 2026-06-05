@@ -122,14 +122,14 @@ export const MainPage = () => {
             variant='outline'
             size='main'
             onClick={() => setShowCodeDialog(true)}
-            className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640]!'
+            className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
           >
             방 코드로 입장하기
           </Button>
           <Button
             size='main'
             onClick={() => router.push('/room')}
-            className='w-full rounded-[14px] font-bold'
+            className='rounded-[14px] font-bold'
           >
             방만들기
           </Button>

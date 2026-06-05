@@ -107,6 +107,7 @@ export class RoomService {
       url: `${frontendUrl}/room/${room.code}`,
     };
   }
+
   async leaveRoom(
     roomCode: string,
     userId: string | null,
@@ -172,9 +173,6 @@ export class RoomService {
     return { isHost, targetId };
   }
 
-  /**
-   * nanoid 코드가 PK(code)와 충돌(P2002)하면 새 코드로 재시도한다.
-   */
   private async createRoomWithUniqueCode(data: {
     title: string;
     hostId: string;
@@ -669,19 +667,18 @@ export class RoomService {
     return true;
   }
 
+  // 💡 방 조회 시, 중도 포기(gaveUpAt)한 멤버는 복귀 대상에서 제외되도록 개선!
   async findMyActiveRoom(userId: string) {
     const isGuest = userId.startsWith('guest_');
     return this.prismaService.room.findFirst({
       where: {
         phase: { notIn: ['closed', 'result'] },
-        OR: [
-          { hostId: userId },
-          {
-            roomMembers: {
-              some: isGuest ? { guestToken: userId } : { userId },
-            },
+        roomMembers: {
+          some: {
+            ...(isGuest ? { guestToken: userId } : { userId }),
+            gaveUpAt: null, // 포기한 방은 복귀 모달 안 뜨게 필터링
           },
-        ],
+        },
       },
       select: { code: true, phase: true, title: true },
     });

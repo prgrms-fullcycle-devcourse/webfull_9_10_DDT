@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -210,30 +211,28 @@ export const JoinRoom = () => {
   return (
     <>
       <Dialog open={!isLoggedIn && !dialogDismissed}>
-        <DialogContent className='bg-[#1F2937] border-white/10 rounded-2xl max-w-[320px]'>
-          <DialogHeader className='gap-2'>
-            <DialogTitle className='text-white text-xl font-bold'>
-              어떤 계정으로 입장할까요?
-            </DialogTitle>
-            <DialogDescription className='text-white/60 text-sm'>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>어떤 계정으로 입장할까요?</DialogTitle>
+            <DialogDescription>
               로그인을 하면 집중 기록이 저장돼요.
             </DialogDescription>
           </DialogHeader>
-          <div className='flex gap-3 mt-2'>
+          <DialogFooter>
             <Button
               variant='outline'
-              className='flex-1 h-12 rounded-[14px] border-white/[0.18] bg-[#111827] text-white hover:bg-white/5'
+              className='flex-1 py-6! border border-white/20'
               onClick={handleGuestStart}
             >
               게스트로 시작
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold'
+              className='flex-1 py-6! font-bold'
               onClick={handleGoogleLogin}
             >
               구글 로그인
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -18,6 +18,11 @@ export class EscapeService {
     );
   }
 
+  // 💡 소켓이 정상적으로 끊어졌을 때 Heartbeat 키를 삭제하는 로직 추가
+  async clearHeartbeat(roomCode: string, identifier: string) {
+    await this.redis.instance.del(`heartbeat:${roomCode}:${identifier}`);
+  }
+
   async logEscapeStart(roomCode: string, identifier: string) {
     const room = await this.prisma.room.findUnique({
       where: { code: roomCode },
@@ -32,7 +37,7 @@ export class EscapeService {
       },
     });
 
-    if (!member) return;
+    if (!member || member.gaveUpAt) return;
 
     const activeEscape = await this.prisma.escapeLog.findFirst({
       where: { roomMemberId: member.id, returnedAt: null },
@@ -65,7 +70,7 @@ export class EscapeService {
     if (activeEscape) {
       const now = new Date();
       const durationMs = now.getTime() - activeEscape.escapedAt.getTime();
-      
+
       await this.prisma.escapeLog.update({
         where: { id: activeEscape.id },
         data: {
