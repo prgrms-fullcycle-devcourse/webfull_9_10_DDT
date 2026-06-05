@@ -1,4 +1,12 @@
-import { Controller, Post, Param, Body, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -12,6 +20,7 @@ import {
   SpinRouletteDto,
   SpinRouletteResponseDto,
   ExitRouletteResponseDto,
+  GiveUpRouletteResponseDto,
 } from './dto/roulette.dto';
 import { ApiSuccessResponse } from '../../common/swagger/api-success-response.decorator';
 import type { Request } from 'express';
@@ -107,5 +116,46 @@ export class RouletteController {
       isGuest ? req.user.id : null,
     );
     return { message: '룰렛이 처리되었습니다.', data };
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '중도포기자 룰렛 결과 조회',
+    description:
+      '중도포기(give-up)한 본인의 룰렛 화면 데이터를 조회합니다. phase 무관(timer/result)하게 ' +
+      '접근 가능하며 포기자 본인 데이터만 반환합니다. 일반 유저의 GET /result를 대체합니다. ' +
+      'gaveUpAt(상단 표기)·totalEscapeMs·penaltyPool(휠 슬롯)·penalties(확정 벌칙)를 반환하며, ' +
+      '룰렛은 FE 애니메이션 전용으로 spin/exit API를 호출하지 않습니다. 회원·게스트 모두 Bearer JWT.',
+  })
+  @ApiParam({
+    name: 'roomCode',
+    description: '방 코드 (8자리)',
+    example: 'TESTROOM',
+  })
+  @ApiSuccessResponse(GiveUpRouletteResponseDto, {
+    status: 200,
+    description: '조회 성공',
+  })
+  @ApiResponse({
+    status: 401,
+    description: '인증 토큰이 없거나 유효하지 않습니다.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: '중도포기한 유저가 아니거나 멤버 정보를 찾을 수 없습니다.',
+  })
+  @Get(':roomCode/roulette/give-up')
+  @UseGuards(AuthGuard('jwt'))
+  async getGiveUpResult(
+    @Param('roomCode') roomCode: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const isGuest = req.user.role === 'guest';
+    const data = await this.rouletteService.getGiveUpResult(
+      roomCode,
+      isGuest ? null : req.user.id,
+      isGuest ? req.user.id : null,
+    );
+    return { message: '중도포기 결과를 조회했습니다.', data };
   }
 }
