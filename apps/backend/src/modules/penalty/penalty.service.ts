@@ -66,7 +66,7 @@ export class PenaltyService {
 
     const plannedDurationMs =
       (focusMin * rounds + breakMin * Math.max(0, rounds - 1)) * 60 * 1000;
-      
+
     const sessionEndedAt =
       room.endedAt ??
       (room.startedAt
@@ -83,17 +83,19 @@ export class PenaltyService {
 
         for (const log of member.escapeLogs) {
           const escStart = log.escapedAt.getTime();
-          const rawEnd = log.returnedAt ? log.returnedAt.getTime() : sessionEndedAt.getTime();
+          const rawEnd = log.returnedAt
+            ? log.returnedAt.getTime()
+            : sessionEndedAt.getTime();
           // 혹시 모를 오차를 위해 세션 종료 시간을 넘지 않도록 제한
           const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
-          
+
           const effectiveMs = this.getEffectiveFocusEscapeMs(
             escStart,
             escEnd,
             sessionStartMs,
             focusMin,
             breakMin,
-            rounds
+            rounds,
           );
 
           totalEscapeMs += effectiveMs;
@@ -118,7 +120,7 @@ export class PenaltyService {
             sessionStartMs,
             focusMin,
             breakMin,
-            rounds
+            rounds,
           );
           totalEscapeMs += giveUpMs;
         }

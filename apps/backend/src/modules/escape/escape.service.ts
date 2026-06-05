@@ -70,7 +70,7 @@ export class EscapeService {
     if (activeEscape) {
       const now = new Date();
       const durationMs = now.getTime() - activeEscape.escapedAt.getTime();
-      
+
       await this.prisma.escapeLog.update({
         where: { id: activeEscape.id },
         data: {
