@@ -13,6 +13,9 @@ import type {
 } from 'axios';
 
 import type {
+  RouletteControllerExitRoulette201,
+  RouletteControllerGetGiveUpResult200,
+  RouletteControllerSpinRoulette201,
   SpinRouletteDto
 } from '../models';
 
@@ -21,30 +24,42 @@ import type {
 
   export const getRouletteApi = (axiosInstance: AxiosInstance = axios) => {
 /**
- * spinIndex(1부터)의 벌칙을 공개합니다.
+ * spinIndex(절대 위치, 1부터) 벌칙 행을 공개합니다. 룰렛 휠 항목은 result 응답 rule.penalties(공개 풀)로 구성하고, 본인 미공개 벌칙 content는 응답에 오지 않습니다(count만 노출). 휠 정지 위치는 응답 penaltyItemId로 매핑합니다. 회원·게스트 모두 Bearer JWT로 호출합니다.
  * @summary 룰렛 실행
  */
 const rouletteControllerSpinRoulette = (
     roomCode: string,
     spinRouletteDto: SpinRouletteDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<RouletteControllerSpinRoulette201>> => {
     return axiosInstance.post(
       `/rooms/${roomCode}/roulette/spin`,
       spinRouletteDto,options
     );
   }
 /**
- * 룰렛 도중 이탈 시 남은 벌칙을 모두 자동 공개 처리합니다.
+ * X 버튼 또는 카운트다운 00:00 도달 시 호출하여 남은 벌칙을 일괄 자동 공개합니다. remainingSpins>0일 때만 호출하세요(이미 전부 공개면 400). 처리 후 result:revealed 소켓이 방 전체로 발송됩니다. 회원·게스트 모두 Bearer JWT.
  * @summary 룰렛 이탈 처리 (Rage-quit)
  */
 const rouletteControllerExitRoulette = (
     roomCode: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
+ ): Promise<AxiosResponse<RouletteControllerExitRoulette201>> => {
     return axiosInstance.post(
       `/rooms/${roomCode}/roulette/exit`,
       undefined,options
     );
   }
-return {rouletteControllerSpinRoulette,rouletteControllerExitRoulette}};
-export type RouletteControllerSpinRouletteResult = AxiosResponse<unknown>
-export type RouletteControllerExitRouletteResult = AxiosResponse<unknown>
+/**
+ * 중도포기(give-up)한 본인의 룰렛 화면 데이터를 조회합니다. phase 무관(timer/result)하게 접근 가능하며 포기자 본인 데이터만 반환합니다. 일반 유저의 GET /result를 대체합니다. gaveUpAt(상단 표기)·totalEscapeMs·penaltyPool(휠 슬롯)·penalties(확정 벌칙)를 반환하며, 룰렛은 FE 애니메이션 전용으로 spin/exit API를 호출하지 않습니다. 회원·게스트 모두 Bearer JWT.
+ * @summary 중도포기자 룰렛 결과 조회
+ */
+const rouletteControllerGetGiveUpResult = (
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<RouletteControllerGetGiveUpResult200>> => {
+    return axiosInstance.get(
+      `/rooms/${roomCode}/roulette/give-up`,options
+    );
+  }
+return {rouletteControllerSpinRoulette,rouletteControllerExitRoulette,rouletteControllerGetGiveUpResult}};
+export type RouletteControllerSpinRouletteResult = AxiosResponse<RouletteControllerSpinRoulette201>
+export type RouletteControllerExitRouletteResult = AxiosResponse<RouletteControllerExitRoulette201>
+export type RouletteControllerGetGiveUpResultResult = AxiosResponse<RouletteControllerGetGiveUpResult200>

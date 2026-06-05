@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { jwtDecode } from 'jwt-decode';
-import { Award, ChevronDown, ThumbsUp, Trophy } from 'lucide-react';
+import { Award, ChevronDown, ThumbsUp, Trophy, X } from 'lucide-react';
 import { getResultApi } from '@/api/generated/result-api-결과-조회/result-api-결과-조회';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -12,10 +12,12 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { MobileLayout } from '@/components/layout/mobileLayout';
+import { CloseButton } from '@/components/layout/CloseButton';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getToken } from '@/lib/getToken';
 
@@ -120,6 +122,7 @@ const isMobileOrTablet = () => {
 export function TotalResult() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
+  const searchParams = useSearchParams();
   const { me, fetchMe } = useAuthStore();
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [selectedPenaltyMember, setSelectedPenaltyMember] =
@@ -175,6 +178,7 @@ export function TotalResult() {
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
     : '-';
   const isLoggedInUser = me?.role === 'user';
+  const closeTarget = searchParams.get('from') === 'mypage' ? '/mypage' : '/';
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -203,6 +207,7 @@ export function TotalResult() {
   const HeaderComponent = (
     <div className='relative flex w-full items-center justify-center text-foreground'>
       <h1 className='text-base font-medium tracking-tight'>통합 결과</h1>
+      <CloseButton onClick={() => router.push(closeTarget)} />
     </div>
   );
 
@@ -321,6 +326,7 @@ export function TotalResult() {
                 penaltyMembers.map((member) => {
                   const isMe = me?.role === 'user' && member.userId === me.id;
                   const unknownPenaltyCount = getUnknownPenaltyCount(member);
+                  const isRoulettePending = unknownPenaltyCount > 0;
 
                   return (
                   <div
@@ -336,15 +342,20 @@ export function TotalResult() {
                     </div>
                     <button
                       type='button'
-                      onClick={() => setSelectedPenaltyMember(member)}
-                      className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors hover:bg-white/5'
+                      onClick={() => {
+                        if (!isRoulettePending) {
+                          setSelectedPenaltyMember(member);
+                        }
+                      }}
+                      disabled={isRoulettePending}
+                      className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors enabled:hover:bg-white/5 disabled:cursor-default disabled:text-white/45'
                       aria-label={`${member.nickname} 벌칙 상세 보기`}
                     >
                       벌칙 {member.penalties.totalCount}개
-                      {unknownPenaltyCount > 0
-                        ? ` (룰렛 대기중 ${unknownPenaltyCount})`
-                        : ''}
-                      <ChevronDown className='h-4 w-4 text-white/35' />
+                      {isRoulettePending ? ' 뽑는중....' : ''}
+                      {!isRoulettePending ? (
+                        <ChevronDown className='h-4 w-4 text-white/35' />
+                      ) : null}
                     </button>
                   </div>
                   );
@@ -397,9 +408,20 @@ export function TotalResult() {
         onOpenChange={(open) => !open && setSelectedPenaltyMember(null)}
       >
         <DialogContent className='w-[calc(100%-36px)] max-w-[354px] overflow-hidden rounded-xl border border-white/10 bg-[#1A1F31] p-0 text-left text-white/85'>
+          <DialogClose asChild>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              aria-label='닫기'
+              className='absolute right-3 top-3 h-8 w-8 rounded-full text-white/70 hover:bg-white/10 hover:text-white'
+            >
+              <X className='h-4 w-4' />
+            </Button>
+          </DialogClose>
           {activePenaltyMember ? (
             <>
-              <div className='px-4 pb-3 pt-4'>
+              <div className='px-4 pb-3 pr-12 pt-4'>
                 <DialogTitle className='text-base font-bold text-white/90'>
                   {activePenaltyMember.nickname}
                   {me?.role === 'user' &&
@@ -448,7 +470,18 @@ export function TotalResult() {
       </Dialog>
 
       <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
-        <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] text-left text-white/85'>
+        <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'>
+          <DialogClose asChild>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              aria-label='닫기'
+              className='absolute right-3 top-3 h-8 w-8 rounded-full text-white/70 hover:bg-white/10 hover:text-white'
+            >
+              <X className='h-4 w-4' />
+            </Button>
+          </DialogClose>
           <div className='flex flex-col gap-4'>
             <div className='flex items-center'>
               <div className='flex h-9 min-w-0 items-center gap-0.5 pr-5'>

@@ -103,7 +103,7 @@ export default function Timer() {
     onSuccess: () => {
       toast.info('중도 포기 처리되었습니다.');
       setIsModalOpen(false);
-      router.push('/');
+      router.push(`/room/${room.code}/roulette?from=giveup`);
     },
     onError: (error) => {
       const message = axios.isAxiosError(error)
