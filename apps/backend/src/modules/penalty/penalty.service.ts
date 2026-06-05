@@ -11,6 +11,7 @@ import type { PenaltyItem } from '@prisma/client';
 export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
+
   private getEffectiveFocusEscapeMs(
     escapedAtMs: number,
     returnedAtMs: number,
@@ -37,7 +38,7 @@ export class PenaltyService {
     return overlapMs;
   }
 
-  /** 세션 종료 시 전원 벌칙 산정·저장. give-up 멤버는 실제 anchor로 재산정, 일반 멤버는 멱등 skip. */
+
   async calculateAndSave(roomCode: string): Promise<void> {
     const room = await this.prisma.room.findUnique({
       where: { code: roomCode },
@@ -82,9 +83,13 @@ export class PenaltyService {
 
         for (const log of member.escapeLogs) {
           const escStart = log.escapedAt.getTime();
-          const escEnd = log.returnedAt
+
+          const rawEnd = log.returnedAt
             ? log.returnedAt.getTime()
             : sessionEndedAt.getTime();
+          // 혹시 모를 오차를 위해 세션 종료 시간을 넘지 않도록 제한
+          const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
+
 
           const effectiveMs = this.getEffectiveFocusEscapeMs(
             escStart,
@@ -110,7 +115,7 @@ export class PenaltyService {
           }
         }
 
-        // 포기 시각 ~ 세션 종료 구간의 집중 시간 합산
+
         if (member.gaveUpAt) {
           const giveUpMs = this.getEffectiveFocusEscapeMs(
             member.gaveUpAt.getTime(),
