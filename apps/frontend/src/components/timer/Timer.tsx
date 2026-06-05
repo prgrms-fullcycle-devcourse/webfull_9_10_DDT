@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
+import { useRoom } from '@/contexts/RoomContext';
+import { useSocket } from '@/contexts/SocketContext';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useRoomStore } from '@/store/useRoomStore';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
@@ -14,14 +22,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useSocket } from '@/contexts/SocketContext';
-import { useRoom } from '@/contexts/RoomContext';
-import { useAuthStore } from '@/store/useAuthStore';
-import { useRoomStore } from '@/store/useRoomStore';
-import { toast } from 'sonner';
-import { useMutation } from '@tanstack/react-query';
-import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
-import axios from 'axios';
 
 export default function Timer() {
   const router = useRouter();
@@ -36,14 +36,17 @@ export default function Timer() {
 
   useEffect(() => {
     if (!sessionInfo) return;
-    const interval = setInterval(() => {
+
+    const interval = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
-    return () => clearInterval(interval);
+
+    return () => window.clearInterval(interval);
   }, [sessionInfo]);
 
   useEffect(() => {
     if (!phase) return;
+
     if (phase === 'contract') {
       router.replace(`/room/${room.code}/contract`);
     } else if (phase === 'result') {
@@ -52,31 +55,41 @@ export default function Timer() {
   }, [phase, room.code, router]);
 
   useEffect(() => {
-    if (!socket || !sessionInfo) {
-      return;
-    }
+    if (!socket || !sessionInfo) return;
 
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       socket.emit('heartbeat');
-    }, 5000);
-    return () => clearInterval(interval);
+    }, 10000);
+
+    return () => window.clearInterval(interval);
   }, [socket, sessionInfo]);
 
   useEffect(() => {
-    if (!socket || !sessionInfo) {
-      return;
-    }
+    if (!socket || !sessionInfo) return;
+
     const handler = () => {
-      if (document.hidden) {
-        socket.emit('escape:start');
-      } else {
-        socket.emit('escape:end');
-      }
+      socket.emit(document.hidden ? 'escape:start' : 'escape:end');
     };
 
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
   }, [socket, sessionInfo]);
+
+  useEffect(() => {
+    if (!sessionInfo) return;
+
+    const adjustedNow = now + sessionInfo.serverOffset;
+    const elapsed = adjustedNow - sessionInfo.startedAt;
+    const totalMs =
+      (sessionInfo.focusMin * sessionInfo.totalRounds +
+        sessionInfo.breakMin * Math.max(0, sessionInfo.totalRounds - 1)) *
+      60 *
+      1000;
+
+    if (elapsed >= totalMs) {
+      router.replace(`/room/${room.code}/semi-result`);
+    }
+  }, [now, room.code, router, sessionInfo]);
 
   const giveUpMutation = useMutation({
     mutationFn: async () => {
@@ -84,19 +97,21 @@ export default function Timer() {
       return res.data;
     },
     onSuccess: () => {
-      toast.info('중도 포기 처리됬습니다.');
+      toast.info('중도 포기 처리되었습니다.');
+      setIsModalOpen(false);
+      router.push('/');
     },
     onError: (error) => {
       const message = axios.isAxiosError(error)
         ? (error.response?.data as { message?: string })?.message
         : undefined;
-      toast.error(message);
+
+      toast.error(message ?? '중도 포기 처리에 실패했습니다.');
     },
   });
 
   const handleForfeit = () => {
     giveUpMutation.mutate();
-    setIsModalOpen(false);
   };
 
   if (!me) return null;
@@ -107,17 +122,26 @@ export default function Timer() {
   const cycleMs = (sessionInfo.focusMin + sessionInfo.breakMin) * 60 * 1000;
   const focusMs = sessionInfo.focusMin * 60 * 1000;
   const breakMs = sessionInfo.breakMin * 60 * 1000;
+  const totalRounds = sessionInfo.totalRounds;
+  const totalMs =
+    focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
+  const clampedElapsed = Math.min(Math.max(0, elapsed), totalMs);
+  const lastRoundStartMs = cycleMs * Math.max(0, totalRounds - 1);
+  const isLastRound = clampedElapsed >= lastRoundStartMs;
 
-  const round = Math.floor(elapsed / cycleMs) + 1;
-  const cycleElapsed = elapsed % cycleMs;
-  const isFocus = cycleElapsed < focusMs;
+  const round = isLastRound
+    ? totalRounds
+    : Math.floor(clampedElapsed / cycleMs) + 1;
+  const cycleElapsed = isLastRound
+    ? clampedElapsed - lastRoundStartMs
+    : clampedElapsed % cycleMs;
+  const isFocus = isLastRound || cycleElapsed < focusMs;
   const phaseRemainingMs = isFocus
     ? focusMs - cycleElapsed
     : cycleMs - cycleElapsed;
   const phaseTotalMs = isFocus ? focusMs : breakMs;
 
-  // 초 단위 변환 (컴포넌트가 초 기대)
-  const phaseRemainingSec = Math.ceil(phaseRemainingMs / 1000);
+  const phaseRemainingSec = Math.max(0, Math.ceil(phaseRemainingMs / 1000));
   const phaseTotalSec = Math.ceil(phaseTotalMs / 1000);
   const focusDurationSec = sessionInfo.focusMin * 60;
   const breakDurationSec = sessionInfo.breakMin * 60;
@@ -134,7 +158,7 @@ export default function Timer() {
       header={
         <div className='w-full text-center'>
           <h1 className={`text-xl font-bold ${theme.textColor}`}>
-            {theme.statusText} {round} / {sessionInfo.totalRounds}
+            {theme.statusText} {round} / {totalRounds}
           </h1>
         </div>
       }
@@ -163,9 +187,10 @@ export default function Timer() {
               <Button
                 type='button'
                 onClick={handleForfeit}
+                disabled={giveUpMutation.isPending}
                 className='flex-1 py-5 bg-[#F85A5A] hover:bg-[#E04F4F] text-white font-bold rounded-xl transition-colors border-none'
               >
-                포기하기
+                {giveUpMutation.isPending ? '처리 중...' : '포기하기'}
               </Button>
               <Button
                 type='button'
@@ -183,7 +208,7 @@ export default function Timer() {
         <TimerProgressBar
           mode={isFocus ? 'FOCUS' : 'BREAK'}
           currentSession={round}
-          totalSessions={sessionInfo.totalRounds}
+          totalSessions={totalRounds}
           timeLeft={phaseRemainingSec}
           totalDuration={phaseTotalSec}
           focusDuration={focusDurationSec}

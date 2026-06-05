@@ -12,6 +12,8 @@ interface TimerProgressBarProps {
   breakDuration: number;
 }
 
+const MAX_ROUNDS_PER_ROW = 4;
+
 export function TimerProgressBar({
   mode,
   currentSession,
@@ -23,54 +25,83 @@ export function TimerProgressBar({
 }: TimerProgressBarProps) {
   const isFocus = mode === "FOCUS";
   const displayTime = timeLeft > 0 ? timeLeft : 0;
+  const currentRatio =
+    totalDuration > 0
+      ? ((totalDuration - displayTime) / totalDuration) * 100
+      : 0;
+  const sessionRows = Array.from(
+    { length: Math.ceil(totalSessions / MAX_ROUNDS_PER_ROW) },
+    (_, rowIndex) =>
+      Array.from(
+        {
+          length: Math.min(
+            MAX_ROUNDS_PER_ROW,
+            totalSessions - rowIndex * MAX_ROUNDS_PER_ROW,
+          ),
+        },
+        (_, index) => rowIndex * MAX_ROUNDS_PER_ROW + index + 1,
+      ),
+  );
 
   return (
     <div className="w-full max-w-md text-center mb-8">
-      <div className="w-full flex items-center gap-2 h-1.5">
-        {Array.from({ length: totalSessions }).map((_, index) => {
-          const sessionNum = index + 1;
-          const currentRatio = totalDuration > 0 ? ((totalDuration - displayTime) / totalDuration) * 100 : 0;
+      <div className="flex w-full flex-col gap-2">
+        {sessionRows.map((row, rowIndex) => (
+          <div
+            key={`timer-progress-row-${rowIndex}`}
+            className="flex h-1.5 w-full items-center gap-2"
+          >
+            {row.map((sessionNum) => {
+              let focusWidth = "0%";
+              if (sessionNum < currentSession) {
+                focusWidth = "100%";
+              } else if (sessionNum === currentSession) {
+                focusWidth = isFocus ? `${currentRatio}%` : "100%";
+              }
 
-          let focusWidth = "0%";
-          if (sessionNum < currentSession) {
-            focusWidth = "100%";
-          } else if (sessionNum === currentSession) {
-            focusWidth = isFocus ? `${currentRatio}%` : "100%";
-          }
+              let breakWidth = "0%";
+              if (sessionNum < currentSession) {
+                breakWidth = "100%";
+              } else if (sessionNum === currentSession) {
+                breakWidth = isFocus ? "0%" : `${currentRatio}%`;
+              }
 
-          let breakWidth = "0%";
-          if (sessionNum < currentSession) {
-            breakWidth = "100%";
-          } else if (sessionNum === currentSession) {
-            breakWidth = isFocus ? "0%" : `${currentRatio}%`;
-          }
-
-          return (
-            <div key={sessionNum} className="flex-1 flex items-center gap-1.5 h-full">
-              <div
-                className="h-full bg-[#1F1E29] rounded-full overflow-hidden relative"
-                style={{ flexGrow: focusDuration }}
-              >
+              return (
                 <div
-                  className="h-full bg-[#A855F7] rounded-full transition-all duration-1000 ease-linear origin-left"
-                  style={{ width: focusWidth }}
-                />
-              </div>
-
-              {sessionNum < totalSessions && (
-                <div
-                  className="h-full bg-[#1F1E29] rounded-full overflow-hidden relative"
-                  style={{ flexGrow: breakDuration }}
+                  key={sessionNum}
+                  className="flex min-w-0 flex-1 items-center gap-1.5"
+                  style={{
+                    flexGrow:
+                      focusDuration +
+                      (sessionNum < totalSessions ? breakDuration : 0),
+                  }}
                 >
                   <div
-                    className="h-full bg-[#22C55E] rounded-full transition-all duration-1000 ease-linear origin-left"
-                    style={{ width: breakWidth }}
-                  />
+                    className="h-1.5 overflow-hidden rounded-full bg-[#1F1E29]"
+                    style={{ flexGrow: focusDuration }}
+                  >
+                    <div
+                      className="h-full origin-left rounded-full bg-[#A855F7] transition-all duration-1000 ease-linear"
+                      style={{ width: focusWidth }}
+                    />
+                  </div>
+
+                  {sessionNum < totalSessions && (
+                    <div
+                      className="h-1.5 overflow-hidden rounded-full bg-[#1F1E29]"
+                      style={{ flexGrow: breakDuration }}
+                    >
+                      <div
+                        className="h-full origin-left rounded-full bg-[#22C55E] transition-all duration-1000 ease-linear"
+                        style={{ width: breakWidth }}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div className="flex justify-between text-xs text-[#64748B] mt-2">
