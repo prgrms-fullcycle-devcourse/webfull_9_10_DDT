@@ -90,10 +90,13 @@ export class TimerService {
       );
       if (subRaw) {
         const subscription = JSON.parse(subRaw) as webpush.PushSubscription;
-        webpush.sendNotification(subscription, payload).catch((err: unknown) => {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          console.error(`푸시 전송 실패 (${userId}):`, errorMessage);
-        });
+        webpush
+          .sendNotification(subscription, payload)
+          .catch((err: unknown) => {
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
+            console.error(`푸시 전송 실패 (${userId}):`, errorMessage);
+          });
       }
     }
   }
