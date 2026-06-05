@@ -12,7 +12,7 @@ export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * 💡 이탈 기간 [escapedAt, returnedAt] 중 실제 '집중 시간'에 포함되는 시간(ms)만 추출
+   * 이탈 기간 [escapedAt, returnedAt] 중 실제 '집중 시간'에 포함되는 시간(ms)만 추출
    */
   private getEffectiveFocusEscapeMs(
     escapedAtMs: number,
@@ -30,11 +30,9 @@ export class PenaltyService {
       const focusStart = sessionStartMs + i * cycleMs;
       const focusEnd = focusStart + focusMs;
 
-      // 해당 라운드의 집중 시간과 이탈 시간의 교집합 구간 찾기
       const overlapStart = Math.max(escapedAtMs, focusStart);
       const overlapEnd = Math.min(returnedAtMs, focusEnd);
 
-      // 겹치는 구간이 존재하면 합산
       if (overlapStart < overlapEnd) {
         overlapMs += overlapEnd - overlapStart;
       }
@@ -42,10 +40,6 @@ export class PenaltyService {
     return overlapMs;
   }
 
-  /**
-   * 세션 종료 시점에 호출. 로그인 멤버 전원의 벌칙 산정 후 DB 저장.
-   * 멱등성 보장: 트랜잭션 진입 전 기존 결과 일괄 조회 후 skip.
-   */
   async calculateAndSave(roomCode: string): Promise<void> {
     const room = await this.prisma.room.findUnique({
       where: { code: roomCode },
@@ -87,10 +81,11 @@ export class PenaltyService {
 
         let totalEscapeMs = 0;
 
-        // 일반 이탈 로그 합산 (휴식 시간 제외 필터링)
         for (const log of member.escapeLogs) {
           const escStart = log.escapedAt.getTime();
-          const escEnd = log.returnedAt ? log.returnedAt.getTime() : sessionEndedAt.getTime();
+          const rawEnd = log.returnedAt ? log.returnedAt.getTime() : sessionEndedAt.getTime();
+          // 혹시 모를 오차를 위해 세션 종료 시간을 넘지 않도록 제한
+          const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
           
           const effectiveMs = this.getEffectiveFocusEscapeMs(
             escStart,
@@ -103,7 +98,6 @@ export class PenaltyService {
 
           totalEscapeMs += effectiveMs;
 
-          // DB에 로그를 마감하거나 갱신할 때도 실제 집중 시간 이탈분만 기록
           if (log.returnedAt === null) {
             await tx.escapeLog.update({
               where: { id: log.id },
@@ -117,7 +111,6 @@ export class PenaltyService {
           }
         }
 
-        // 중도 포기자 잔여 시간 합산 (휴식 시간 제외 필터링)
         if (member.gaveUpAt) {
           const giveUpMs = this.getEffectiveFocusEscapeMs(
             member.gaveUpAt.getTime(),
