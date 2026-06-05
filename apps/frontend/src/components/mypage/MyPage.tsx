@@ -1,6 +1,5 @@
 'use client';
 
-import axios from 'axios';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -32,21 +31,11 @@ type UserStats = {
   totalEscapeMs: number;
 };
 
-type ApiEnvelope<T> = {
-  data?: T;
-};
-
 const emptyStats: UserStats = {
   totalRoomCount: 0,
   totalFocusMs: 0,
   totalEscapeMs: 0,
 };
-
-const getCookieToken = () => {
-  if (typeof document === 'undefined') return undefined;
-  return document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
-};
-
 
 export const MyPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -63,22 +52,15 @@ export const MyPage = () => {
   const { logout } = useAuthStore();
 
   useEffect(() => {
-    const token = getCookieToken();
-    if (!token) return;
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const axiosInstance = axios.create({ baseURL: apiUrl });
-    const usersApi = getUsers(axiosInstance);
+    // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
+    const usersApi = getUsers();
 
     const loadProfile = async () => {
       setIsLoadingProfile(true);
 
       try {
-        const response = await usersApi.usersControllerGetMe({
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const result = response.data as ApiEnvelope<UserProfile>;
-        setProfile(result.data ?? null);
+        const response = await usersApi.usersControllerGetMe();
+        setProfile((response.data as UserProfile) ?? null);
       } catch {
         setErrorMessage('내 정보를 불러오지 못했습니다.');
       } finally {
@@ -91,21 +73,16 @@ export const MyPage = () => {
 
       try {
         const [statsResponse, historyResponse] = await Promise.all([
-          usersApi.usersControllerGetMyStats({
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          usersApi.usersControllerGetMyHistory({ limit: 3 }, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          usersApi.usersControllerGetMyStats(),
+          usersApi.usersControllerGetMyHistory({ limit: 3 }),
         ]);
 
-        const statsResult = statsResponse.data as ApiEnvelope<UserStats>;
-        setStats(statsResult.data ?? emptyStats);
+        setStats((statsResponse.data as UserStats) ?? emptyStats);
 
-        const historyResult = historyResponse.data as ApiEnvelope<{
+        const historyData = historyResponse.data as {
           sessions?: HistoryItem[];
-        }>;
-        setHistory(historyResult.data?.sessions?.slice(0, 3) ?? []);
+        };
+        setHistory(historyData?.sessions?.slice(0, 3) ?? []);
       } catch {
         setErrorMessage('마이페이지 정보를 불러오지 못했습니다.');
       } finally {
@@ -135,16 +112,10 @@ export const MyPage = () => {
   };
 
   const executeLogout = async () => {
-    const token = getCookieToken();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    if (token) {
-      const axiosInstance = axios.create({ baseURL: apiUrl });
-      const authApi = getAuthApi(axiosInstance);
-      await authApi.authControllerLogout({
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
-    }
+    // 토큰 첨부는 인터셉터가 처리. 토큰이 없으면 요청은 실패해도 무시하고 로컬 로그아웃 진행.
+    await getAuthApi()
+      .authControllerLogout()
+      .catch(() => {});
 
     logout();
     router.push('/');

@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/dialog';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
+import { getErrorMessage } from '@/lib/error';
 
 type Step = 'form' | 'complete';
 /* ── 완료 화면 ── */
@@ -148,12 +148,7 @@ export const CreateRoom = () => {
       setStep('complete');
     },
     onError: (err) => {
-      const serverMessage = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message
-        : undefined;
-      toast.error(
-        serverMessage ?? (err instanceof Error ? err.message : '방 생성 실패'),
-      );
+      toast.error(getErrorMessage(err, '방 생성 실패'));
     },
   });
 
@@ -230,7 +225,8 @@ export const CreateRoom = () => {
         bottomButton={
           step === 'complete' ? (
             <Button
-              className='w-full h-14 rounded-[14px] text-base font-bold hover:scale-[1.01] active:scale-[0.98]'
+              size='cta'
+              className='hover:scale-[1.01] active:scale-[0.98]'
               onClick={() => router.push(`/room/${roomCode}`)}
             >
               입장하기
@@ -239,7 +235,8 @@ export const CreateRoom = () => {
             <Button
               disabled={!isValid || createRoomMutation.isPending}
               onClick={handleSubmit}
-              className='w-full h-14 rounded-[14px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+              size='cta'
+              className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
             >
               {createRoomMutation.isPending ? '생성 중...' : '방 만들기'}
             </Button>

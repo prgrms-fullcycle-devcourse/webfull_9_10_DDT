@@ -1,6 +1,5 @@
 'use client';
 
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -16,6 +15,7 @@ import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import type { UpdateUserDto } from '@/api/generated/models/updateUserDto';
+import { getErrorMessage } from '@/lib/error';
 import { PROFILE_IMAGE_OPTIONS, getLegacyProfileImageKey, getProfileImageOptionKey } from '@/lib/profileImage';
 
 type UserProfile = {
@@ -25,14 +25,8 @@ type UserProfile = {
   profileImage?: string;
 };
 
-type ApiEnvelope<T> = {
-  data?: T;
-};
-
-const getCookieToken = () => {
-  if (typeof document === 'undefined') return undefined;
-  return document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
-};
+const NICKNAME_MIN_LENGTH = 2;
+const NICKNAME_MAX_LENGTH = 20;
 
 export function MyPageEdit() {
   const router = useRouter();
@@ -46,29 +40,19 @@ export function MyPageEdit() {
 
   const selectedProfileKey = PROFILE_IMAGE_OPTIONS[selectedProfile]?.key;
   const logout = useAuthStore((state) => state.logout);
+  const fetchMe = useAuthStore((state) => state.fetchMe);
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const axiosInstance = axios.create({ baseURL: apiUrl });
-    const usersApi = getUsers(axiosInstance);
+    // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
+    const usersApi = getUsers();
 
     const loadProfile = async () => {
       setIsLoading(true);
       setError('');
 
-      const token = getCookieToken();
-      if (!token) {
-        setError('로그인 정보가 없습니다.');
-        setIsLoading(false);
-        return;
-      }
-
-      const headers = { Authorization: `Bearer ${token}` };
-
       try {
-        const response = await usersApi.usersControllerGetMe({ headers });
-        const result = response.data as ApiEnvelope<UserProfile>;
-        const data = result.data;
+        const response = await usersApi.usersControllerGetMe();
+        const data = response.data as UserProfile | undefined;
 
         if (!data) {
           throw new Error('프로필을 불러오지 못했습니다.');
@@ -89,20 +73,18 @@ export function MyPageEdit() {
     void loadProfile();
   }, []);
 
-  const isValid = nickname.trim().length >= 2 && nickname.trim().length <= 20;
+  const trimmedLength = nickname.trim().length;
+  const isValid =
+    trimmedLength >= NICKNAME_MIN_LENGTH &&
+    trimmedLength <= NICKNAME_MAX_LENGTH;
+  // 한 글자만 입력해 비활성 상태일 때 이유를 안내한다.
+  const showMinLengthHint = trimmedLength > 0 && trimmedLength < NICKNAME_MIN_LENGTH;
 
   const handleSave = async () => {
     if (!isValid) return;
 
-    const token = getCookieToken();
-    if (!token) return;
-
     setIsSaving(true);
     setError('');
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const axiosInstance = axios.create({ baseURL: apiUrl });
-    const usersApi = getUsers(axiosInstance);
 
     try {
       const updateUserDto: UpdateUserDto = {
@@ -110,18 +92,16 @@ export function MyPageEdit() {
         profileImage: getLegacyProfileImageKey(selectedProfileKey),
       };
 
-      await usersApi.usersControllerUpdateMe(updateUserDto, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await getUsers().usersControllerUpdateMe(updateUserDto);
+
+      // 전역 me(헤더 등 다른 화면의 닉네임·프로필)도 최신화한다.
+      await fetchMe();
 
       toast.success('프로필이 저장되었습니다.');
     } catch (err) {
-      const serverMessage = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message
-        : undefined;
-      setError(serverMessage ?? '저장에 실패했습니다.');
+      const message = getErrorMessage(err, '저장에 실패했습니다.');
+      toast.error(message);
+      setError(message);
     } finally {
       setIsSaving(false);
     }
@@ -132,34 +112,18 @@ export function MyPageEdit() {
   };
 
   const confirmDelete = async () => {
-    const token = getCookieToken();
-    if (!token) {
-      setError('로그인 정보가 없습니다.');
-      setShowDeleteDialog(false);
-      return;
-    }
-
     setIsDeleting(true);
     setError('');
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const axiosInstance = axios.create({ baseURL: apiUrl });
-    const usersApi = getUsers(axiosInstance);
-
     try {
-      await usersApi.usersControllerDeleteMe({
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await getUsers().usersControllerDeleteMe();
 
       logout();
       router.push('/');
     } catch (err) {
-      const serverMessage = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message
-        : undefined;
-      setError(serverMessage ?? '회원 탈퇴에 실패했습니다.');
+      const message = getErrorMessage(err, '회원 탈퇴에 실패했습니다.');
+      toast.error(message);
+      setError(message);
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
@@ -190,7 +154,8 @@ export function MyPageEdit() {
           <Button
             onClick={handleSave}
             disabled={!isValid || isSaving || isLoading}
-            className='w-full h-14 rounded-[14px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            size='cta'
+            className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
             {isSaving ? '저장 중...' : '저장하기'}
           </Button>
@@ -202,13 +167,20 @@ export function MyPageEdit() {
             <FormInput
               type='text'
               placeholder='닉네임을 입력해주세요'
-              maxLength={20}
+              maxLength={NICKNAME_MAX_LENGTH}
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
             />
-            <span className='text-xs text-[#6B7280] text-right'>
-              {nickname.length}/20
-            </span>
+            <div className='flex justify-between text-xs'>
+              <span className='text-[#FFB3C0]'>
+                {showMinLengthHint
+                  ? `닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 입력해주세요.`
+                  : ''}
+              </span>
+              <span className='text-[#6B7280]'>
+                {nickname.length}/{NICKNAME_MAX_LENGTH}
+              </span>
+            </div>
           </div>
 
           <ProfileImagePicker

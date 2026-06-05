@@ -93,7 +93,7 @@ export const TermsPage = () => {
       }
       bottomButton={
         <Button
-          className='w-full h-14 rounded-[14px] text-base font-bold'
+          size='cta'
           disabled={!allChecked || isLoading}
           onClick={handleGoogleLogin}
         >
