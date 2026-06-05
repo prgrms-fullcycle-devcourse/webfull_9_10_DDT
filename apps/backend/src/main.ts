@@ -13,11 +13,11 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 const corsOrigin: CustomOrigin = (origin, callback) => {
-  if (
-    !origin ||
-    origin.includes('localhost') ||
-    origin.includes('vercel.app')
-  ) {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+  if (!origin || allowedOrigins.includes(origin)) {
     callback(null, true);
     return;
   }

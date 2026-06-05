@@ -53,7 +53,7 @@ export function useYjsContract(
     const yjsPenalties = doc.getArray<Penalty>('penalties');
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const serverUrl = `${apiUrl.replace('http', 'ws')}/yjs?roomCode=${roomCode}`;
+    const serverUrl = `${apiUrl.replace(/^http(s?)/, 'ws$1')}/yjs?roomCode=${roomCode}`;
     
     const provider = new WebsocketProvider(serverUrl, '', doc);
     const awareness = provider.awareness;

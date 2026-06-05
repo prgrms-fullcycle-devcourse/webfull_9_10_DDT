@@ -670,10 +670,18 @@ export class RoomService {
   }
 
   async findMyActiveRoom(userId: string) {
+    const isGuest = userId.startsWith('guest_');
     return this.prismaService.room.findFirst({
       where: {
-        hostId: userId,
         phase: { notIn: ['closed', 'result'] },
+        OR: [
+          { hostId: userId },
+          {
+            roomMembers: {
+              some: isGuest ? { guestToken: userId } : { userId },
+            },
+          },
+        ],
       },
       select: { code: true, phase: true, title: true },
     });

@@ -49,10 +49,7 @@ export default function Timer() {
 
     if (phase === 'contract') {
       router.replace(`/room/${room.code}/contract`);
-      return;
-    }
-
-    if (phase === 'result') {
+    } else if (phase === 'result') {
       router.replace(`/room/${room.code}/semi-result`);
     }
   }, [phase, room.code, router]);

@@ -21,7 +21,6 @@ export class PenaltyService {
       include: {
         template: { include: { penalties: true } },
         roomMembers: {
-          where: { isLoggedIn: true },
           include: { escapeLogs: { where: { deletedAt: null } } },
         },
       },

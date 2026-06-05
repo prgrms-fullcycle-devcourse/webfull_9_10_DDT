@@ -144,6 +144,9 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     if (roomState.phase === 'timer') {
+      if (userId) {
+        await this.escapeService.logEscapeEnd(roomCode, userId);
+      }
       await this.emitSessionStartedIfTimer(client, roomCode);
     }
   }
