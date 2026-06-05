@@ -416,7 +416,7 @@ export class RoomService {
     const state = JSON.parse(raw) as RoomState;
 
     const onlineMembersCount = Object.values(state.members).filter(
-      (member) => member.isLoggedIn === true && member.connected,
+      (member) => member.connected,
     ).length;
 
     return onlineMembersCount;

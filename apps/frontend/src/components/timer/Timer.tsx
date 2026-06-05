@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { urlBase64ToUint8Array } from '@/lib/utils'; // PWA 알림을 위한 유틸 함수
 
 export default function Timer() {
   const router = useRouter();
@@ -74,6 +75,41 @@ export default function Timer() {
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
   }, [socket, sessionInfo]);
+
+  useEffect(() => {
+    async function subscribeToPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return; 
+
+        const registration = await navigator.serviceWorker.ready;
+        
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+          const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+          if (!publicVapidKey) return;
+
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+          });
+        }
+
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+          subscription,
+          { headers: { Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}` } }
+        );
+      } catch (error) {
+        console.error('푸시 알림 설정 실패:', error);
+      }
+    }
+
+    subscribeToPush();
+  }, [room.code]);
 
   useEffect(() => {
     if (!sessionInfo) return;
