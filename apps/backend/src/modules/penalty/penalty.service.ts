@@ -43,7 +43,7 @@ export class PenaltyService {
     // 세션 종료 기준 시각(미복귀 EscapeLog 마감·포기자 잔여 합산의 공통 anchor).
     // 정상 경로에선 endedAt이 채워져 있다. 누락 시 now()를 쓰면 lazy 산정이 늦을수록
     // 잔여 시간이 과대 합산되므로, '계획된 종료 시각'(시작 + 계획 세션 길이)으로 결정적 대체한다.
-    const plannedDurationMs = (focusMin + breakMin) * rounds * 60 * 1000;
+    const plannedDurationMs = (focusMin * rounds + breakMin * Math.max(0, rounds - 1)) * 60 * 1000;
     const sessionEndedAt =
       room.endedAt ??
       (room.startedAt
