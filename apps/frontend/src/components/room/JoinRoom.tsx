@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
 import {
@@ -27,6 +26,7 @@ import {
   getProfileImageOptionKey,
 } from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
+import { getErrorMessage } from '@/lib/error';
 
 // 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
 const noopSubscribe = () => () => {};
@@ -120,12 +120,7 @@ export const JoinRoom = () => {
       router.push(`/room/${code}/contract`);
     },
     onError: (err) => {
-      const serverMessage = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message
-        : undefined;
-      toast.error(
-        serverMessage ?? (err instanceof Error ? err.message : '입장 실패'),
-      );
+      toast.error(getErrorMessage(err, '입장 실패'));
     },
   });
 
@@ -151,7 +146,7 @@ export const JoinRoom = () => {
 
       setDialogDismissed(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '게스트 시작 실패');
+      toast.error(getErrorMessage(error, '게스트 시작 실패'));
     }
   };
 
@@ -253,7 +248,8 @@ export const JoinRoom = () => {
           <Button
             disabled={!isValid || joinMutation.isPending}
             onClick={handleSubmit}
-            className='w-full h-14 rounded-[14px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            size='cta'
+            className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
             {joinMutation.isPending ? '입장 중...' : '입장하기'}
           </Button>

@@ -52,13 +52,14 @@ export function calculatePenaltyTier(
   });
 
   for (const tier of sortedTiers) {
-    // 최고 등급 (maxPct === null)인 경우
+    // 최고 등급 (maxPct === null): 이탈 %로 도달한 최상단 구간.
+    // 중도포기(resolveForfeitTier)와 달리 룰렛을 정상 진행한다(isForceAll=false).
     if (tier.maxPct === null) {
       if (escapePercent >= tier.minPct) {
         return {
           penaltyTier: tier.tier,
           penaltyCount: tier.count,
-          isForceAll: true,
+          isForceAll: false,
         };
       }
       continue;

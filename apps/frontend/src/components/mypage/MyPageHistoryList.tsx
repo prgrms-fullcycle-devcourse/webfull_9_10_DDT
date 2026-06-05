@@ -15,7 +15,8 @@ export type HistoryItem = {
 };
 
 const getPenaltyTextColor = (milliseconds: number) => {
-  return milliseconds === 0 ? 'text-[#10B981]' : 'text-[#FF606B]';
+  // 표시(formatDuration)가 초 단위로 내림하므로, 1초 미만은 '0초'와 동일하게 초록 처리
+  return milliseconds < 1000 ? 'text-[#10B981]' : 'text-[#FF606B]';
 };
 
 interface MyPageHistoryListProps {

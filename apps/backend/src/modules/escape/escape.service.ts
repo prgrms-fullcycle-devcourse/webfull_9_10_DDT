@@ -58,16 +58,19 @@ export class EscapeService {
     });
 
     if (!member || member.gaveUpAt) return;
-
     const activeEscape = await this.prisma.escapeLog.findFirst({
       where: { roomMemberId: member.id, returnedAt: null },
     });
 
-    if (!activeEscape) {
-      await this.prisma.escapeLog.create({
+    if (activeEscape) {
+      const now = new Date();
+      const durationMs = now.getTime() - activeEscape.escapedAt.getTime();
+      
+      await this.prisma.escapeLog.update({
+        where: { id: activeEscape.id },
         data: {
-          roomMemberId: member.id,
-          escapedAt: new Date(),
+          returnedAt: now,
+          durationMs,
         },
       });
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
@@ -22,6 +22,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { urlBase64ToUint8Array } from '@/lib/utils';
+import { useWakeLock } from '@/hooks/useWakeLock';
 
 export default function Timer() {
   const router = useRouter();
@@ -31,22 +33,22 @@ export default function Timer() {
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
 
+  const { isSupported: isWakeLockSupported } = useWakeLock();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const isFocusRef = useRef(true);
 
   useEffect(() => {
     if (!sessionInfo) return;
-
     const interval = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
-
     return () => window.clearInterval(interval);
   }, [sessionInfo]);
 
   useEffect(() => {
     if (!phase) return;
-
     if (phase === 'contract') {
       router.replace(`/room/${room.code}/contract`);
     } else if (phase === 'result') {
@@ -56,40 +58,42 @@ export default function Timer() {
 
   useEffect(() => {
     if (!socket || !sessionInfo) return;
-
     const interval = window.setInterval(() => {
       socket.emit('heartbeat');
     }, 10000);
-
     return () => window.clearInterval(interval);
   }, [socket, sessionInfo]);
 
   useEffect(() => {
-    if (!socket || !sessionInfo) return;
+    async function subscribeToPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return; 
 
-    const handler = () => {
-      socket.emit(document.hidden ? 'escape:start' : 'escape:end');
-    };
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+          const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+          if (!publicVapidKey) return;
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+          });
+        }
 
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, [socket, sessionInfo]);
-
-  useEffect(() => {
-    if (!sessionInfo) return;
-
-    const adjustedNow = now + sessionInfo.serverOffset;
-    const elapsed = adjustedNow - sessionInfo.startedAt;
-    const totalMs =
-      (sessionInfo.focusMin * sessionInfo.totalRounds +
-        sessionInfo.breakMin * Math.max(0, sessionInfo.totalRounds - 1)) *
-      60 *
-      1000;
-
-    if (elapsed >= totalMs) {
-      router.replace(`/room/${room.code}/semi-result`);
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+          subscription,
+          { headers: { Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}` } }
+        );
+      } catch (error) {
+        console.error('푸시 알림 설정 실패:', error);
+      }
     }
-  }, [now, room.code, router, sessionInfo]);
+    subscribeToPush();
+  }, [room.code]);
 
   const giveUpMutation = useMutation({
     mutationFn: async () => {
@@ -105,7 +109,6 @@ export default function Timer() {
       const message = axios.isAxiosError(error)
         ? (error.response?.data as { message?: string })?.message
         : undefined;
-
       toast.error(message ?? '중도 포기 처리에 실패했습니다.');
     },
   });
@@ -114,37 +117,63 @@ export default function Timer() {
     giveUpMutation.mutate();
   };
 
-  if (!me) return null;
-  if (!sessionInfo) return <div>로딩 중...</div>;
-
-  const adjustedNow = now + sessionInfo.serverOffset;
-  const elapsed = adjustedNow - sessionInfo.startedAt;
-  const cycleMs = (sessionInfo.focusMin + sessionInfo.breakMin) * 60 * 1000;
-  const focusMs = sessionInfo.focusMin * 60 * 1000;
-  const breakMs = sessionInfo.breakMin * 60 * 1000;
-  const totalRounds = sessionInfo.totalRounds;
-  const totalMs =
-    focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
+  const adjustedNow = now + (sessionInfo?.serverOffset ?? 0);
+  const elapsed = adjustedNow - (sessionInfo?.startedAt ?? adjustedNow);
+  const focusMs = (sessionInfo?.focusMin ?? 0) * 60 * 1000;
+  const breakMs = (sessionInfo?.breakMin ?? 0) * 60 * 1000;
+  const cycleMs = focusMs + breakMs;
+  const totalRounds = sessionInfo?.totalRounds ?? 1;
+  const totalMs = focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
+  
   const clampedElapsed = Math.min(Math.max(0, elapsed), totalMs);
   const lastRoundStartMs = cycleMs * Math.max(0, totalRounds - 1);
-  const isLastRound = clampedElapsed >= lastRoundStartMs;
+  const isLastRound = cycleMs > 0 ? clampedElapsed >= lastRoundStartMs : true;
 
-  const round = isLastRound
-    ? totalRounds
-    : Math.floor(clampedElapsed / cycleMs) + 1;
-  const cycleElapsed = isLastRound
-    ? clampedElapsed - lastRoundStartMs
-    : clampedElapsed % cycleMs;
+  const round = isLastRound ? totalRounds : Math.floor(clampedElapsed / cycleMs) + 1;
+  const cycleElapsed = isLastRound ? clampedElapsed - lastRoundStartMs : clampedElapsed % cycleMs;
   const isFocus = isLastRound || cycleElapsed < focusMs;
-  const phaseRemainingMs = isFocus
-    ? focusMs - cycleElapsed
-    : cycleMs - cycleElapsed;
+  
+  const phaseRemainingMs = isFocus ? focusMs - cycleElapsed : cycleMs - cycleElapsed;
   const phaseTotalMs = isFocus ? focusMs : breakMs;
 
   const phaseRemainingSec = Math.max(0, Math.ceil(phaseRemainingMs / 1000));
   const phaseTotalSec = Math.ceil(phaseTotalMs / 1000);
-  const focusDurationSec = sessionInfo.focusMin * 60;
-  const breakDurationSec = sessionInfo.breakMin * 60;
+  const focusDurationSec = (sessionInfo?.focusMin ?? 0) * 60;
+  const breakDurationSec = (sessionInfo?.breakMin ?? 0) * 60;
+
+  useEffect(() => {
+    if (!socket || !sessionInfo) return;
+
+    if (document.hidden) {
+      if (isFocus) {
+        socket.emit('escape:start');
+      } else {
+        socket.emit('escape:end');
+      }
+    }
+    isFocusRef.current = isFocus;
+  }, [isFocus, socket, sessionInfo]);
+
+  useEffect(() => {
+    if (!socket || !sessionInfo) return;
+
+    const handler = () => {
+      if (document.hidden) {
+        if (isFocusRef.current) {
+          socket.emit('escape:start');
+          toast.error('화면을 이탈했습니다! 벌칙 시간이 누적됩니다.', { duration: 3000 });
+        }
+      } else {
+        socket.emit('escape:end');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, [socket, sessionInfo]);
+
+  if (!me) return null;
+  if (!sessionInfo) return <div className='flex items-center justify-center w-full h-screen text-white'>로딩 중...</div>;
 
   const theme = {
     textColor: isFocus ? 'text-primary' : 'text-success',
@@ -221,6 +250,17 @@ export default function Timer() {
           strokeColor={theme.strokeColor}
           subStatusText={theme.subStatusText}
         />
+
+        {!isWakeLockSupported && (
+          <div className='text-center mt-4 w-full max-w-sm px-4'>
+            <div className='flex items-start justify-center gap-2 bg-[#F85A5A]/10 border border-[#F85A5A]/30 rounded-xl px-4 py-3 text-xs text-[#F85A5A]'>
+              <span>
+                현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.<br />
+                원활한 집중을 위해 기기의 <b>자동 화면 꺼짐 시간</b>을 늘려주세요.
+              </span>
+            </div>
+          </div>
+        )}
 
         {!isFocus && (
           <div className='text-center mt-10 w-full max-w-sm'>

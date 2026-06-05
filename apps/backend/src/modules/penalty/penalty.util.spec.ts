@@ -45,13 +45,13 @@ describe('calculatePenaltyTier', () => {
     ).toEqual({ penaltyTier: 2, penaltyCount: 1, isForceAll: false });
   });
 
-  it('정확히 30% → 최고 티어, isForceAll=true', () => {
+  it('정확히 30% → 최고 티어, 룰렛 진행(isForceAll=false)', () => {
     expect(
       calculatePenaltyTier(msFromPercent(30), FOCUS_MIN, ROUNDS, DEFAULT_TIERS),
-    ).toEqual({ penaltyTier: 3, penaltyCount: 2, isForceAll: true });
+    ).toEqual({ penaltyTier: 3, penaltyCount: 2, isForceAll: false });
   });
 
-  it('150%(초과) → 최고 티어', () => {
+  it('150%(초과) → 최고 티어, 룰렛 진행(isForceAll=false)', () => {
     expect(
       calculatePenaltyTier(
         msFromPercent(150),
@@ -59,7 +59,7 @@ describe('calculatePenaltyTier', () => {
         ROUNDS,
         DEFAULT_TIERS,
       ),
-    ).toEqual({ penaltyTier: 3, penaltyCount: 2, isForceAll: true });
+    ).toEqual({ penaltyTier: 3, penaltyCount: 2, isForceAll: false });
   });
 
   it('정렬되지 않은 tiers 입력에도 동일 결과', () => {

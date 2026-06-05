@@ -15,6 +15,7 @@ import { RoomGateway } from '../gateway/room/room.gateway';
 import { RoomService } from '../room/room.service';
 import { PenaltyService } from '../penalty/penalty.service';
 import { YjsGateway } from '../gateway/yjs/yjs.gateway';
+import * as webpush from 'web-push';
 
 // 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
 const KICK_MAX_RETRIES = 2;
@@ -52,7 +53,53 @@ export class TimerService {
     private readonly roomService: RoomService,
     private readonly penaltyService: PenaltyService,
     private readonly yjsGateway: YjsGateway,
-  ) {}
+  ) {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT!,
+      process.env.VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!,
+    );
+  }
+  async savePushSubscription(
+    roomCode: string,
+    userId: string,
+    subscription: any,
+  ) {
+    await this.redis.instance.set(
+      `push_sub:${roomCode}:${userId}`,
+      JSON.stringify(subscription),
+      'EX',
+      7200,
+    );
+  }
+
+  private async sendPushToRoom(roomCode: string, title: string, body: string) {
+    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
+    if (!rawState) return;
+
+    const state = JSON.parse(rawState) as { members?: Record<string, unknown> };
+    if (!state.members) return;
+
+    const userIds = Object.keys(state.members);
+
+    const payload = JSON.stringify({ title, body });
+
+    for (const userId of userIds) {
+      const subRaw = await this.redis.instance.get(
+        `push_sub:${roomCode}:${userId}`,
+      );
+      if (subRaw) {
+        const subscription = JSON.parse(subRaw) as webpush.PushSubscription;
+        webpush
+          .sendNotification(subscription, payload)
+          .catch((err: unknown) => {
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
+            console.error(`푸시 전송 실패 (${userId}):`, errorMessage);
+          });
+      }
+    }
+  }
 
   private async verifyHost(roomCode: string, userId: string) {
     const room = await this.prisma.room.findUnique({
@@ -155,6 +202,21 @@ export class TimerService {
     this.yjsGateway.destroyRoom(roomCode);
 
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
+
+    const { focusMin, breakMin, rounds } = roomWithTemplate.template;
+    for (let r = 1; r < rounds; r++) {
+      const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
+
+      if (notifyTimeMs > 0) {
+        setTimeout(() => {
+          this.sendPushToRoom(
+            roomCode,
+            '휴식이 1분 남았어요! ⏰',
+            '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
+          ).catch(console.error);
+        }, notifyTimeMs);
+      }
+    }
 
     const totalMs = this.getSessionDurationMs(roomWithTemplate.template);
 
