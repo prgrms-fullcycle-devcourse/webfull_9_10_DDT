@@ -368,8 +368,8 @@ export class TimerService {
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
-      // 탈주(중도 포기) 벌칙 산정은 PenaltyService.calculateAndSave(gaveUpAt 분기)에서 처리됨.
-      // 여기선 포기 멤버의 열린 EscapeLog를 durationMs까지 계산해 마감.
+      // 포기 멤버의 열린 EscapeLog를 durationMs까지 계산해 마감.
+      // 벌칙 산정은 트랜잭션 커밋 후 calculateAndSaveForGiveUp가 즉시 수행한다.
       const openLogs = await tx.escapeLog.findMany({
         where: { roomMemberId: member.id, returnedAt: null, deletedAt: null },
         select: { id: true, escapedAt: true },
@@ -389,6 +389,16 @@ export class TimerService {
         data: { gaveUpAt: now },
       });
     });
+
+    // 포기 즉시 본인 벌칙 단독 산정(forfeit, is_revealed=true) → 룰렛 화면 데이터 소스.
+    // 트랜잭션 커밋 후 호출 → gaveUpAt 확정 상태에서 forfeit 분기 보장.
+    // 산정 실패해도 포기 흐름(브로드캐스트/화면전환)은 완주시키고, 조회 엔드포인트
+    // (GET /roulette/give-up)의 fallback 재산정에 복구를 위임한다(멱등).
+    try {
+      await this.penaltyService.calculateAndSaveForGiveUp(roomCode, member.id);
+    } catch (err) {
+      Sentry.captureException(err);
+    }
 
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
