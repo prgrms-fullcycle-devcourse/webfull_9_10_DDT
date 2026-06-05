@@ -209,7 +209,13 @@ export class ResultService {
     if (!isMember)
       throw new ForbiddenException('해당 방의 결과 조회 권한이 없습니다.');
 
-    if (room.phase !== 'result')
+    // 룰렛/결과 창 동안 빈 방 정리(소켓 0 → 10초 후 phase='closed')가 돌아도
+    // 결과는 계속 조회 가능해야 한다. 단, 세션을 실제로 끝낸(endedAt 존재) 방만 허용 —
+    // 로비/계약 단계에서 폐쇄된 방(결과 없음)은 차단한다.
+    const isViewable =
+      room.phase === 'result' ||
+      (room.phase === 'closed' && room.endedAt !== null);
+    if (!isViewable)
       throw new ForbiddenException(
         '세션이 종료된 후 결과를 확인할 수 있습니다.',
       );
