@@ -77,7 +77,9 @@ export class TimerService {
     const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
     if (!rawState) return;
 
-    const state = JSON.parse(rawState);
+    const state = JSON.parse(rawState) as { members?: Record<string, unknown> };
+    if (!state.members) return;
+
     const userIds = Object.keys(state.members);
 
     const payload = JSON.stringify({ title, body });
@@ -87,9 +89,10 @@ export class TimerService {
         `push_sub:${roomCode}:${userId}`,
       );
       if (subRaw) {
-        const subscription = JSON.parse(subRaw);
-        webpush.sendNotification(subscription, payload).catch((err) => {
-          console.error(`푸시 전송 실패 (${userId}):`, err.message);
+        const subscription = JSON.parse(subRaw) as webpush.PushSubscription;
+        webpush.sendNotification(subscription, payload).catch((err: unknown) => {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          console.error(`푸시 전송 실패 (${userId}):`, errorMessage);
         });
       }
     }

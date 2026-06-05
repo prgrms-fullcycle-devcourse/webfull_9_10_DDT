@@ -9,6 +9,7 @@ import {
 } from '@nestjs/swagger';
 import { TimerService } from './timer.service';
 import type { Request } from 'express';
+import type { PushSubscription } from 'web-push';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; email: string; role: string };
@@ -166,7 +167,7 @@ export class TimerController {
   async savePushSubscription(
     @Param('roomCode') roomCode: string,
     @Req() req: AuthenticatedRequest,
-    @Body() subscription: any,
+    @Body() subscription: PushSubscription,
   ) {
     await this.timerService.savePushSubscription(
       roomCode,
