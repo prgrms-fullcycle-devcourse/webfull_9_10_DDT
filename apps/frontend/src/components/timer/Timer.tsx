@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
 import { useRoom } from '@/contexts/RoomContext';
 import { useSocket } from '@/contexts/SocketContext';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
@@ -24,12 +23,13 @@ import {
 } from '@/components/ui/dialog';
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Timer() {
   const router = useRouter();
   const socket = useSocket();
   const room = useRoom();
-  const me = useAuthStore((s) => s.me);
+  const me = useAuth().me;
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
 
@@ -69,11 +69,11 @@ export default function Timer() {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       try {
         const permission = await Notification.requestPermission();
-        if (permission !== 'granted') return; 
+        if (permission !== 'granted') return;
 
         const registration = await navigator.serviceWorker.ready;
         let subscription = await registration.pushManager.getSubscription();
-        
+
         if (!subscription) {
           const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
           if (!publicVapidKey) return;
@@ -86,7 +86,11 @@ export default function Timer() {
         await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
           subscription,
-          { headers: { Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}` } }
+          {
+            headers: {
+              Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}`,
+            },
+          },
         );
       } catch (error) {
         console.error('푸시 알림 설정 실패:', error);
@@ -123,17 +127,24 @@ export default function Timer() {
   const breakMs = (sessionInfo?.breakMin ?? 0) * 60 * 1000;
   const cycleMs = focusMs + breakMs;
   const totalRounds = sessionInfo?.totalRounds ?? 1;
-  const totalMs = focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
-  
+  const totalMs =
+    focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
+
   const clampedElapsed = Math.min(Math.max(0, elapsed), totalMs);
   const lastRoundStartMs = cycleMs * Math.max(0, totalRounds - 1);
   const isLastRound = cycleMs > 0 ? clampedElapsed >= lastRoundStartMs : true;
 
-  const round = isLastRound ? totalRounds : Math.floor(clampedElapsed / cycleMs) + 1;
-  const cycleElapsed = isLastRound ? clampedElapsed - lastRoundStartMs : clampedElapsed % cycleMs;
+  const round = isLastRound
+    ? totalRounds
+    : Math.floor(clampedElapsed / cycleMs) + 1;
+  const cycleElapsed = isLastRound
+    ? clampedElapsed - lastRoundStartMs
+    : clampedElapsed % cycleMs;
   const isFocus = isLastRound || cycleElapsed < focusMs;
-  
-  const phaseRemainingMs = isFocus ? focusMs - cycleElapsed : cycleMs - cycleElapsed;
+
+  const phaseRemainingMs = isFocus
+    ? focusMs - cycleElapsed
+    : cycleMs - cycleElapsed;
   const phaseTotalMs = isFocus ? focusMs : breakMs;
 
   const phaseRemainingSec = Math.max(0, Math.ceil(phaseRemainingMs / 1000));
@@ -161,7 +172,9 @@ export default function Timer() {
       if (document.hidden) {
         if (isFocusRef.current) {
           socket.emit('escape:start');
-          toast.error('화면을 이탈했습니다! 벌칙 시간이 누적됩니다.', { duration: 3000 });
+          toast.error('화면을 이탈했습니다! 벌칙 시간이 누적됩니다.', {
+            duration: 3000,
+          });
         }
       } else {
         socket.emit('escape:end');
@@ -173,7 +186,12 @@ export default function Timer() {
   }, [socket, sessionInfo]);
 
   if (!me) return null;
-  if (!sessionInfo) return <div className='flex items-center justify-center w-full h-screen text-white'>로딩 중...</div>;
+  if (!sessionInfo)
+    return (
+      <div className='flex items-center justify-center w-full h-screen text-white'>
+        로딩 중...
+      </div>
+    );
 
   const theme = {
     textColor: isFocus ? 'text-primary' : 'text-success',
@@ -255,8 +273,10 @@ export default function Timer() {
           <div className='text-center mt-4 w-full max-w-sm px-4'>
             <div className='flex items-start justify-center gap-2 bg-[#F85A5A]/10 border border-[#F85A5A]/30 rounded-xl px-4 py-3 text-xs text-[#F85A5A]'>
               <span>
-                현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.<br />
-                원활한 집중을 위해 기기의 <b>자동 화면 꺼짐 시간</b>을 늘려주세요.
+                현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.
+                <br />
+                원활한 집중을 위해 기기의 <b>자동 화면 꺼짐 시간</b>을
+                늘려주세요.
               </span>
             </div>
           </div>

@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 
 const PenaltyRoulette = dynamic(
   () => import('@/components/ui/custom-roulette'),
@@ -86,8 +86,7 @@ const getRemainingSeconds = (
 
   const elapsedMs = Math.max(0, now - dataUpdatedAt);
   const adjustedServerNow = new Date(serverTime).getTime() + elapsedMs;
-  const remainingMs =
-    new Date(rouletteEndsAt).getTime() - adjustedServerNow;
+  const remainingMs = new Date(rouletteEndsAt).getTime() - adjustedServerNow;
 
   return Math.max(0, Math.floor(remainingMs / 1000));
 };
@@ -107,7 +106,7 @@ const getUnrevealedPenaltyCount = (member: ResultMember | null | undefined) =>
 export function Roulette() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
-  const { me, fetchMe } = useAuthStore();
+  const { me, refetchMe } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -118,8 +117,8 @@ export function Roulette() {
   const [spinErrorMessage, setSpinErrorMessage] = useState('');
 
   useEffect(() => {
-    if (!me) void fetchMe();
-  }, [fetchMe, me]);
+    if (!me) void refetchMe();
+  }, [refetchMe, me]);
 
   const {
     data: result,
@@ -147,7 +146,9 @@ export function Roulette() {
     }
 
     if (me?.role === 'guest') {
-      return result.members.find((member) => member.guestToken === me.id) ?? null;
+      return (
+        result.members.find((member) => member.guestToken === me.id) ?? null
+      );
     }
 
     return null;
@@ -274,9 +275,7 @@ export function Roulette() {
       );
 
       if (spinTargetIndex < 0) {
-        setSpinErrorMessage(
-          '서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.',
-        );
+        setSpinErrorMessage('서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.');
         return;
       }
 
@@ -338,13 +337,13 @@ export function Roulette() {
             : spinMutation.isPending
               ? '당첨 벌칙 확인 중...'
               : isSpinning
-            ? '룰렛 돌리는 중...'
-            : isAllCompleted
-              ? '다른 멤버 벌칙 보기'
-              : `룰렛 돌리기 (${Math.max(
-                  0,
-                  remainingChances,
-                )}/${totalChances})`}
+                ? '룰렛 돌리는 중...'
+                : isAllCompleted
+                  ? '다른 멤버 벌칙 보기'
+                  : `룰렛 돌리기 (${Math.max(
+                      0,
+                      remainingChances,
+                    )}/${totalChances})`}
         </Button>
       }
     >
@@ -387,9 +386,7 @@ export function Roulette() {
             </p>
           ) : null}
           {spinErrorMessage ? (
-            <p className='mt-4 text-sm text-destructive'>
-              {spinErrorMessage}
-            </p>
+            <p className='mt-4 text-sm text-destructive'>{spinErrorMessage}</p>
           ) : null}
         </div>
 

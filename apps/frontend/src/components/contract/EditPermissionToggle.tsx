@@ -2,13 +2,13 @@
 import { Card, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { useSocket } from '@/contexts/SocketContext';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 import { useRoomStore } from '@/store/useRoomStore';
 import { Unlock, Lock } from 'lucide-react';
 
 const EditPermissionToggle = () => {
   const socket = useSocket();
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
   const hostId = useRoomStore((state) => state.hostId);
 

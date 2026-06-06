@@ -10,14 +10,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MobileLayout } from '@/components/layout/mobileLayout';
-import { useAuthStore } from '@/store/useAuthStore';
 import { getToken } from '@/lib/getToken';
+import { useAuth } from '@/hooks/useAuth';
 
 type ResultPenaltyItem = {
   content: string;
@@ -111,24 +107,20 @@ const isMobileOrTablet = () => {
 
   const userAgent = navigator.userAgent.toLowerCase();
   const hasTouchScreen =
-    navigator.maxTouchPoints > 1 &&
-    /macintosh/.test(userAgent);
+    navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent);
 
-  return /android|iphone|ipad|ipod|mobile|tablet/.test(userAgent) || hasTouchScreen;
+  return (
+    /android|iphone|ipad|ipod|mobile|tablet/.test(userAgent) || hasTouchScreen
+  );
 };
 
 export function TotalResult() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
-  const { me, fetchMe } = useAuthStore();
+  const { me } = useAuth();
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [selectedPenaltyMember, setSelectedPenaltyMember] =
     useState<ResultMember | null>(null);
-
-  useEffect(() => {
-    if (!me) void fetchMe();
-  }, [fetchMe, me]);
-
   const {
     data: result,
     isError,
@@ -165,9 +157,9 @@ export function TotalResult() {
     (member) => member.penalties.totalCount > 0,
   );
   const activePenaltyMember = selectedPenaltyMember
-    ? rankedMembers.find(
+    ? (rankedMembers.find(
         (member) => member.memberId === selectedPenaltyMember.memberId,
-      ) ?? selectedPenaltyMember
+      ) ?? selectedPenaltyMember)
     : null;
   const tiers = result?.rule?.tierConfig?.tiers ?? [];
   const totalTime = formatSessionTime(result?.totalSessionMs ?? null);
@@ -182,7 +174,7 @@ export function TotalResult() {
     if (isMobileOrTablet() && navigator.share) {
       try {
         await navigator.share({
-        title: 'DDT 통합 결과',
+          title: 'DDT 통합 결과',
           text: `${result?.roomTitle ?? 'DDT'} 결과를 확인해보세요.`,
           url: shareUrl,
         });
@@ -222,141 +214,145 @@ export function TotalResult() {
           ) : null}
           {result ? (
             <>
-          <section className='flex flex-col items-center px-4 py-5 text-center'>
-            <div className='mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-primary'>
-              <Trophy className='h-5 w-5' />
-            </div>
-            <h2 className='text-xl font-bold text-[#FBBF24]'>
-              모두 고생했어요!
-            </h2>
-            <p className='mt-2 text-sm font-medium text-foreground/80'>
-              약속한 집중 시간을 완료했어요.
-            </p>
-          </section>
-
-          <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/50'>
-            <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
-              <span>총 진행 시간</span>
-              <strong className='text-base text-white/85'>
-                {totalTime}
-              </strong>
-            </div>
-            <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
-              <span>완료한 반복</span>
-              <strong className='text-base text-white/85'>
-                {completedSessions}
-              </strong>
-            </div>
-            <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
-              <span>벌칙 수행자</span>
-              <strong className='text-base text-white/85'>
-                {result.allClear ? '0명' : `${result.penaltyMemberCount}명`}
-              </strong>
-            </div>
-          </section>
-
-          <section className='flex flex-col gap-2'>
-            <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
-              이탈 시간 순위
-            </h3>
-            <div className='overflow-hidden rounded-2xl border border-slate-800/70 bg-[#151926]'>
-              {rankedMembers.map((member) => {
-                const isMe = me
-                  ? (me.role === 'user' && member.userId === me.id) ||
-                    (me.role === 'guest' && member.guestToken === me.id)
-                  : false;
-                return (
-                  <div
-                    key={member.memberId}
-                    className='flex items-center justify-between border-b border-slate-800/50 px-4 py-3 last:border-b-0'
-                  >
-                    <div className='flex min-w-0 items-center gap-3'>
-                      {member.isAllClear ? (
-                        <ThumbsUp className='h-4 w-7 shrink-0 text-[#FBBF24]' />
-                      ) : (
-                        <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F85A5A]/15 text-xs font-bold text-[#F85A5A]'>
-                          {member.rank}
-                        </div>
-                      )}
-                      <Avatar className='h-9 w-9 border border-slate-700 bg-[#22293F]'>
-                        <AvatarFallback className='bg-transparent text-xs text-slate-300'>
-                          {member.nickname.slice(0, 1)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className='min-w-0'>
-                        <div className='flex min-w-0 items-center gap-1.5'>
-                          <span className='truncate text-sm font-semibold text-slate-100'>
-                            {member.nickname}
-                            {member.isHost ? ' (방장)' : ''}
-                            {isMe ? ' (나)' : ''}
-                          </span>
-                          {member.gaveUpAt ? (
-                            <Badge className='h-5 shrink-0 border-none bg-[#F85A5A] px-1.5 text-[10px] font-bold text-white hover:bg-[#F85A5A]'>
-                              중도 포기
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <p className='mt-0.5 text-xs text-slate-500'>
-                          {member.isAllClear ? '이탈 없음' : `${member.rank}위`}
-                        </p>
-                      </div>
-                    </div>
-                    <span className='shrink-0 text-xs font-medium text-slate-400'>
-                      {member.totalEscapeMs > 0
-                        ? formatSessionTime(member.totalEscapeMs)
-                        : '이탈 없음'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className='flex flex-col gap-2'>
-            <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
-              멤버별 벌칙 결과
-            </h3>
-            <div className='flex flex-col gap-2'>
-              {penaltyMembers.length > 0 ? (
-                penaltyMembers.map((member) => {
-                  const isMe = me?.role === 'user' && member.userId === me.id;
-                  const unknownPenaltyCount = getUnknownPenaltyCount(member);
-
-                  return (
-                  <div
-                    key={member.memberId}
-                    className='flex min-w-0 items-center justify-between rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-3'
-                  >
-                    <div className='flex min-w-0 items-center gap-3'>
-                      <Award className='h-4 w-4 shrink-0 text-[#FBBF24]' />
-                      <span className='truncate text-sm font-semibold text-slate-100'>
-                        {member.nickname}
-                        {isMe ? ' (나)' : ''}
-                      </span>
-                    </div>
-                    <button
-                      type='button'
-                      onClick={() => setSelectedPenaltyMember(member)}
-                      className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors hover:bg-white/5'
-                      aria-label={`${member.nickname} 벌칙 상세 보기`}
-                    >
-                      벌칙 {member.penalties.totalCount}개
-                      {unknownPenaltyCount > 0
-                        ? ` (룰렛 대기중 ${unknownPenaltyCount})`
-                        : ''}
-                      <ChevronDown className='h-4 w-4 text-white/35' />
-                    </button>
-                  </div>
-                  );
-                })
-              ) : (
-                <div className='flex items-center gap-3 rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-4 text-sm text-slate-300'>
-                  <ThumbsUp className='h-4 w-4 text-[#FBBF24]' />
-                  벌칙 결과가 없어요.
+              <section className='flex flex-col items-center px-4 py-5 text-center'>
+                <div className='mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-primary'>
+                  <Trophy className='h-5 w-5' />
                 </div>
-              )}
-            </div>
-          </section>
+                <h2 className='text-xl font-bold text-[#FBBF24]'>
+                  모두 고생했어요!
+                </h2>
+                <p className='mt-2 text-sm font-medium text-foreground/80'>
+                  약속한 집중 시간을 완료했어요.
+                </p>
+              </section>
+
+              <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/50'>
+                <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
+                  <span>총 진행 시간</span>
+                  <strong className='text-base text-white/85'>
+                    {totalTime}
+                  </strong>
+                </div>
+                <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
+                  <span>완료한 반복</span>
+                  <strong className='text-base text-white/85'>
+                    {completedSessions}
+                  </strong>
+                </div>
+                <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
+                  <span>벌칙 수행자</span>
+                  <strong className='text-base text-white/85'>
+                    {result.allClear ? '0명' : `${result.penaltyMemberCount}명`}
+                  </strong>
+                </div>
+              </section>
+
+              <section className='flex flex-col gap-2'>
+                <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
+                  이탈 시간 순위
+                </h3>
+                <div className='overflow-hidden rounded-2xl border border-slate-800/70 bg-[#151926]'>
+                  {rankedMembers.map((member) => {
+                    const isMe = me
+                      ? (me.role === 'user' && member.userId === me.id) ||
+                        (me.role === 'guest' && member.guestToken === me.id)
+                      : false;
+                    return (
+                      <div
+                        key={member.memberId}
+                        className='flex items-center justify-between border-b border-slate-800/50 px-4 py-3 last:border-b-0'
+                      >
+                        <div className='flex min-w-0 items-center gap-3'>
+                          {member.isAllClear ? (
+                            <ThumbsUp className='h-4 w-7 shrink-0 text-[#FBBF24]' />
+                          ) : (
+                            <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F85A5A]/15 text-xs font-bold text-[#F85A5A]'>
+                              {member.rank}
+                            </div>
+                          )}
+                          <Avatar className='h-9 w-9 border border-slate-700 bg-[#22293F]'>
+                            <AvatarFallback className='bg-transparent text-xs text-slate-300'>
+                              {member.nickname.slice(0, 1)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className='min-w-0'>
+                            <div className='flex min-w-0 items-center gap-1.5'>
+                              <span className='truncate text-sm font-semibold text-slate-100'>
+                                {member.nickname}
+                                {member.isHost ? ' (방장)' : ''}
+                                {isMe ? ' (나)' : ''}
+                              </span>
+                              {member.gaveUpAt ? (
+                                <Badge className='h-5 shrink-0 border-none bg-[#F85A5A] px-1.5 text-[10px] font-bold text-white hover:bg-[#F85A5A]'>
+                                  중도 포기
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className='mt-0.5 text-xs text-slate-500'>
+                              {member.isAllClear
+                                ? '이탈 없음'
+                                : `${member.rank}위`}
+                            </p>
+                          </div>
+                        </div>
+                        <span className='shrink-0 text-xs font-medium text-slate-400'>
+                          {member.totalEscapeMs > 0
+                            ? formatSessionTime(member.totalEscapeMs)
+                            : '이탈 없음'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className='flex flex-col gap-2'>
+                <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
+                  멤버별 벌칙 결과
+                </h3>
+                <div className='flex flex-col gap-2'>
+                  {penaltyMembers.length > 0 ? (
+                    penaltyMembers.map((member) => {
+                      const isMe =
+                        me?.role === 'user' && member.userId === me.id;
+                      const unknownPenaltyCount =
+                        getUnknownPenaltyCount(member);
+
+                      return (
+                        <div
+                          key={member.memberId}
+                          className='flex min-w-0 items-center justify-between rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-3'
+                        >
+                          <div className='flex min-w-0 items-center gap-3'>
+                            <Award className='h-4 w-4 shrink-0 text-[#FBBF24]' />
+                            <span className='truncate text-sm font-semibold text-slate-100'>
+                              {member.nickname}
+                              {isMe ? ' (나)' : ''}
+                            </span>
+                          </div>
+                          <button
+                            type='button'
+                            onClick={() => setSelectedPenaltyMember(member)}
+                            className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors hover:bg-white/5'
+                            aria-label={`${member.nickname} 벌칙 상세 보기`}
+                          >
+                            벌칙 {member.penalties.totalCount}개
+                            {unknownPenaltyCount > 0
+                              ? ` (룰렛 대기중 ${unknownPenaltyCount})`
+                              : ''}
+                            <ChevronDown className='h-4 w-4 text-white/35' />
+                          </button>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className='flex items-center gap-3 rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-4 text-sm text-slate-300'>
+                      <ThumbsUp className='h-4 w-4 text-[#FBBF24]' />
+                      벌칙 결과가 없어요.
+                    </div>
+                  )}
+                </div>
+              </section>
             </>
           ) : null}
         </div>
@@ -402,32 +398,29 @@ export function TotalResult() {
               <div className='px-4 pb-3 pt-4'>
                 <DialogTitle className='text-base font-bold text-white/90'>
                   {activePenaltyMember.nickname}
-                  {me?.role === 'user' &&
-                  activePenaltyMember.userId === me.id
+                  {me?.role === 'user' && activePenaltyMember.userId === me.id
                     ? ' (본인)'
                     : ''}
                 </DialogTitle>
               </div>
 
               <div className='flex flex-col'>
-                {activePenaltyMember.penalties.items.map(
-                  (penalty, index) => (
-                    <div
-                      key={`${activePenaltyMember.memberId}-${penalty.content}-${index}`}
-                      className='flex items-center gap-[9.7px] border-t border-white/5 px-4 py-[9px]'
-                    >
-                      <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
-                      <div className='flex min-w-0 flex-1 flex-col'>
-                        <span className='truncate text-sm font-medium text-white/85'>
-                          {penalty.content}
-                        </span>
-                      </div>
-                      <span className='shrink-0 text-xs text-white/75'>
-                        {penalty.count}개
+                {activePenaltyMember.penalties.items.map((penalty, index) => (
+                  <div
+                    key={`${activePenaltyMember.memberId}-${penalty.content}-${index}`}
+                    className='flex items-center gap-[9.7px] border-t border-white/5 px-4 py-[9px]'
+                  >
+                    <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
+                    <div className='flex min-w-0 flex-1 flex-col'>
+                      <span className='truncate text-sm font-medium text-white/85'>
+                        {penalty.content}
                       </span>
                     </div>
-                  ),
-                )}
+                    <span className='shrink-0 text-xs text-white/75'>
+                      {penalty.count}개
+                    </span>
+                  </div>
+                ))}
                 {getUnknownPenaltyCount(activePenaltyMember) > 0 ? (
                   <div className='flex items-center gap-[9.7px] border-t border-white/5 px-4 py-[9px]'>
                     <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
@@ -447,7 +440,10 @@ export function TotalResult() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
+      <Dialog
+        open={isContractDialogOpen}
+        onOpenChange={setIsContractDialogOpen}
+      >
         <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] text-left text-white/85'>
           <div className='flex flex-col gap-4'>
             <div className='flex items-center'>

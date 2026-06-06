@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 
 type TermsAgreement = {
   termsOfService: boolean;
@@ -36,7 +36,7 @@ const isTermsAgreement = (value: unknown): value is TermsAgreement => {
 
 export function OAuthMessageHandler() {
   const router = useRouter();
-  const fetchMe = useAuthStore((state) => state.fetchMe);
+  const fetchMe = useAuth().refetchMe;
   const pendingTermsRef = useRef<TermsAgreement | null>(null);
 
   useEffect(() => {
@@ -79,7 +79,6 @@ export function OAuthMessageHandler() {
             pendingTermsRef.current = null;
           }
           await fetchMe();
-          router.refresh();
         } catch (error) {
           console.error('Terms Agreement Error:', error);
           alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');

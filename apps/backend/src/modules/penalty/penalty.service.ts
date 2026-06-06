@@ -11,7 +11,6 @@ import type { PenaltyItem } from '@prisma/client';
 export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
-
   private getEffectiveFocusEscapeMs(
     escapedAtMs: number,
     returnedAtMs: number,
@@ -37,7 +36,6 @@ export class PenaltyService {
     }
     return overlapMs;
   }
-
 
   async calculateAndSave(roomCode: string): Promise<void> {
     const room = await this.prisma.room.findUnique({
@@ -90,7 +88,6 @@ export class PenaltyService {
           // 혹시 모를 오차를 위해 세션 종료 시간을 넘지 않도록 제한
           const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
 
-
           const effectiveMs = this.getEffectiveFocusEscapeMs(
             escStart,
             escEnd,
@@ -114,7 +111,6 @@ export class PenaltyService {
             });
           }
         }
-
 
         if (member.gaveUpAt) {
           const giveUpMs = this.getEffectiveFocusEscapeMs(

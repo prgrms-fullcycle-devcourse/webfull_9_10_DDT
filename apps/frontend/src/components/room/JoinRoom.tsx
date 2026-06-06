@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
@@ -28,6 +27,7 @@ import {
 } from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { getErrorMessage } from '@/lib/error';
+import { useAuth } from '@/hooks/useAuth';
 
 // 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
 const noopSubscribe = () => () => {};
@@ -36,7 +36,7 @@ export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
   const code = params.code as string;
-  const { isLoggedIn, checkLoginStatus, me } = useAuthStore();
+  const { isLoggedIn, isLoading, me, refetchMe } = useAuth();
 
   // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
   const isMember = isLoggedIn && me?.role === 'user';
@@ -74,8 +74,8 @@ export const JoinRoom = () => {
   );
 
   useEffect(() => {
-    checkLoginStatus();
-  }, [checkLoginStatus]);
+    refetchMe();
+  }, [refetchMe]);
 
   const isValid =
     nickname.trim().length > 0 &&
@@ -101,7 +101,7 @@ export const JoinRoom = () => {
         document.cookie = `access_token=${event.data.token}; path=/; max-age=86400`;
       }
 
-      await useAuthStore.getState().fetchMe(); // loadMe로 이름 바꿨으면 그쪽
+      await refetchMe(); // loadMe로 이름 바꿨으면 그쪽
       setDialogDismissed(true);
     };
 
@@ -143,7 +143,7 @@ export const JoinRoom = () => {
 
       document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400`;
 
-      await useAuthStore.getState().fetchMe();
+      await refetchMe();
 
       setDialogDismissed(true);
     } catch (error) {

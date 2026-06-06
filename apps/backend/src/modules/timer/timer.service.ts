@@ -7,6 +7,8 @@ import {
   InternalServerErrorException,
   HttpException,
   HttpStatus,
+  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import { PrismaService } from '../../common/prisma.service';
@@ -16,11 +18,26 @@ import { RoomService } from '../room/room.service';
 import { PenaltyService } from '../penalty/penalty.service';
 import { YjsGateway } from '../gateway/yjs/yjs.gateway';
 import * as webpush from 'web-push';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
+import type { PushSubscription } from 'web-push';
+import { SESSION_QUEUE, SessionJob, endJobId, warnJobId } from './timer.queue';
 
 // 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
 const KICK_MAX_RETRIES = 2;
 // 강퇴 대상 소켓 disconnect 지연(ms) — kicked 이벤트 수신 여유 확보.
 const KICK_DISCONNECT_DELAY_MS = 100;
+
+const PUSH_SUB_TTL_SEC = 11 * 60 * 60;
+const MAX_ROUNDS_FALLBACK = 30;
+
+type SessionTemplate = {
+  focusMin: number;
+  breakMin: number;
+  rounds: number;
+};
 
 type RoomStateMembers = Record<
   string,
@@ -45,7 +62,9 @@ function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
 }
 
 @Injectable()
-export class TimerService {
+export class TimerService implements OnModuleInit {
+  private readonly logger = new Logger(TimerService.name);
+  private pushEnabled = false;
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -53,27 +72,39 @@ export class TimerService {
     private readonly roomService: RoomService,
     private readonly penaltyService: PenaltyService,
     private readonly yjsGateway: YjsGateway,
+    @InjectQueue(SESSION_QUEUE)
+    private readonly sessionQueue: Queue<SessionJob>,
+    private readonly configService: ConfigService,
   ) {
-    webpush.setVapidDetails(
-      process.env.VAPID_SUBJECT!,
-      process.env.VAPID_PUBLIC_KEY!,
-      process.env.VAPID_PRIVATE_KEY!,
-    );
+    const subject = this.configService.get<string>('VAPID_SUBJECT');
+    const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
+    const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
+
+    if (subject && publicKey && privateKey) {
+      webpush.setVapidDetails(subject, publicKey, privateKey);
+      this.pushEnabled = true;
+    } else {
+      this.logger.warn('VAPID 설정 누락 - 푸시 알림이 비활성화됩니다.');
+    }
   }
+
   async savePushSubscription(
     roomCode: string,
     userId: string,
-    subscription: any,
+    subscription: PushSubscription,
   ) {
     await this.redis.instance.set(
       `push_sub:${roomCode}:${userId}`,
       JSON.stringify(subscription),
       'EX',
-      7200,
+      PUSH_SUB_TTL_SEC,
     );
   }
 
   private async sendPushToRoom(roomCode: string, title: string, body: string) {
+    if (!this.pushEnabled) {
+      return;
+    }
     const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
     if (!rawState) return;
 
@@ -84,21 +115,21 @@ export class TimerService {
 
     const payload = JSON.stringify({ title, body });
 
-    for (const userId of userIds) {
-      const subRaw = await this.redis.instance.get(
-        `push_sub:${roomCode}:${userId}`,
-      );
-      if (subRaw) {
-        const subscription = JSON.parse(subRaw) as webpush.PushSubscription;
-        webpush
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const subRaw = await this.redis.instance.get(
+          `push_sub:${roomCode}:${userId}`,
+        );
+        if (!subRaw) return;
+        const subscription = JSON.parse(subRaw) as PushSubscription;
+        await webpush
           .sendNotification(subscription, payload)
           .catch((err: unknown) => {
-            const errorMessage =
-              err instanceof Error ? err.message : String(err);
-            console.error(`푸시 전송 실패 (${userId}):`, errorMessage);
+            const msg = err instanceof Error ? err.message : String(err);
+            this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
           });
-      }
-    }
+      }),
+    );
   }
 
   private async verifyHost(roomCode: string, userId: string) {
@@ -137,7 +168,7 @@ export class TimerService {
     roomCode: string,
     targetId: string,
   ): Promise<void> {
-    let lastErr: unknown;
+    let lastErr: unknown = new Error('강퇴 재시도 횟수 초과');
     for (let attempt = 0; attempt <= KICK_MAX_RETRIES; attempt++) {
       try {
         await this.roomService.kickMember(roomCode, targetId);
@@ -153,116 +184,28 @@ export class TimerService {
     const room = await this.verifyHost(roomCode, userId);
     this.ensureContractPhase(room.phase);
 
-    const roomWithTemplate = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-      include: { template: true },
-    });
+    const template = await this.loadRoomTemplate(roomCode);
+    const { memberIds } = await this.loadSignState(roomCode);
 
-    if (!roomWithTemplate?.template) {
-      throw new NotFoundException('계약서가 없습니다.');
-    }
-
-    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
-    // room:state가 없으면(TTL 만료/Redis 장애) 서명 여부를 검증할 수 없다.
-    // 정상 시작은 "전원 서명"이 전제이므로 fail-closed로 차단한다.
-    if (!rawState) {
-      throw new ConflictException(
-        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
-      );
-    }
-
-    const { hostUnsigned, memberIds } = extractUnsignedSummary(rawState);
-    if (hostUnsigned) {
-      throw new BadRequestException(
-        '방장이 서명을 완료해야 시작할 수 있습니다.',
-      );
-    }
     if (memberIds.length > 0) {
       throw new BadRequestException(
         '아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.',
       );
     }
 
-    const now = new Date();
-    await this.prisma.room.update({
-      where: { code: roomCode },
-      data: { phase: 'timer', startedAt: now },
-    });
-
-    await this.roomService.updateRedisPhase(roomCode, 'timer');
-
-    const responseData = {
-      startedAt: now,
-      focusMin: roomWithTemplate.template.focusMin,
-      breakMin: roomWithTemplate.template.breakMin,
-      totalRounds: roomWithTemplate.template.rounds,
-      serverTime: now,
-    };
-
-    this.yjsGateway.destroyRoom(roomCode);
-
-    this.roomGateway.server.to(roomCode).emit('session:started', responseData);
-
-    const { focusMin, breakMin, rounds } = roomWithTemplate.template;
-    for (let r = 1; r < rounds; r++) {
-      const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
-
-      if (notifyTimeMs > 0) {
-        setTimeout(() => {
-          this.sendPushToRoom(
-            roomCode,
-            '휴식이 1분 남았어요! ⏰',
-            '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
-          ).catch(console.error);
-        }, notifyTimeMs);
-      }
-    }
-
-    const totalMs = this.getSessionDurationMs(roomWithTemplate.template);
-
-    setTimeout(() => {
-      this.endSession(roomCode).catch((err) => Sentry.captureException(err));
-    }, totalMs);
-    return responseData;
+    return this.beginSession(roomCode, template);
   }
 
   async forceStartTimer(roomCode: string, userId: string) {
     const room = await this.verifyHost(roomCode, userId);
     this.ensureContractPhase(room.phase);
 
-    const roomWithTemplate = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-      include: { template: true },
-    });
-
-    if (!roomWithTemplate?.template) {
-      throw new NotFoundException('계약서가 없습니다.');
-    }
-
+    const template = await this.loadRoomTemplate(roomCode);
+    const { memberIds: targetIds } = await this.loadSignState(roomCode);
     const kickedMemberIds: string[] = [];
-    const failedMemberIds: string[] = [];
-
-    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
-    // room:state가 없으면(TTL 만료/Redis 장애) 서명 여부를 검증할 수 없다.
-    // null이면 extractUnsignedSummary가 미서명자 0건을 반환해 강퇴 없이 시작되므로,
-    // startTimer와 동일하게 fail-closed로 차단한다.
-    if (!rawState) {
-      throw new ConflictException(
-        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
-      );
-    }
-
-    const { hostUnsigned, memberIds: targetIds } =
-      extractUnsignedSummary(rawState);
-
-    // 방장은 강퇴 대상이 아니므로, 방장이 미서명이면 강제 시작도 불가하다.
-    if (hostUnsigned) {
-      throw new BadRequestException(
-        '방장이 서명을 완료해야 시작할 수 있습니다.',
-      );
-    }
 
     if (targetIds.length > 0) {
+      const failedMemberIds: string[] = [];
       const sockets = await this.roomGateway.server.in(roomCode).fetchSockets();
 
       for (const targetId of targetIds) {
@@ -312,40 +255,7 @@ export class TimerService {
       }
     }
 
-    const now = new Date();
-    try {
-      await this.prisma.room.update({
-        where: { code: roomCode },
-        data: { phase: 'timer', startedAt: now },
-      });
-    } catch (err) {
-      Sentry.captureException(err);
-      throw new InternalServerErrorException(
-        '세션 시작 중 오류가 발생했습니다. 다시 시도해주세요.',
-      );
-    }
-
-    await this.roomService.updateRedisPhase(roomCode, 'timer');
-
-    const responseData = {
-      kickedMemberIds,
-      startedAt: now,
-      focusMin: roomWithTemplate.template.focusMin,
-      breakMin: roomWithTemplate.template.breakMin,
-      totalRounds: roomWithTemplate.template.rounds,
-      serverTime: now,
-    };
-
-    this.yjsGateway.destroyRoom(roomCode);
-    this.roomGateway.server.to(roomCode).emit('session:started', responseData);
-
-    const totalMs = this.getSessionDurationMs(roomWithTemplate.template);
-
-    setTimeout(() => {
-      this.endSession(roomCode).catch((err) => Sentry.captureException(err));
-    }, totalMs);
-
-    return responseData;
+    return this.beginSession(roomCode, template, { kickedMemberIds });
   }
 
   async giveUp(roomCode: string, userId: string) {
@@ -368,21 +278,7 @@ export class TimerService {
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
-      // 포기 멤버의 열린 EscapeLog를 durationMs까지 계산해 마감.
-      // 벌칙 산정은 트랜잭션 커밋 후 calculateAndSaveForGiveUp가 즉시 수행한다.
-      const openLogs = await tx.escapeLog.findMany({
-        where: { roomMemberId: member.id, returnedAt: null, deletedAt: null },
-        select: { id: true, escapedAt: true },
-      });
-      for (const log of openLogs) {
-        await tx.escapeLog.update({
-          where: { id: log.id },
-          data: {
-            returnedAt: now,
-            durationMs: now.getTime() - log.escapedAt.getTime(),
-          },
-        });
-      }
+      await this.closeOpenEscapeLogs(tx, member.id, now);
 
       await tx.roomMember.update({
         where: { id: member.id },
@@ -390,15 +286,7 @@ export class TimerService {
       });
     });
 
-    // 포기 즉시 본인 벌칙 단독 산정(forfeit, is_revealed=true) → 룰렛 화면 데이터 소스.
-    // 트랜잭션 커밋 후 호출 → gaveUpAt 확정 상태에서 forfeit 분기 보장.
-    // 산정 실패해도 포기 흐름(브로드캐스트/화면전환)은 완주시키고, 조회 엔드포인트
-    // (GET /roulette/give-up)의 fallback 재산정에 복구를 위임한다(멱등).
-    try {
-      await this.penaltyService.calculateAndSaveForGiveUp(roomCode, member.id);
-    } catch (err) {
-      Sentry.captureException(err);
-    }
+    await this.safeCalculateForGiveUp(roomCode, member.id);
 
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
@@ -406,17 +294,233 @@ export class TimerService {
     return responseData;
   }
 
-  async endSession(roomCode: string) {
+  async endSession(roomCode: string): Promise<void> {
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+      select: { phase: true },
+    });
+
+    if (!room || room.phase === 'result' || room.phase === 'closed') {
+      return;
+    }
+    const now = new Date();
     await this.prisma.room.update({
       where: { code: roomCode },
-      data: { phase: 'result', endedAt: new Date() },
+      data: { phase: 'result', endedAt: now },
     });
 
     await this.roomService.updateRedisPhase(roomCode, 'result');
     await this.penaltyService.calculateAndSave(roomCode);
 
-    this.roomGateway.server.to(roomCode).emit('session:ended', {
-      endedAt: new Date(),
+    await this.cancelSessionJobs(roomCode);
+    this.roomGateway.server
+      .to(roomCode)
+      .emit('session:ended', { endedAt: now });
+  }
+
+  async onModuleInit(): Promise<void> {
+    const running = await this.prisma.room
+      .findMany({
+        where: { phase: 'timer' },
+        select: {
+          code: true,
+          startedAt: true,
+          template: {
+            select: { focusMin: true, breakMin: true, rounds: true },
+          },
+        },
+      })
+      .catch((err: unknown) => {
+        Sentry.captureException(err);
+        this.logger.error('세션 복구 스윕 실패', err as Error);
+        return [];
+      });
+
+    for (const room of running) {
+      if (!room.template || !room.startedAt) continue;
+      const totalMs = this.getSessionDurationMs(room.template);
+      const remaining = totalMs - (Date.now() - room.startedAt.getTime());
+
+      if (remaining <= 0) {
+        await this.endSession(room.code).catch((err: unknown) =>
+          Sentry.captureException(err),
+        );
+      } else {
+        await this.sessionQueue
+          .add(
+            'end',
+            { kind: 'end', roomCode: room.code },
+            {
+              jobId: endJobId(room.code),
+              delay: remaining,
+              removeOnComplete: true,
+            },
+          )
+          .catch(() => undefined);
+      }
+    }
+  }
+
+  // ── Processor 호출용 public 메서드 ───────────────────────────
+
+  async sendBreakWarning(roomCode: string): Promise<void> {
+    await this.sendPushToRoom(
+      roomCode,
+      '휴식이 1분 남았어요! ⏰',
+      '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
+    );
+  }
+
+  // ── private 헬퍼 ─────────────────────────────────────────────
+
+  private async loadSignState(roomCode: string): Promise<UnsignedSummary> {
+    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
+    if (!rawState) {
+      throw new ConflictException(
+        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
+      );
+    }
+    const summary = extractUnsignedSummary(rawState);
+    if (summary.hostUnsigned) {
+      throw new BadRequestException(
+        '방장이 서명을 완료해야 시작할 수 있습니다.',
+      );
+    }
+    return summary;
+  }
+
+  private async loadRoomTemplate(roomCode: string) {
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+      include: { template: true },
     });
+    if (!room?.template) throw new NotFoundException('계약서가 없습니다.');
+    return room.template;
+  }
+
+  private async beginSession(
+    roomCode: string,
+    template: SessionTemplate,
+    extra: { kickedMemberIds?: string[] } = {},
+  ) {
+    const now = new Date();
+    try {
+      await this.prisma.room.update({
+        where: { code: roomCode },
+        data: { phase: 'timer', startedAt: now },
+      });
+    } catch (err) {
+      Sentry.captureException(err);
+      throw new InternalServerErrorException(
+        '세션 시작 중 오류가 발생했습니다. 다시 시도해주세요.',
+      );
+    }
+
+    await this.roomService.updateRedisPhase(roomCode, 'timer');
+
+    const responseData = {
+      ...extra,
+      startedAt: now,
+      focusMin: template.focusMin,
+      breakMin: template.breakMin,
+      totalRounds: template.rounds,
+      serverTime: now,
+    };
+
+    await this.scheduleSessionJobs(roomCode, template);
+    this.yjsGateway.destroyRoom(roomCode);
+    this.roomGateway.server.to(roomCode).emit('session:started', responseData);
+
+    return responseData;
+  }
+
+  private async closeOpenEscapeLogs(
+    tx: Prisma.TransactionClient,
+    roomMemberId: string,
+    closedAt: Date,
+  ): Promise<void> {
+    const openLogs = await tx.escapeLog.findMany({
+      where: { roomMemberId, returnedAt: null, deletedAt: null },
+      select: { id: true, escapedAt: true },
+    });
+    await Promise.all(
+      openLogs.map((log) =>
+        tx.escapeLog.update({
+          where: { id: log.id },
+          data: {
+            returnedAt: closedAt,
+            durationMs: closedAt.getTime() - log.escapedAt.getTime(),
+          },
+        }),
+      ),
+    );
+  }
+
+  private async safeCalculateForGiveUp(
+    roomCode: string,
+    memberId: string,
+  ): Promise<void> {
+    try {
+      await this.penaltyService.calculateAndSaveForGiveUp(roomCode, memberId);
+    } catch (err: unknown) {
+      Sentry.captureException(err);
+      this.logger.error(
+        `give-up 벌칙 산정 실패 (room=${roomCode}, member=${memberId})`,
+        err as Error,
+      );
+    }
+  }
+
+  // ── BullMQ 잡 스케줄링 ────────────────────────────────────────
+
+  private async scheduleSessionJobs(
+    roomCode: string,
+    template: SessionTemplate,
+  ): Promise<void> {
+    await this.cancelSessionJobs(roomCode);
+
+    const { focusMin, breakMin, rounds } = template;
+    const totalMs = this.getSessionDurationMs(template);
+
+    await this.sessionQueue.add(
+      'end',
+      { kind: 'end', roomCode },
+      {
+        jobId: endJobId(roomCode),
+        delay: totalMs,
+        removeOnComplete: true,
+        removeOnFail: 100,
+      },
+    );
+
+    for (let r = 1; r < rounds; r++) {
+      const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
+      if (notifyTimeMs <= 0) continue;
+      await this.sessionQueue.add(
+        'break-warning',
+        { kind: 'break-warning', roomCode, round: r },
+        {
+          jobId: warnJobId(roomCode, r),
+          delay: notifyTimeMs,
+          removeOnComplete: true,
+          removeOnFail: 100,
+        },
+      );
+    }
+  }
+
+  async cancelSessionJobs(roomCode: string): Promise<void> {
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+      select: { template: { select: { rounds: true } } },
+    });
+    const rounds = room?.template?.rounds ?? MAX_ROUNDS_FALLBACK;
+    const ids = [
+      endJobId(roomCode),
+      ...Array.from({ length: rounds }, (_, i) => warnJobId(roomCode, i + 1)),
+    ];
+    await Promise.all(
+      ids.map((id) => this.sessionQueue.remove(id).catch(() => undefined)),
+    );
   }
 }

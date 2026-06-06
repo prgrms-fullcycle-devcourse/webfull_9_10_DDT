@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { UseContractYjsReturn } from '@/types/yjs';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { cn } from '@/lib/utils';
 import OwnerIndicator from './OwnerIndicator';
 import { Separator } from '../ui/separator';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TimerSettingsProps {
   yjs: Pick<
@@ -92,7 +92,11 @@ function TimerNumberInput({
         setDraft(raw);
         if (raw !== '') {
           const n = Math.floor(Number(raw));
-          if (Number.isFinite(n) && n >= min && (max === undefined || n <= max)) {
+          if (
+            Number.isFinite(n) &&
+            n >= min &&
+            (max === undefined || n <= max)
+          ) {
             onCommit(n);
           }
         }
@@ -112,7 +116,7 @@ function TimerNumberInput({
 }
 
 export default function TimerSettings({ yjs }: TimerSettingsProps) {
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
 
   if (!me) return null;
@@ -133,7 +137,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
       <Separator />
       <CardContent className='grid grid-cols-2 gap-2'>
         <div className='space-y-2'>
-          <div className='flex items-center'>
+          <div className='flex flex-col gap-1'>
             <Label htmlFor='focusMin' className='text-xs'>
               집중 시간
             </Label>
@@ -162,7 +166,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
         </div>
 
         <div className='space-y-2'>
-          <div className='flex items-center'>
+          <div className='flex flex-col gap-1'>
             <Label htmlFor='breakMin' className='text-xs'>
               휴식 시간
             </Label>
@@ -190,7 +194,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
         </div>
 
         <div className='space-y-2'>
-          <div className='flex items-center'>
+          <div className='flex flex-col gap-1'>
             <Label htmlFor='rounds' className='text-xs'>
               반복 횟수
             </Label>
