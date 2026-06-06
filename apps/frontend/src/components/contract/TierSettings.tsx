@@ -10,10 +10,10 @@ import {
 } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { UseContractYjsReturn } from '@/types/yjs';
 import { Separator } from '../ui/separator';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TierSettingsProps {
   yjs: Pick<
@@ -163,7 +163,7 @@ function TierPctInput({
 }
 
 export default function TierSettings({ yjs }: TierSettingsProps) {
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
 
   if (!me) return null;

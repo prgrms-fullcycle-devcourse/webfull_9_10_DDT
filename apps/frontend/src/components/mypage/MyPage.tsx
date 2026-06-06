@@ -8,15 +8,28 @@ import { ChevronRight, Clock3 } from 'lucide-react';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { HomeButton } from '@/components/layout/HomeButton';
 import { MobileLayout } from '@/components/layout/mobileLayout';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MyPageSettings } from '@/components/mypage/MyPageSettings';
-import { MyPageHistoryList, HistoryItem } from '@/components/mypage/MyPageHistoryList';
-import { useAuthStore } from '@/store/useAuthStore';
+import {
+  MyPageHistoryList,
+  HistoryItem,
+} from '@/components/mypage/MyPageHistoryList';
 import { formatDuration } from '@/lib/format';
-import { DEFAULT_PROFILE_IMAGE_KEY, getProfileImageSrc } from '@/lib/profileImage';
+import {
+  DEFAULT_PROFILE_IMAGE_KEY,
+  getProfileImageSrc,
+} from '@/lib/profileImage';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
+import { useAuth } from '@/hooks/useAuth';
 
 type UserProfile = {
   userId: string;
@@ -49,7 +62,7 @@ export const MyPage = () => {
 
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const { logout } = useAuth();
 
   useEffect(() => {
     // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
@@ -98,7 +111,10 @@ export const MyPage = () => {
     if (!isSettingsOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(event.target as Node)
+      ) {
         setIsSettingsOpen(false);
       }
     };
@@ -144,7 +160,8 @@ export const MyPage = () => {
   );
 
   const profileImageSrc = profile
-    ? getProfileImageSrc(profile.profileImage) ?? getProfileImageSrc(DEFAULT_PROFILE_IMAGE_KEY)
+    ? (getProfileImageSrc(profile.profileImage) ??
+      getProfileImageSrc(DEFAULT_PROFILE_IMAGE_KEY))
     : undefined;
 
   return (
@@ -153,7 +170,7 @@ export const MyPage = () => {
         <>
           <HomeButton />
           <HeaderTitle>마이 페이지</HeaderTitle>
-           <div className="flex-1" />
+          <div className='flex-1' />
           <MyPageSettings
             ref={settingsRef}
             isOpen={isSettingsOpen}
@@ -186,7 +203,9 @@ export const MyPage = () => {
               <p className='truncate text-[18px] font-bold leading-6 text-white'>
                 {profile.nickname}
               </p>
-              <p className='truncate text-[14px] leading-5 text-[#81808D]'>{profile.email}</p>
+              <p className='truncate text-[14px] leading-5 text-[#81808D]'>
+                {profile.email}
+              </p>
             </>
           ) : isLoadingProfile ? (
             <>
@@ -212,7 +231,9 @@ export const MyPage = () => {
             key={card.label}
             className={`relative overflow-hidden rounded-[12px] px-3 py-4 ${card.className}`}
           >
-            <p className='text-center text-[11px] font-medium text-[#767481]'>{card.label}</p>
+            <p className='text-center text-[11px] font-medium text-[#767481]'>
+              {card.label}
+            </p>
             <p className='mt-1 text-center text-[18px] font-extrabold leading-7 text-white/90'>
               {card.value}
             </p>
@@ -228,7 +249,9 @@ export const MyPage = () => {
 
       <section>
         <div className='mb-3 flex items-center justify-between'>
-          <h2 className='text-[14px] font-medium text-[#898793]'>최근 참여 기록</h2>
+          <h2 className='text-[14px] font-medium text-[#898793]'>
+            최근 참여 기록
+          </h2>
           <Link
             href='/mypage/history'
             className='flex items-center gap-1 text-[13px] font-medium text-[#898793] transition hover:text-white'
@@ -252,7 +275,9 @@ export const MyPage = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>로그아웃 하시겠어요?</DialogTitle>
-            <DialogDescription>로그아웃하면 다시 로그인해야 합니다.</DialogDescription>
+            <DialogDescription>
+              로그아웃하면 다시 로그인해야 합니다.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

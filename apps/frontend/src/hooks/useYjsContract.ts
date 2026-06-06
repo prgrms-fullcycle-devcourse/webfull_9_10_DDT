@@ -19,6 +19,9 @@ function generateColor(userId: string): string {
   return colors[index];
 }
 
+import { v4 as uuid } from 'uuid';
+import { getToken } from '@/lib/getToken';
+
 export function useYjsContract(
   roomCode: string,
   enabled: boolean,
@@ -39,6 +42,10 @@ export function useYjsContract(
     {},
   );
 
+  const yjsFieldsRef = useRef<Y.Map<number> | null>(null);
+  const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
+  const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
+
   useEffect(() => {
     if (!roomCode || !enabled) {
       return;
@@ -48,13 +55,15 @@ export function useYjsContract(
 
     docRef.current = doc;
 
-    const yjsFields = doc.getMap<number>('fields');
-    const yjsTiers = doc.getArray<Tier>('tiers');
-    const yjsPenalties = doc.getArray<Penalty>('penalties');
+    yjsFieldsRef.current = doc.getMap<number>('fields');
+    yjsTiersRef.current = doc.getArray<Tier>('tiers');
+    yjsPenaltiesRef.current = doc.getArray<Penalty>('penalties');
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const serverUrl = `${apiUrl.replace(/^http(s?)/, 'ws$1')}/yjs?roomCode=${roomCode}`;
-    
+    const wsUrl = apiUrl.replace(/^http/, 'ws');
+    const token = getToken() ?? '';
+    const serverUrl = `${wsUrl}/yjs?roomCode=${roomCode}&token=${token}`;
+
     const provider = new WebsocketProvider(serverUrl, '', doc);
     const awareness = provider.awareness;
 
@@ -85,10 +94,22 @@ export function useYjsContract(
     provider.on('sync', (isSynced: boolean) => {
       if (!isSynced) return;
 
-      const yjsTiers = doc.getArray<Tier>('tiers');
-      if (yjsTiers.length === 0 && isHost) {
+      if (yjsFieldsRef.current) {
+        setFields({
+          focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
+          breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
+          rounds: yjsFieldsRef.current.get('rounds') ?? 1,
+        });
+      }
+      if (yjsTiersRef.current) {
+        setTiers(yjsTiersRef.current.toArray());
+      }
+      if (yjsPenaltiesRef.current) {
+        setPenalties(yjsPenaltiesRef.current.toArray());
+      }
+      if (yjsTiersRef.current && yjsTiersRef.current.length === 0 && isHost) {
         doc.transact(() => {
-          yjsTiers.push([
+          yjsTiersRef.current!.push([
             {
               tier: 1,
               minPct: 0,
@@ -100,20 +121,26 @@ export function useYjsContract(
       }
     });
 
-    yjsFields.observe(() => {
-      setFields({
-        focusMin: yjsFields.get('focusMin') ?? 1,
-        breakMin: yjsFields.get('breakMin') ?? 1,
-        rounds: yjsFields.get('rounds') ?? 1,
-      });
+    yjsFieldsRef.current.observe(() => {
+      if (yjsFieldsRef.current) {
+        setFields({
+          focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
+          breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
+          rounds: yjsFieldsRef.current.get('rounds') ?? 1,
+        });
+      }
     });
 
-    yjsTiers.observe(() => {
-      setTiers(yjsTiers.toArray());
+    yjsTiersRef.current.observe(() => {
+      if (yjsTiersRef.current) {
+        setTiers(yjsTiersRef.current.toArray());
+      }
     });
 
-    yjsPenalties.observe(() => {
-      setPenalties(yjsPenalties.toArray());
+    yjsPenaltiesRef.current.observe(() => {
+      if (yjsPenaltiesRef.current) {
+        setPenalties(yjsPenaltiesRef.current.toArray());
+      }
     });
 
     return () => {
@@ -122,6 +149,9 @@ export function useYjsContract(
       doc.destroy();
       docRef.current = null;
       providerRef.current = null;
+      yjsFieldsRef.current = null;
+      yjsTiersRef.current = null;
+      yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
   }, [roomCode, enabled, isHost]);
@@ -153,14 +183,7 @@ export function useYjsContract(
 
   const updateField = useCallback(
     (key: keyof ContractFields, value: number) => {
-      const doc = docRef.current;
-      if (!doc) {
-        return;
-      }
-
-      doc.transact(() => {
-        doc.getMap<number>('fields').set(key, value);
-      });
+      yjsFieldsRef.current?.set(key, value);
     },
     [],
   );
@@ -265,16 +288,7 @@ export function useYjsContract(
   }, []);
 
   const addPenalty = useCallback((content: string) => {
-    const doc = docRef.current;
-    if (!doc) {
-      return;
-    }
-
-    doc.transact(() => {
-      doc
-        .getArray<Penalty>('penalties')
-        .push([{ id: crypto.randomUUID(), content }]);
-    });
+    yjsPenaltiesRef.current?.push([{ id: uuid(), content }]);
   }, []);
 
   const updatePenalty = useCallback((index: number, content: string) => {

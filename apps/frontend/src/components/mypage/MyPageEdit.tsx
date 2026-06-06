@@ -8,15 +8,26 @@ import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
 import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
-import { useAuthStore } from '@/store/useAuthStore';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import type { UpdateUserDto } from '@/api/generated/models/updateUserDto';
 import { getErrorMessage } from '@/lib/error';
-import { PROFILE_IMAGE_OPTIONS, getLegacyProfileImageKey, getProfileImageOptionKey } from '@/lib/profileImage';
+import {
+  PROFILE_IMAGE_OPTIONS,
+  getLegacyProfileImageKey,
+  getProfileImageOptionKey,
+} from '@/lib/profileImage';
+import { useAuth } from '@/hooks/useAuth';
 
 type UserProfile = {
   userId: string;
@@ -39,8 +50,7 @@ export function MyPageEdit() {
   const [error, setError] = useState('');
 
   const selectedProfileKey = PROFILE_IMAGE_OPTIONS[selectedProfile]?.key;
-  const logout = useAuthStore((state) => state.logout);
-  const fetchMe = useAuthStore((state) => state.fetchMe);
+  const { logout, refetchMe } = useAuth();
 
   useEffect(() => {
     // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
@@ -61,10 +71,14 @@ export function MyPageEdit() {
         setNickname(data.nickname ?? '');
 
         const optionKey = getProfileImageOptionKey(data.profileImage);
-        const index = PROFILE_IMAGE_OPTIONS.findIndex((item) => item.key === optionKey);
+        const index = PROFILE_IMAGE_OPTIONS.findIndex(
+          (item) => item.key === optionKey,
+        );
         setSelectedProfile(index >= 0 ? index : 0);
       } catch (err) {
-        setError(err instanceof Error ? err.message : '불러오기에 실패했습니다.');
+        setError(
+          err instanceof Error ? err.message : '불러오기에 실패했습니다.',
+        );
       } finally {
         setIsLoading(false);
       }
@@ -78,7 +92,8 @@ export function MyPageEdit() {
     trimmedLength >= NICKNAME_MIN_LENGTH &&
     trimmedLength <= NICKNAME_MAX_LENGTH;
   // 한 글자만 입력해 비활성 상태일 때 이유를 안내한다.
-  const showMinLengthHint = trimmedLength > 0 && trimmedLength < NICKNAME_MIN_LENGTH;
+  const showMinLengthHint =
+    trimmedLength > 0 && trimmedLength < NICKNAME_MIN_LENGTH;
 
   const handleSave = async () => {
     if (!isValid) return;
@@ -95,7 +110,7 @@ export function MyPageEdit() {
       await getUsers().usersControllerUpdateMe(updateUserDto);
 
       // 전역 me(헤더 등 다른 화면의 닉네임·프로필)도 최신화한다.
-      await fetchMe();
+      await refetchMe();
 
       toast.success('프로필이 저장되었습니다.');
     } catch (err) {
@@ -134,22 +149,22 @@ export function MyPageEdit() {
     <RequireAuth>
       <MobileLayout
         header={
-        <>
-          <BackButton />
-          <HeaderTitle>프로필 수정</HeaderTitle>
-          <div className="flex-1" />
-          <Button
-            type='button'
-            variant='ghost'
-            size='sm'
-            className='border border-white/20 px-3 py-3 rounded-sm!'
-            onClick={handleDelete}
-            disabled={isSaving || isDeleting}
-          >
-            {isDeleting ? '탈퇴 중...' : '회원 탈퇴'}
-          </Button>
-        </>
-      }
+          <>
+            <BackButton />
+            <HeaderTitle>프로필 수정</HeaderTitle>
+            <div className='flex-1' />
+            <Button
+              type='button'
+              variant='ghost'
+              size='sm'
+              className='border border-white/20 px-3 py-3 rounded-sm!'
+              onClick={handleDelete}
+              disabled={isSaving || isDeleting}
+            >
+              {isDeleting ? '탈퇴 중...' : '회원 탈퇴'}
+            </Button>
+          </>
+        }
         bottomButton={
           <Button
             onClick={handleSave}
@@ -163,7 +178,9 @@ export function MyPageEdit() {
       >
         <div className='flex flex-col gap-6 pt-2'>
           <div className='flex flex-col gap-2'>
-            <Label className='text-[15px] font-bold text-white/85'>내 닉네임</Label>
+            <Label className='text-[15px] font-bold text-white/85'>
+              내 닉네임
+            </Label>
             <FormInput
               type='text'
               placeholder='닉네임을 입력해주세요'
@@ -194,14 +211,15 @@ export function MyPageEdit() {
               {error}
             </div>
           ) : null}
-
         </div>
       </MobileLayout>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>회원 탈퇴하면 집중했던 데이터가 사라집니다.</DialogTitle>
+            <DialogTitle>
+              회원 탈퇴하면 집중했던 데이터가 사라집니다.
+            </DialogTitle>
             <DialogDescription>정말로 탈퇴하시겠어요?</DialogDescription>
           </DialogHeader>
           <DialogFooter>

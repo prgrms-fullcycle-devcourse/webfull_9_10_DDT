@@ -7,13 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from '../ui/card';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { UseContractYjsReturn } from '@/types/yjs';
 import OwnerIndicator from './OwnerIndicator';
 import { Input } from '../ui/input';
 import { cn } from '@/lib/utils';
 import { Separator } from '../ui/separator';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PenaltyListProps {
   yjs: Pick<
@@ -29,7 +29,7 @@ interface PenaltyListProps {
 }
 
 export default function PenaltyList({ yjs }: PenaltyListProps) {
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
 
   if (!me) return null;

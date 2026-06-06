@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/dialog';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { useMutation } from '@tanstack/react-query';
-import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/lib/error';
+import { useAuth } from '@/hooks/useAuth';
 
 type Step = 'form' | 'complete';
 /* ── 완료 화면 ── */
@@ -110,8 +110,7 @@ function CreateRoomComplete({
 /* ── 메인 컴포넌트 ── */
 export const CreateRoom = () => {
   const router = useRouter();
-  const me = useAuthStore((state) => state.me);
-  const fetchMe = useAuthStore((state) => state.fetchMe);
+  const { me, refetchMe } = useAuth();
   const isGuest = me?.role === 'guest';
 
   const onBack = () => {
@@ -157,12 +156,12 @@ export const CreateRoom = () => {
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === 'OAUTH_SUCCESS') {
-        void fetchMe();
+        void refetchMe();
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fetchMe]);
+  }, [refetchMe]);
 
   const handleSubmit = () => {
     if (!isValid) return;

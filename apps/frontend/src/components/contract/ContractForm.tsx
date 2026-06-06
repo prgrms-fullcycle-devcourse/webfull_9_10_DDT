@@ -12,7 +12,6 @@ import { BackButton } from '../layout/BackButton';
 import { HeaderTitle } from '../layout/HeaderTitle';
 import EditPermissionToggle from './EditPermissionToggle';
 import { useRoom } from '@/contexts/RoomContext';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import MemberSignList from './MemberSignList';
 import RoomTitle from './RoomTitle';
@@ -29,6 +28,7 @@ import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제�
 import axios from 'axios';
 import { ContractDataForSave, toBackendFormat } from '@/lib/contractTransform';
 import { getRuleApi } from '@/api/generated/rule-api-계약서-관리/rule-api-계약서-관리';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ContractFormValues {
   focusMin: number;
@@ -39,7 +39,7 @@ interface ContractFormValues {
 const ContractForm = () => {
   const router = useRouter();
   const room = useRoom();
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
   const hostId = useRoomStore((s) => s.hostId);
   const phase = useRoomStore((s) => s.phase);

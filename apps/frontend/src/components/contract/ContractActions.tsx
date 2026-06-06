@@ -2,7 +2,6 @@
 
 import { getRuleApi } from '@/api/generated/rule-api-계약서-관리/rule-api-계약서-관리';
 import { SavedRule, toBackendFormat } from '@/lib/contractTransform';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import { ApplyData, UseContractYjsReturn } from '@/types/yjs';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +10,7 @@ import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { SaveContractDialog } from './SaveContractDialog';
 import { LoadContractDialog } from './LoadContractDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ContractActionsProps {
   fields: UseContractYjsReturn['fields'];
@@ -26,7 +26,7 @@ export function ContractActions({
   applyAll,
 }: ContractActionsProps) {
   const queryClient = useQueryClient();
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
 
   const myMember = me ? members[me.id] : undefined;
