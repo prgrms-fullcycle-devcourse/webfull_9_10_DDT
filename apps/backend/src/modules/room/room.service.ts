@@ -268,14 +268,19 @@ export class RoomService {
         })
       : null;
 
-    const isReturning = userId
-      ? !!existing
-      : !!(
-          guestToken &&
-          (await this.prismaService.roomMember.findFirst({
-            where: { roomCode: room.code, guestToken },
-          }))
-        );
+    const guestExisting = guestToken
+      ? await this.prismaService.roomMember.findFirst({
+          where: { roomCode: room.code, guestToken },
+        })
+      : null;
+
+    const returningMember = existing || guestExisting;
+
+    if (returningMember?.gaveUpAt) {
+      throw new ForbiddenException('이미 중도 포기하여 다시 입장할 수 없습니다.');
+    }
+
+    const isReturning = !!returningMember;
 
     if (room.phase === 'timer' && !isReturning) {
       throw new ForbiddenException('이미 진행중인 방입니다.');
