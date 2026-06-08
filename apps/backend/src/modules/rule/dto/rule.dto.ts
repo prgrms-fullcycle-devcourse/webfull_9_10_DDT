@@ -1,12 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -43,20 +45,24 @@ export class CreateRoomRuleDto {
   @ApiProperty({ example: 25 })
   @IsInt()
   @Min(1)
+  @Max(600)
   focusMin!: number;
 
   @ApiProperty({ example: 5 })
   @IsInt()
   @Min(1)
+  @Max(60)
   breakMin!: number;
 
   @ApiProperty({ example: 4 })
   @IsInt()
   @Min(1)
+  @Max(20)
   rounds!: number;
 
   @ApiProperty({ example: ['노래 부르기', '커피 사기'] })
   @IsArray()
+  @ArrayMaxSize(100)
   @IsString({ each: true })
   penalties!: string[];
 
