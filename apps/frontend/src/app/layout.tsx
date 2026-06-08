@@ -1,11 +1,15 @@
+'use client';
+
 import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_KR } from 'next/font/google';
 import { Toaster } from 'sonner';
+import { useEffect } from 'react';
 import './globals.css';
 import { SessionRestorer } from '@/components/room/SessionRestorer';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { OAuthMessageHandler } from '@/components/auth/OAuthMessageHandler';
 import { AuthPrefetch } from '@/components/auth/AuthPrefetch';
+
 
 const notoSansKR = Noto_Sans_KR({
   variable: '--font-noto-sans-kr',
@@ -13,32 +17,20 @@ const notoSansKR = Noto_Sans_KR({
   weight: ['400', '500', '600', '700', '800'],
 });
 
-export const viewport: Viewport = {
-  themeColor: '#050816',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
-
-export const metadata: Metadata = {
-  title: 'DDT - 디지털 디톡스 타이머',
-  description: '남들이 딴짓할 때, 우리는 서로를 가두고 집중한다.',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'DDT',
-  },
-  formatDetection: {
-    telephone: false,
-  },
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => console.log('서비스 워커 등록 성공:', reg))
+        .catch((err) => console.error('서비스 워커 등록 실패:', err));
+    }
+  }, []);
+
   return (
     <html
       lang='ko'
