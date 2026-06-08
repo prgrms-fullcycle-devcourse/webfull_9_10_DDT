@@ -119,7 +119,7 @@ export class RoomService {
     }
 
     const passwordHash = await bcrypt.hash(createRoomDto.password, 10);
-    
+
     const room = await this.createRoomWithUniqueCode({
       title: createRoomDto.title,
       hostId,
@@ -148,7 +148,7 @@ export class RoomService {
   ) {
     if (userId) {
       const alreadyInTimerRoom = await this.prismaService.roomMember.findFirst({
-        where: { userId, room: { phase: 'timer' } },
+        where: { userId, gaveUpAt: null, room: { phase: 'timer' } },
       });
       if (alreadyInTimerRoom)
         throw new ConflictException('이미 다른 방에서 집중(timer) 중입니다.');

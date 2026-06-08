@@ -38,7 +38,7 @@ export function SocketProvider({
     const s = io(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080', {
       auth: { token },
       query: { roomCode },
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
     });
 
     s.on('connect', () => {
@@ -57,6 +57,9 @@ export function SocketProvider({
       if (data.reason === 'not-a-member') {
         toast.error('방에 참여하지 않으셨습니다.');
         router.replace(`/room/${roomCode}`);
+      } else if (data.reason === 'room-timer') {
+        toast.error('이미 집중 페이즈입니다.');
+        router.replace('/');
       } else if (data.reason === 'room-closed') {
         toast.error('이미 종료된 방입니다.');
         router.replace('/');

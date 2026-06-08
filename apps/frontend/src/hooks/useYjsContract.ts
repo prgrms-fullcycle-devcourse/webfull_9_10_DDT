@@ -29,6 +29,7 @@ export function useYjsContract(
   isHost: boolean,
 ): UseContractYjsReturn {
   const socket = useSocket();
+  const socketRef = useRef(socket);
   const docRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<typeof WebsocketProvider | null>(null);
 
@@ -47,6 +48,10 @@ export function useYjsContract(
   const yjsFieldsRef = useRef<Y.Map<number> | null>(null);
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
+
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
 
   useEffect(() => {
     if (!roomCode || !enabled) {
@@ -126,7 +131,7 @@ export function useYjsContract(
     yjsFieldsRef.current.observe((event) => {
       if (yjsFieldsRef.current) {
         if (event.transaction.local) {
-          socket?.emit('contract:edited');
+          socketRef.current?.emit('contract:edited');
         }
         setFields({
           focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
@@ -139,7 +144,7 @@ export function useYjsContract(
     yjsTiersRef.current.observe((event) => {
       if (yjsTiersRef.current) {
         if (event.transaction.local) {
-          socket?.emit('contract:edited');
+          socketRef.current?.emit('contract:edited');
         }
         setTiers(yjsTiersRef.current.toArray());
       }
@@ -148,7 +153,7 @@ export function useYjsContract(
     yjsPenaltiesRef.current.observe((event) => {
       if (yjsPenaltiesRef.current) {
         if (event.transaction.local) {
-          socket?.emit('contract:edited');
+          socketRef.current?.emit('contract:edited');
         }
         setPenalties(yjsPenaltiesRef.current.toArray());
       }
@@ -165,7 +170,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled, isHost, socket]);
+  }, [roomCode, enabled, isHost]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {

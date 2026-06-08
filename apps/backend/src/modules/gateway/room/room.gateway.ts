@@ -91,6 +91,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    if (roomState.phase === 'timer' && !roomState.members[client.data.userId]) {
+      client.emit('force-disconnect', { reason: 'room-timer' });
+      setTimeout(() => client.disconnect(), 100);
+      return;
+    }
+
     if (['closed', 'result'].includes(roomState.phase)) {
       client.emit('force-disconnect', { reason: 'room-closed' });
       setTimeout(() => client.disconnect(), 100);
