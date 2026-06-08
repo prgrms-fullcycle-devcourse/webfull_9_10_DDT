@@ -71,7 +71,8 @@ export const TermsPage = () => {
   const handleGoogleLogin = () => {
     if (!allChecked) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL || 'http://ddt-test.ddns.net:8080';
 
     sessionStorage.setItem(PENDING_TERMS_KEY, JSON.stringify(agreement));
     window.opener?.postMessage(

@@ -35,6 +35,7 @@ interface JwtPayload {
   cors: {
     origin: [
       'http://localhost:3000',
+      'http://ddt-test.ddns.net:3000',
       'https://webfull-9-10-ddt-frontend.vercel.app',
     ],
     credentials: true,

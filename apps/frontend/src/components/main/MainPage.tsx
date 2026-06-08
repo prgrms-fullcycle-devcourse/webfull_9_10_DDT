@@ -34,12 +34,15 @@ export const MainPage = () => {
     logout();
   };
 
-  const isCodeValid = roomCode.trim().length === 8;
+  const normalizeRoomCode = (value: string) =>
+    value.replace(/[^a-zA-Z0-9]/g, '');
+
+  const normalizedRoomCode = normalizeRoomCode(roomCode);
+  const isCodeValid = normalizedRoomCode.length === 8;
 
   const handleEnterByCode = () => {
-    const code = roomCode.trim();
-    if (code.length !== 8) return;
-    router.push(`/room/${code}`);
+    if (!isCodeValid) return;
+    router.push(`/room/${normalizedRoomCode}`);
   };
 
   return (
@@ -146,9 +149,9 @@ export const MainPage = () => {
           <FormInput
             type='text'
             placeholder='방 코드 8자리를 입력해주세요'
-            maxLength={8}
+            maxLength={16}
             value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
+            onChange={(e) => setRoomCode(normalizeRoomCode(e.target.value))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleEnterByCode();
             }}

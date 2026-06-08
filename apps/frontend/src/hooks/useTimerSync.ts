@@ -25,10 +25,13 @@ export function useTimerSync(roomCode: string, identifier: string) {
   useEffect(() => {
     localStorage.setItem('ddt_active_session', JSON.stringify({ roomCode, identifier }));
 
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080', {
-      query: { roomCode, token: identifier },
-      transports: ['websocket'],
-    });
+    const socket = io(
+      process.env.NEXT_PUBLIC_API_URL || 'http://ddt-test.ddns.net:8080',
+      {
+        query: { roomCode, token: identifier },
+        transports: ['websocket'],
+      },
+    );
 
     socketRef.current = socket;
 

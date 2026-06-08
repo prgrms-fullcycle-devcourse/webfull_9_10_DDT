@@ -13,7 +13,7 @@ type TermsAgreement = {
 };
 
 const getApiUrl = () =>
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  process.env.NEXT_PUBLIC_API_URL || 'http://ddt-test.ddns.net:8080';
 
 const getOrigin = (url: string) => {
   try {

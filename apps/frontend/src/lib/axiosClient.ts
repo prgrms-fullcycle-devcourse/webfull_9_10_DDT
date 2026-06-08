@@ -3,7 +3,7 @@ import axios from 'axios';
 import { getToken } from './getToken';
 
 axios.defaults.baseURL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://ddt-test.ddns.net:8080';
 
 axios.interceptors.request.use((config) => {
   const token = getToken();

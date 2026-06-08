@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['ddt-test.ddns.net', 'ddt-test.ddns.net:3000'],
   turbopack: {
     root: path.resolve(process.cwd(), '../..'),
   },

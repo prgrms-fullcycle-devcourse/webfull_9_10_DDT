@@ -59,7 +59,8 @@ export function useYjsContract(
     yjsTiersRef.current = doc.getArray<Tier>('tiers');
     yjsPenaltiesRef.current = doc.getArray<Penalty>('penalties');
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL || 'http://ddt-test.ddns.net:8080';
     const wsUrl = apiUrl.replace(/^http/, 'ws');
     const token = getToken() ?? '';
     const serverUrl = `${wsUrl}/yjs?roomCode=${roomCode}&token=${token}`;

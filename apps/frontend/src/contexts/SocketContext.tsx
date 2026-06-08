@@ -35,11 +35,14 @@ export function SocketProvider({
       return;
     }
 
-    const s = io(process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080', {
-      auth: { token },
-      query: { roomCode },
-      transports: ['polling', 'websocket'],
-    });
+    const s = io(
+      process.env.NEXT_PUBLIC_API_URL ?? 'http://ddt-test.ddns.net:8080',
+      {
+        auth: { token },
+        query: { roomCode },
+        transports: ['polling', 'websocket'],
+      },
+    );
 
     s.on('connect', () => {
       console.log('연결 성공: ', s.id);

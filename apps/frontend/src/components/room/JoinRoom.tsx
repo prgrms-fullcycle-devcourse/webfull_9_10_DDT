@@ -83,7 +83,8 @@ export const JoinRoom = () => {
     (isHost || (password.length >= 4 && password.length <= 20));
 
   const handleGoogleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL || 'http://ddt-test.ddns.net:8080';
 
     window.open(
       `${apiUrl}/auth/google`,

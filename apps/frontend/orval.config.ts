@@ -2,7 +2,7 @@ import { defineConfig } from 'orval';
 
 export default defineConfig({
   api: {
-    input: 'http://localhost:8080/api/docs-json', 
+    input: 'http://ddt-test.ddns.net:8080/api/docs-json', 
     
     output: {
       mode: 'tags-split', 

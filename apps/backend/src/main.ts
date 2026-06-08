@@ -15,6 +15,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 const corsOrigin: CustomOrigin = (origin, callback) => {
   const allowedOrigins = [
     'http://localhost:3000',
+    'http://ddt-test.ddns.net:3000',
     process.env.FRONTEND_URL,
   ].filter(Boolean);
   if (!origin || allowedOrigins.includes(origin)) {

@@ -84,7 +84,7 @@ export default function Timer() {
         }
 
         await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://ddt-test.ddns.net:8080'}/rooms/${room.code}/push-subscription`,
           subscription,
           {
             headers: {
