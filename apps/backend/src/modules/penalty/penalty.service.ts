@@ -71,6 +71,8 @@ export class PenaltyService {
         : new Date());
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
+    // 전체 집중 시간을 계산합니다.
+    const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
     await this.prisma.$transaction(async (tx) => {
       for (const member of room.roomMembers) {
@@ -123,6 +125,9 @@ export class PenaltyService {
           );
           totalEscapeMs += giveUpMs;
         }
+
+        // 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정합니다.
+        totalEscapeMs = Math.min(totalEscapeMs, totalFocusMsConst);
 
         const existing = await tx.roomResult.findUnique({
           where: { roomMemberId: member.id },
@@ -234,6 +239,8 @@ export class PenaltyService {
         : new Date());
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
+    // 전체 집중 시간을 계산합니다.
+    const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
     await this.prisma.$transaction(async (tx) => {
       let totalEscapeMs = 0;
@@ -268,9 +275,8 @@ export class PenaltyService {
         }
       }
 
-      // timer.giveUp이 열린 로그를 gaveUpAt으로 마감하므로 위 구간과 이중합산 없음.
       if (member.gaveUpAt) {
-        totalEscapeMs += this.getEffectiveFocusEscapeMs(
+        const giveUpMs = this.getEffectiveFocusEscapeMs(
           member.gaveUpAt.getTime(),
           sessionEndedAt.getTime(),
           sessionStartMs,
@@ -278,7 +284,11 @@ export class PenaltyService {
           breakMin,
           rounds,
         );
+        totalEscapeMs += giveUpMs;
       }
+      
+      // 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정합니다.
+      totalEscapeMs = Math.min(totalEscapeMs, totalFocusMsConst);
 
       const { penaltyTier } = calculatePenaltyTier(
         totalEscapeMs,
@@ -289,6 +299,7 @@ export class PenaltyService {
       const { penaltyCount } = resolveForfeitTier(tiers);
       const isForceAll = true;
 
+      // 중복 선언되었던 부분을 하나로 정리했습니다.
       const existing = await tx.roomResult.findUnique({
         where: { roomMemberId: member.id },
       });
