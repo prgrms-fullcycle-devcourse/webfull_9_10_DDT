@@ -160,7 +160,6 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    // 💡 로그 스팸을 방지하기 위해 정상 종료 시 Heartbeat 삭제!
     await this.escapeService.clearHeartbeat(roomCode, userId);
 
     const roomState = await this.roomService.getRoomState(roomCode);
@@ -169,7 +168,9 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.roomService.setConnected(roomCode, userId, false);
 
       if (roomState.phase === 'timer') {
-        await this.escapeService.logEscapeStart(roomCode, userId);
+        if (!roomState.members[userId]?.gaveUpAt) {
+          await this.escapeService.logEscapeStart(roomCode, userId);
+        }
       }
 
       client.to(roomCode).emit('member:left', { userId });

@@ -298,13 +298,6 @@ export class TimerService implements OnModuleInit {
 
     await this.safeCalculateForGiveUp(roomCode, member.id);
 
-    const sockets = await this.roomGateway.server.in(roomCode).fetchSockets();
-    const userSocket = sockets.find((s) => s.data.userId === userId);
-    userSocket?.disconnect();
-
-    const responseData = { userId, gaveUpAt: now };
-    this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
-
     const raw = await this.redis.instance.get(`room:state:${roomCode}`);
     if (raw) {
       const state = JSON.parse(raw) as {
@@ -320,6 +313,13 @@ export class TimerService implements OnModuleInit {
         );
       }
     }
+
+    const sockets = await this.roomGateway.server.in(roomCode).fetchSockets();
+    const userSocket = sockets.find((s) => s.data.userId === userId);
+    userSocket?.disconnect();
+
+    const responseData = { userId, gaveUpAt: now };
+    this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
 
     return responseData;
   }

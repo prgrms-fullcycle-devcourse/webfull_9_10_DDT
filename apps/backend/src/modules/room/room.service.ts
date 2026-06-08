@@ -2,7 +2,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
   UnauthorizedException,
   forwardRef,
@@ -166,7 +165,7 @@ export class RoomService {
     });
 
     if (!room) throw new NotFoundException('존재하지 않는 방입니다.');
-    if (room.phase === 'closed')
+    if (room.phase === 'closed' || room.phase === 'result')
       throw new ForbiddenException('종료된 방입니다.');
 
     const targetId = userId ?? guestToken!;
@@ -477,12 +476,7 @@ export class RoomService {
       return this.prismaService.room.findFirst({
         where: {
           phase: { notIn: ['closed', 'result'] },
-          roomMembers: {
-            some: {
-              guestToken: userId,
-              gaveUpAt: null, // 포기한 방은 복귀 모달 안 뜨게 필터링
-            },
-          },
+          roomMembers: { some: { guestToken: userId, gaveUpAt: null } },
         },
         select: { code: true, phase: true, title: true },
       });
@@ -490,12 +484,10 @@ export class RoomService {
     return this.prismaService.room.findFirst({
       where: {
         phase: { notIn: ['closed', 'result'] },
-        roomMembers: {
-          some: {
-            ...(isGuest ? { guestToken: userId } : { userId }),
-            gaveUpAt: null,
-          },
-        },
+        OR: [
+          { roomMembers: { some: { userId, gaveUpAt: null } } },
+          { hostId: userId, roomMembers: { none: { userId } } },
+        ],
       },
       select: { code: true, phase: true, title: true },
     });
