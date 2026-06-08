@@ -29,11 +29,13 @@ export function calculatePenaltyTier(
   rounds: number,
   tiers: PenaltyTier[],
 ): TierResult {
-  if (totalEscapeMs === 0) {
+  // 총 집중 시간이 0이면 비율 산정 불가 → 0 나눗셈 방지 안전 처리.
+  // (이탈 0% 프리패스 폐지: escapePercent === 0도 일반 순회로 최저 구간에 매칭한다.)
+  const totalFocusMs = focusMin * rounds * 60 * 1000;
+  if (totalFocusMs <= 0) {
     return { penaltyTier: 0, penaltyCount: 0, isForceAll: false };
   }
 
-  const totalFocusMs = focusMin * rounds * 60 * 1000;
   const escapePercent = (totalEscapeMs / totalFocusMs) * 100;
 
   // 3. 티어 정렬 (maxPct === null 티어는 항상 마지막)

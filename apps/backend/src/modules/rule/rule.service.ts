@@ -9,6 +9,8 @@ import { PrismaService } from '../../common/prisma.service';
 import { CreateRoomRuleDto, SaveRuleTemplateDto } from './dto/rule.dto';
 import { Prisma } from '@prisma/client';
 
+const MAX_TOTAL_MIN = 600;
+
 @Injectable()
 export class RuleService {
   constructor(private readonly prisma: PrismaService) {}
@@ -41,6 +43,15 @@ export class RuleService {
   ) {
     await this.verifyHost(roomCode, userId);
     this.validateTiers(dto.tierConfig.tiers);
+
+    const totalMin =
+      dto.focusMin * dto.rounds + dto.breakMin * Math.max(0, dto.rounds - 1);
+
+    if (totalMin > MAX_TOTAL_MIN) {
+      throw new BadRequestException(
+        `총 세션 시간이 10시간을 초과할 수 없습니다. (현재: ${totalMin}분)`,
+      );
+    }
 
     const rule = await this.prisma.ruleTemplate.create({
       data: {

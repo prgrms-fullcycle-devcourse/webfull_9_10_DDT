@@ -8,8 +8,9 @@ interface WakeLockSentinel {
 }
 
 export function useWakeLock() {
-const noSleepRef = useRef<NoSleep | null>(null);
+  const noSleepRef = useRef<NoSleep | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const noSleepEnableRef = useRef(false);
   const [isSupported, setIsSupported] = useState(true);
 
   useEffect(() => {
@@ -20,18 +21,32 @@ const noSleepRef = useRef<NoSleep | null>(null);
     const enableWakeLock = async () => {
       try {
         if ('wakeLock' in navigator) {
-          wakeLockRef.current = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<WakeLockSentinel> } }).wakeLock.request('screen');
+          wakeLockRef.current = await (
+            navigator as unknown as {
+              wakeLock: {
+                request: (type: string) => Promise<WakeLockSentinel>;
+              };
+            }
+          ).wakeLock.request('screen');
           console.log('WakeLock API 활성화 완료');
         } else {
           throw new Error('WakeLock API 미지원 환경');
         }
       } catch (err) {
+        console.log(err);
         try {
+          if (noSleepEnableRef.current) {
+            return;
+          }
           noSleepRef.current?.enable();
+          noSleepEnableRef.current = true;
           console.log('NoSleep.js 활성화 완료 (Fallback)');
           setIsSupported(true);
         } catch (fallbackErr) {
-          console.error('화면 꺼짐 방지 최종 실패:', fallbackErr);
+          console.warn(
+            '화면 꺼짐 방지 활성화 불가 (사용자 제스처 필요)',
+            fallbackErr,
+          );
           setIsSupported(false);
         }
       }
@@ -48,7 +63,9 @@ const noSleepRef = useRef<NoSleep | null>(null);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        enableWakeLock();
+        if ('wakeLock' in navigator) {
+          void enableWakeLock();
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -57,11 +74,12 @@ const noSleepRef = useRef<NoSleep | null>(null);
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('touchstart', handleInteraction);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      
+
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
       }
       noSleepRef.current?.disable();
+      noSleepEnableRef.current = false;
     };
   }, []);
 

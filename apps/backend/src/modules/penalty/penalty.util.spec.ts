@@ -19,8 +19,34 @@ const msFromPercent = (pct: number) =>
   Math.round((pct / 100) * FOCUS_MIN * ROUNDS * 60 * 1000);
 
 describe('calculatePenaltyTier', () => {
-  it('이탈 0 → tier 0 (All Clear)', () => {
+  it('이탈 0 → 최저 tier(tier1)에 매칭, 벌칙 0개 (프리패스 폐지)', () => {
     expect(calculatePenaltyTier(0, FOCUS_MIN, ROUNDS, DEFAULT_TIERS)).toEqual({
+      penaltyTier: 1,
+      penaltyCount: 0,
+      isForceAll: false,
+    });
+  });
+
+  it('이탈 0 + 최저 구간 count>0 → 이탈 0%여도 벌칙 부과', () => {
+    const baseCountTiers: PenaltyTier[] = [
+      { tier: 1, minPct: 0, maxPct: 10, count: 1 },
+      { tier: 2, minPct: 10, maxPct: 30, count: 2 },
+      { tier: 3, minPct: 30, maxPct: null, count: 3 },
+    ];
+    expect(calculatePenaltyTier(0, FOCUS_MIN, ROUNDS, baseCountTiers)).toEqual({
+      penaltyTier: 1,
+      penaltyCount: 1,
+      isForceAll: false,
+    });
+  });
+
+  it('focusMin/rounds=0 → 0 나눗셈 가드로 tier0/count0', () => {
+    expect(calculatePenaltyTier(0, 0, ROUNDS, DEFAULT_TIERS)).toEqual({
+      penaltyTier: 0,
+      penaltyCount: 0,
+      isForceAll: false,
+    });
+    expect(calculatePenaltyTier(0, FOCUS_MIN, 0, DEFAULT_TIERS)).toEqual({
       penaltyTier: 0,
       penaltyCount: 0,
       isForceAll: false,

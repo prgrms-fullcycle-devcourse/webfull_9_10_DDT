@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
+import { RoomNotFound } from '@/components/room/RoomNotFound';
 import { Button } from '@/components/ui/button';
 import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ import { toast } from 'sonner';
 import {
   PROFILE_IMAGE_OPTIONS,
   getProfileImageOptionKey,
+  getRandomProfileIndex,
 } from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { getErrorMessage } from '@/lib/error';
@@ -36,13 +38,18 @@ export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
   const code = params.code as string;
-  const { isLoggedIn, isLoading, me, refetchMe } = useAuth();
+  const { isLoggedIn, me, refetchMe } = useAuth();
 
   // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
   const isMember = isLoggedIn && me?.role === 'user';
   const defaultNickname = isMember ? (me?.nickname ?? '') : '';
+
+  // 게스트(비로그인) 입장 시 초기 프로필은 랜덤 부여한다.
+  // useState 초기화로 1회만 뽑아 재렌더마다 바뀌지 않게 한다.
+  const [guestRandomProfile] = useState(getRandomProfileIndex);
+
   const defaultProfile = (() => {
-    if (!isMember) return 0;
+    if (!isMember) return guestRandomProfile;
     const optionKey = getProfileImageOptionKey(me?.profileImage);
     const idx = PROFILE_IMAGE_OPTIONS.findIndex(
       (item) => item.key === optionKey,
@@ -183,29 +190,7 @@ export const JoinRoom = () => {
   }
 
   if (isRoomInvalid) {
-    return (
-      <MobileLayout
-        header={
-          <>
-            <BackButton />
-            <HeaderTitle>방 입장하기</HeaderTitle>
-          </>
-        }
-      >
-        <div className='flex flex-col items-center gap-3 pt-16 text-center'>
-          <p className='text-base font-bold text-white'>
-            존재하지 않거나 종료된 방이에요.
-          </p>
-          <p className='text-sm text-white/50'>방 코드를 다시 확인해주세요.</p>
-          <Button
-            onClick={() => router.push('/')}
-            className='mt-3 h-12 rounded-[14px] px-6 font-bold'
-          >
-            홈으로
-          </Button>
-        </div>
-      </MobileLayout>
-    );
+    return <RoomNotFound />;
   }
 
   return (

@@ -21,12 +21,15 @@ function generateColor(userId: string): string {
 
 import { v4 as uuid } from 'uuid';
 import { getToken } from '@/lib/getToken';
+import { useSocket } from '@/contexts/SocketContext';
 
 export function useYjsContract(
   roomCode: string,
   enabled: boolean,
   isHost: boolean,
 ): UseContractYjsReturn {
+  const socket = useSocket();
+  const socketRef = useRef(socket);
   const docRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<typeof WebsocketProvider | null>(null);
 
@@ -45,6 +48,10 @@ export function useYjsContract(
   const yjsFieldsRef = useRef<Y.Map<number> | null>(null);
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
+
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
 
   useEffect(() => {
     if (!roomCode || !enabled) {
@@ -121,8 +128,11 @@ export function useYjsContract(
       }
     });
 
-    yjsFieldsRef.current.observe(() => {
+    yjsFieldsRef.current.observe((event) => {
       if (yjsFieldsRef.current) {
+        if (event.transaction.local) {
+          socketRef.current?.emit('contract:edited');
+        }
         setFields({
           focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
           breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
@@ -131,14 +141,20 @@ export function useYjsContract(
       }
     });
 
-    yjsTiersRef.current.observe(() => {
+    yjsTiersRef.current.observe((event) => {
       if (yjsTiersRef.current) {
+        if (event.transaction.local) {
+          socketRef.current?.emit('contract:edited');
+        }
         setTiers(yjsTiersRef.current.toArray());
       }
     });
 
-    yjsPenaltiesRef.current.observe(() => {
+    yjsPenaltiesRef.current.observe((event) => {
       if (yjsPenaltiesRef.current) {
+        if (event.transaction.local) {
+          socketRef.current?.emit('contract:edited');
+        }
         setPenalties(yjsPenaltiesRef.current.toArray());
       }
     });

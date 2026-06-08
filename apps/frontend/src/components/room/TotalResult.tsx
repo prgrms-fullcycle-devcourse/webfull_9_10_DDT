@@ -258,7 +258,9 @@ export function TotalResult() {
                 <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
                   <span>벌칙 수행자</span>
                   <strong className='text-base text-white/85'>
-                    {result.allClear ? '0명' : `${result.penaltyMemberCount}명`}
+                    {(result.penaltyMemberCount ?? 0) === 0
+                      ? '0명'
+                      : `${result.penaltyMemberCount}명`}
                   </strong>
                 </div>
               </section>
