@@ -283,7 +283,7 @@ export class RoomService {
     const isReturning = !!returningMember;
 
     if (room.phase === 'timer' && !isReturning) {
-      throw new ForbiddenException('이미 진행중인 방입니다.');
+      throw new ForbiddenException('이미 집중 세션이 시작된 방입니다. 참여할 수 없습니다.');
     }
 
     const isValid = await bcrypt.compare(password, room.passwordHash);
