@@ -233,8 +233,9 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
         );
         return;
       }
-      
-      const activeCount = await this.roomService.countActiveMembersInRoom(roomCode);
+
+      const activeCount =
+        await this.roomService.countActiveMembersInRoom(roomCode);
 
       if (activeCount > 0) {
         this.logger.log(
