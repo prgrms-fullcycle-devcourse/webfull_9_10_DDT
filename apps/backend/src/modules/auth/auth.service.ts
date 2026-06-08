@@ -95,7 +95,7 @@ export class AuthService {
     const payload = { sub: guestId, role: 'guest' };
 
     return {
-      accessToken: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload, { expiresIn: '12h' }),
       guestToken: guestId,
     };
   }

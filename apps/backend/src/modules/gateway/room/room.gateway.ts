@@ -226,7 +226,6 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private async handleRoomCleanup(roomCode: string): Promise<void> {
     const roomState = await this.roomService.getRoomState(roomCode);
 
-    // 타이머/결과 진행 중이거나 전원이 오프라인이어도 방을 폭파하지 않고 유지합니다.
     if (roomState && ['timer', 'result'].includes(roomState.phase)) {
       if (roomState.phase === 'result') {
         this.logger.log(
@@ -234,6 +233,7 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
         );
         return;
       }
+
       const activeCount =
         await this.roomService.countActiveMembersInRoom(roomCode);
 

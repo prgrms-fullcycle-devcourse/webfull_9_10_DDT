@@ -92,7 +92,7 @@ export class PenaltyService {
         : new Date());
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
-    
+
     // 💡 전체 집중 시간을 계산합니다. (최대치 상한용)
     const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
@@ -143,7 +143,7 @@ export class PenaltyService {
         // 💡 1단계: 겹치는 이탈 시간 병합
         const mergedIntervals = this.mergeIntervals(intervals);
         let totalEscapeMs = 0;
-        
+
         for (const interval of mergedIntervals) {
           totalEscapeMs += this.getEffectiveFocusEscapeMs(
             interval.start,
@@ -266,7 +266,7 @@ export class PenaltyService {
         : new Date());
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
-    
+
     // 💡 전체 집중 시간을 계산합니다. (최대치 상한용)
     const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
