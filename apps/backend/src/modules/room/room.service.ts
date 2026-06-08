@@ -477,14 +477,11 @@ export class RoomService {
       return this.prismaService.room.findFirst({
         where: {
           phase: { notIn: ['closed', 'result'] },
-          roomMembers: {
-            some: {
-              guestToken: userId,
-              gaveUpAt: null, // 포기한 방은 복귀 모달 안 뜨게 필터링
-            },
-          },
+          OR: [
+            { roomMembers: { some: { userId, gaveUpAt: null } } },
+            { hostId: userId, roomMembers: { none: { userId } } },
+          ],
         },
-        select: { code: true, phase: true, title: true },
       });
     }
     return this.prismaService.room.findFirst({
