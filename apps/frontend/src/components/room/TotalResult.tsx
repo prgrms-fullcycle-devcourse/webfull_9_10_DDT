@@ -20,6 +20,7 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { CloseButton } from '@/components/layout/CloseButton';
 import { getToken } from '@/lib/getToken';
 import { getProfileImageSrc } from '@/lib/profileImage';
+import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
 
 type ResultPenaltyItem = {
@@ -117,17 +118,6 @@ const isGuestToken = () => {
 const getUnknownPenaltyCount = (member: ResultMember) =>
   Math.max(0, member.penalties.totalCount - member.penaltyCount);
 
-const isMobileOrTablet = () => {
-  if (typeof navigator === 'undefined') return false;
-
-  const userAgent = navigator.userAgent.toLowerCase();
-  const hasTouchScreen =
-    navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent);
-
-  return (
-    /android|iphone|ipad|ipod|mobile|tablet/.test(userAgent) || hasTouchScreen
-  );
-};
 
 export function TotalResult() {
   const router = useRouter();

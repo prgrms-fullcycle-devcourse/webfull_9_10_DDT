@@ -22,6 +22,7 @@ import {
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { useMutation } from '@tanstack/react-query';
 import { getErrorMessage } from '@/lib/error';
+import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
 
 type Step = 'form' | 'complete';
@@ -101,7 +102,7 @@ function CreateRoomComplete({
         onClick={onCopyAll}
         className='w-full h-auto py-3 rounded-[16px] border border-[#8B5CF6] dark:border-[#8B5CF6] text-sm text-white/80 hover:bg-white/5'
       >
-        초대 정보 모두 복사
+        초대 정보 공유
       </Button>
     </div>
   );
@@ -172,8 +173,28 @@ export const CreateRoom = () => {
 
   const handleCopyAll = async () => {
     const text = `[${roomName}] 에 초대합니다\n비밀번호 : ${password}\n방 코드 : ${roomCode}\n입장 링크 : ${inviteLink}`;
-    await navigator.clipboard.writeText(text);
-    toast.success('초대 정보가 복사되었어요');
+
+    // 모바일/태블릿이면 네이티브 공유 시트로, 그 외에는 클립보드 복사로 폴백한다.
+    if (isMobileOrTablet() && navigator.share) {
+      try {
+        await navigator.share({
+          title: `[${roomName}] 에 초대합니다`,
+          text,
+          url: inviteLink,
+        });
+        return;
+      } catch (err) {
+        // 사용자가 공유 시트를 닫은 경우(AbortError)는 조용히 무시한다.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('초대 정보가 복사되었어요');
+    } catch {
+      toast.error('초대 정보 복사에 실패했습니다.');
+    }
   };
 
   if (isGuest) {
