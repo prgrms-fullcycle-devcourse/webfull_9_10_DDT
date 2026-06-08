@@ -160,7 +160,6 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    // 💡 로그 스팸을 방지하기 위해 정상 종료 시 Heartbeat 삭제!
     await this.escapeService.clearHeartbeat(roomCode, userId);
 
     const roomState = await this.roomService.getRoomState(roomCode);
@@ -169,7 +168,9 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.roomService.setConnected(roomCode, userId, false);
 
       if (roomState.phase === 'timer') {
-        await this.escapeService.logEscapeStart(roomCode, userId);
+        if (!roomState.members[userId]?.gaveUpAt) {
+          await this.escapeService.logEscapeStart(roomCode, userId);
+        }
       }
 
       client.to(roomCode).emit('member:left', { userId });
@@ -221,10 +222,21 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // 타이머/결과 진행 중이거나 전원이 오프라인이어도 방을 폭파하지 않고 유지합니다.
     if (roomState && ['timer', 'result'].includes(roomState.phase)) {
-      this.logger.log(
-        `[보호됨] 타이머/결과 진행 중이므로 방(${roomCode})을 폭파하지 않습니다.`,
-      );
-      return;
+      if (roomState.phase === 'result') {
+        this.logger.log(
+          `[보호됨] 결과 진행 중이므로 방(${roomCode})을 폭파하지 않습니다.`,
+        );
+        return;
+      }
+      const activeCount =
+        await this.roomService.countActiveMembersInRoom(roomCode);
+
+      if (activeCount > 0) {
+        this.logger.log(
+          `[보호됨] 활성 멤버가 있으므로 방(${roomCode})을 폭파하지 않습니다.`,
+        );
+        return;
+      }
     }
 
     const currentCount = await this.roomService.countConnectedMembers(roomCode);

@@ -112,6 +112,17 @@ export function SocketProvider({
       });
     });
 
+    s.on(
+      'escape:summary',
+      ({
+        members,
+      }: {
+        members: { identifier: string; totalEscapeMs: number }[];
+      }) => {
+        useRoomStore.getState().setEscapeSummary(members);
+      },
+    );
+
     s.on('edit:updated', ({ targetId, canEdit }) => {
       useRoomStore.getState().upsertMember(targetId, { canEdit });
     });

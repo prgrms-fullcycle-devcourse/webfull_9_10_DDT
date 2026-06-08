@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
 import { useRoom } from '@/contexts/RoomContext';
 import { useSocket } from '@/contexts/SocketContext';
-import { useRoomStore } from '@/store/useRoomStore';
+import { EscapeSummaryItem, useRoomStore } from '@/store/useRoomStore';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
@@ -24,6 +24,8 @@ import {
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDuration } from '@/lib/format';
+import { getRoomApi } from '@/api/generated/room-api/room-api';
 
 export default function Timer() {
   const router = useRouter();
@@ -33,6 +35,12 @@ export default function Timer() {
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
   const members = useRoomStore((s) => s.members);
+
+  const escapeSummary = useRoomStore((s) => s.escapeSummary);
+  const setEscapeSummary = useRoomStore((s) => s.setEscapeSummary);
+  const myEscapeMs =
+    escapeSummary.find((m: EscapeSummaryItem) => m.identifier === me?.id)
+      ?.totalEscapeMs ?? 0;
 
   const { isSupported: isWakeLockSupported } = useWakeLock();
 
@@ -69,9 +77,17 @@ export default function Timer() {
     if (!socket || !sessionInfo) return;
     const interval = window.setInterval(() => {
       socket.emit('heartbeat');
-    }, 10000);
+    }, 5000);
     return () => window.clearInterval(interval);
   }, [socket, sessionInfo]);
+
+  useEffect(() => {
+    void getRoomApi()
+      .roomControllerGetEscapeSummary(room.code)
+      .then((res) =>
+        setEscapeSummary(res.data as unknown as EscapeSummaryItem[]),
+      );
+  }, [room.code, setEscapeSummary]);
 
   useEffect(() => {
     async function subscribeToPush() {
@@ -177,7 +193,7 @@ export default function Timer() {
   useEffect(() => {
     if (!socket || !sessionInfo) return;
 
-    const handler = () => {
+    const handleVisibilityChange = () => {
       if (document.hidden) {
         if (isFocusRef.current) {
           socket.emit('escape:start');
@@ -189,9 +205,24 @@ export default function Timer() {
         socket.emit('escape:end');
       }
     };
+    const handleBlur = () => {
+      if (isFocusRef.current) {
+        socket.emit('escape:start');
+      }
+    };
 
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
+    const handleFocus = () => {
+      socket.emit('escape:end');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [socket, sessionInfo]);
 
   if (!me) return null;
@@ -294,7 +325,9 @@ export default function Timer() {
         {!isFocus && (
           <div className='text-center mt-10 w-full max-w-sm'>
             <p className='text-xs text-muted-foreground mb-1'>총 이탈 시간</p>
-            <p className='text-2xl font-bold tracking-wider mb-4'>00:00</p>
+            <p className='text-2xl font-bold tracking-wider mb-4'>
+              {myEscapeMs > 0 ? formatDuration(myEscapeMs) : '0초'}
+            </p>
 
             <div className='flex items-center justify-center gap-2 bg-muted/20 border border-border rounded-xl px-4 py-3 text-xs text-primary'>
               <svg

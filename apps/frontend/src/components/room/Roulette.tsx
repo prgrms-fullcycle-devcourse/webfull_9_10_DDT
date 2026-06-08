@@ -98,8 +98,8 @@ const getUnrevealedPenaltyCount = (
 export function Roulette() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
+  const { me } = useAuth();
   const searchParams = useSearchParams();
-  const { me, refetchMe } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -113,10 +113,6 @@ export function Roulette() {
   const finishTarget = isGiveUpRoulette
     ? '/'
     : `/room/${params.code}/total-result`;
-
-  useEffect(() => {
-    if (!me) void refetchMe();
-  }, [refetchMe, me]);
 
   const {
     data: result,
@@ -150,9 +146,7 @@ export function Roulette() {
   const rouletteItems = useMemo<RoulettePenalty[]>(
     () =>
       toRouletteItems(
-        isGiveUpRoulette
-          ? giveUpResult?.penaltyPool
-          : result?.rule?.penalties,
+        isGiveUpRoulette ? giveUpResult?.penaltyPool : result?.rule?.penalties,
       ),
     [giveUpResult, isGiveUpRoulette, result],
   );
@@ -268,7 +262,7 @@ export function Roulette() {
     router,
   ]);
 
-  const revealedChances = isGiveUpRoulette ? 0 : myResult?.penaltyCount ?? 0;
+  const revealedChances = isGiveUpRoulette ? 0 : (myResult?.penaltyCount ?? 0);
   const totalChances = isGiveUpRoulette
     ? giveUpSpinResults.length
     : getUnrevealedPenaltyCount(myResult);

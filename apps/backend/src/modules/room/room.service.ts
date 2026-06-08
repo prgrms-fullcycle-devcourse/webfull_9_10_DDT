@@ -2,7 +2,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
   UnauthorizedException,
   forwardRef,
@@ -52,6 +51,8 @@ export interface CreateRoomResult {
   url: string;
 }
 
+const ROOM_STATE_TTL = 86400;
+
 @Injectable()
 export class RoomService {
   constructor(
@@ -61,8 +62,6 @@ export class RoomService {
     @Inject(forwardRef(() => RoomGateway))
     private readonly roomGateway: RoomGateway,
   ) {}
-
-  private readonly logger = new Logger(RoomService.name);
   private static readonly MAX_CODE_RETRIES = 5;
 
   public async getRedisState(roomCode: string): Promise<RoomState | null> {
@@ -75,7 +74,7 @@ export class RoomService {
       `room:state:${roomCode}`,
       JSON.stringify(state),
       'EX',
-      7200,
+      ROOM_STATE_TTL,
     );
   }
 
@@ -97,15 +96,26 @@ export class RoomService {
     createRoomDto: CreateRoomDto,
     hostId: string,
   ): Promise<CreateRoomResult> {
-    const activeRoom = await this.prismaService.room.findFirst({
-      where: { hostId, phase: { in: ['timer', 'lobby', 'contract'] } },
-      select: { code: true, title: true },
+    const existing = await this.prismaService.room.findFirst({
+      where: {
+        hostId,
+        phase: { notIn: ['closed', 'result'] },
+      },
+      include: {
+        roomMembers: {
+          where: { userId: hostId },
+          select: { gaveUpAt: true },
+        },
+      },
     });
 
-    if (activeRoom) {
-      throw new ConflictException(
-        `이미 진행중인 방이 있습니다. (${activeRoom.title}, ${activeRoom.code})`,
-      );
+    if (existing) {
+      const hostMember = existing.roomMembers[0];
+      if (!hostMember?.gaveUpAt) {
+        throw new ConflictException(
+          `이미 진행중인 방이 있습니다. (${existing.title}, ${existing.code})`,
+        );
+      }
     }
 
     const passwordHash = await bcrypt.hash(createRoomDto.password, 10);
@@ -122,6 +132,7 @@ export class RoomService {
       phase: 'lobby',
       members: {},
     });
+
     return {
       code: room.code,
       url: `${this.configService.getOrThrow<string>('FRONTEND_URL')}/room/${room.code}`,
@@ -154,7 +165,7 @@ export class RoomService {
     });
 
     if (!room) throw new NotFoundException('존재하지 않는 방입니다.');
-    if (room.phase === 'closed')
+    if (room.phase === 'closed' || room.phase === 'result')
       throw new ForbiddenException('종료된 방입니다.');
 
     const targetId = userId ?? guestToken!;
@@ -303,7 +314,7 @@ export class RoomService {
       `room:ban:${roomCode}:${targetId}`,
       '1',
       'EX',
-      7200,
+      ROOM_STATE_TTL,
     );
   }
 
@@ -461,15 +472,22 @@ export class RoomService {
   }
   async findMyActiveRoom(userId: string) {
     const isGuest = userId.startsWith('guest_');
+    if (isGuest) {
+      return this.prismaService.room.findFirst({
+        where: {
+          phase: { notIn: ['closed', 'result'] },
+          roomMembers: { some: { guestToken: userId, gaveUpAt: null } },
+        },
+        select: { code: true, phase: true, title: true },
+      });
+    }
     return this.prismaService.room.findFirst({
       where: {
         phase: { notIn: ['closed', 'result'] },
-        roomMembers: {
-          some: {
-            ...(isGuest ? { guestToken: userId } : { userId }),
-            gaveUpAt: null,
-          },
-        },
+        OR: [
+          { roomMembers: { some: { userId, gaveUpAt: null } } },
+          { hostId: userId, roomMembers: { none: { userId } } },
+        ],
       },
       select: { code: true, phase: true, title: true },
     });
@@ -485,6 +503,11 @@ export class RoomService {
     return this.prismaService.room.findUnique({
       where: { code: roomCode },
       include: { template: true },
+    });
+  }
+  async countActiveMembersInRoom(roomCode: string): Promise<number> {
+    return this.prismaService.roomMember.count({
+      where: { roomCode, gaveUpAt: null },
     });
   }
 }

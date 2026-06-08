@@ -13,6 +13,11 @@ export interface RoomMember {
   gaveUpAt?: string | null;
 }
 
+export interface EscapeSummaryItem {
+  identifier: string;
+  totalEscapeMs: number;
+}
+
 interface SessionInfo {
   startedAt: number;
   focusMin: number;
@@ -26,6 +31,7 @@ interface RoomStore {
   members: Record<string, RoomMember>;
   phase: string | null;
   sessionInfo: SessionInfo | null;
+  escapeSummary: EscapeSummaryItem[];
 
   setState: (
     data: Partial<{
@@ -38,6 +44,7 @@ interface RoomStore {
   removeMember: (userId: string) => void;
   reset: () => void;
   setSessionInfo: (info: SessionInfo | null) => void;
+  setEscapeSummary: (summary: EscapeSummaryItem[]) => void;
 }
 
 export const useRoomStore = create<RoomStore>((set) => ({
@@ -45,6 +52,7 @@ export const useRoomStore = create<RoomStore>((set) => ({
   members: {},
   phase: null,
   sessionInfo: null,
+  escapeSummary: [],
 
   setState: (data) => set(data),
 
@@ -64,7 +72,14 @@ export const useRoomStore = create<RoomStore>((set) => ({
     }),
 
   reset: () =>
-    set({ hostId: null, members: {}, phase: null, sessionInfo: null }),
+    set({
+      hostId: null,
+      members: {},
+      phase: null,
+      sessionInfo: null,
+      escapeSummary: [],
+    }),
 
   setSessionInfo: (info) => set({ sessionInfo: info }),
+  setEscapeSummary: (summary) => set({ escapeSummary: summary }),
 }));

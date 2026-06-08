@@ -14,7 +14,7 @@ export class EscapeService {
       `heartbeat:${roomCode}:${identifier}`,
       Date.now().toString(),
       'EX',
-      10,
+      15,
     );
   }
 
@@ -79,5 +79,30 @@ export class EscapeService {
         },
       });
     }
+  }
+
+  async getCurrentSummary(roomCode: string) {
+    const members = await this.prisma.roomMember.findMany({
+      where: { roomCode },
+      include: {
+        escapeLogs: { where: { deletedAt: null } },
+      },
+    });
+
+    const now = Date.now();
+    return members.map((member) => {
+      let totalEscapeMs = 0;
+      for (const log of member.escapeLogs) {
+        if (log.returnedAt) {
+          totalEscapeMs += log.durationMs ?? 0;
+        } else {
+          totalEscapeMs += now - log.escapedAt.getTime();
+        }
+      }
+      return {
+        identifier: member.userId ?? member.guestToken,
+        totalEscapeMs,
+      };
+    });
   }
 }

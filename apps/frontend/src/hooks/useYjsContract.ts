@@ -21,12 +21,14 @@ function generateColor(userId: string): string {
 
 import { v4 as uuid } from 'uuid';
 import { getToken } from '@/lib/getToken';
+import { useSocket } from '@/contexts/SocketContext';
 
 export function useYjsContract(
   roomCode: string,
   enabled: boolean,
   isHost: boolean,
 ): UseContractYjsReturn {
+  const socket = useSocket();
   const docRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<typeof WebsocketProvider | null>(null);
 
@@ -121,8 +123,11 @@ export function useYjsContract(
       }
     });
 
-    yjsFieldsRef.current.observe(() => {
+    yjsFieldsRef.current.observe((event) => {
       if (yjsFieldsRef.current) {
+        if (event.transaction.local) {
+          socket?.emit('contract:edited');
+        }
         setFields({
           focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
           breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
@@ -131,14 +136,20 @@ export function useYjsContract(
       }
     });
 
-    yjsTiersRef.current.observe(() => {
+    yjsTiersRef.current.observe((event) => {
       if (yjsTiersRef.current) {
+        if (event.transaction.local) {
+          socket?.emit('contract:edited');
+        }
         setTiers(yjsTiersRef.current.toArray());
       }
     });
 
-    yjsPenaltiesRef.current.observe(() => {
+    yjsPenaltiesRef.current.observe((event) => {
       if (yjsPenaltiesRef.current) {
+        if (event.transaction.local) {
+          socket?.emit('contract:edited');
+        }
         setPenalties(yjsPenaltiesRef.current.toArray());
       }
     });
@@ -154,7 +165,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled, isHost]);
+  }, [roomCode, enabled, isHost, socket]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {

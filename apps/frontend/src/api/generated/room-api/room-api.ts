@@ -76,9 +76,17 @@ const roomControllerGetMyActiveRoom = (
       `/rooms/me/active`,options
     );
   }
-return {roomControllerCreate,roomControllerLeaveRoom,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom}};
+const roomControllerGetEscapeSummary = (
+    code: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.get(
+      `/rooms/${code}/escape-summary`,options
+    );
+  }
+return {roomControllerCreate,roomControllerLeaveRoom,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom,roomControllerGetEscapeSummary}};
 export type RoomControllerCreateResult = AxiosResponse<unknown>
 export type RoomControllerLeaveRoomResult = AxiosResponse<void>
 export type RoomControllerFindByIdResult = AxiosResponse<unknown>
 export type RoomControllerJoinByIdResult = AxiosResponse<unknown>
 export type RoomControllerGetMyActiveRoomResult = AxiosResponse<void>
+export type RoomControllerGetEscapeSummaryResult = AxiosResponse<void>

@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { UseContractYjsReturn } from '@/types/yjs';
@@ -129,10 +135,30 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
   const { focusMin, breakMin, rounds } = fields;
   const totalMin = focusMin * rounds + breakMin * Math.max(0, rounds - 1);
 
+  const MAX_TOTAL_MIN = 600;
+
+  // 각 필드별 동적 최대값
+  const maxFocusMin = Math.max(
+    1,
+    Math.floor((MAX_TOTAL_MIN - breakMin * Math.max(0, rounds - 1)) / rounds),
+  );
+  const maxBreakMin =
+    rounds > 1
+      ? Math.max(
+          1,
+          Math.floor((MAX_TOTAL_MIN - focusMin * rounds) / (rounds - 1)),
+        )
+      : 59; // rounds=1이면 휴식 없음, 느슨하게
+  const maxRounds = Math.max(
+    1,
+    Math.floor(MAX_TOTAL_MIN / (focusMin + breakMin)),
+  );
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className='flex justify-between items-end'>
         <CardTitle>타이머 설정</CardTitle>
+        <CardDescription className='text-xs'>최대 10시간</CardDescription>
       </CardHeader>
       <Separator />
       <CardContent className='grid grid-cols-2 gap-2'>
@@ -140,6 +166,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
           <div className='flex flex-col gap-1'>
             <Label htmlFor='focusMin' className='text-xs'>
               집중 시간
+              <span className='text-muted-foreground'>(최대 120분)</span>
             </Label>
             <OwnerIndicator fieldKey='focusMin' fieldOwners={fieldOwners} />
           </div>
@@ -148,7 +175,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               id='focusMin'
               value={focusMin}
               min={1}
-              max={120}
+              max={maxFocusMin < 120 ? maxFocusMin : 120}
               className='bg-background! h-12 w-26 border-white/20'
               isOwned={!!fieldOwners['focusMin']}
               ownerColor={fieldOwners['focusMin']?.color}
@@ -169,6 +196,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
           <div className='flex flex-col gap-1'>
             <Label htmlFor='breakMin' className='text-xs'>
               휴식 시간
+              <span className='text-muted-foreground'>(최대 120분)</span>
             </Label>
             <OwnerIndicator fieldKey='breakMin' fieldOwners={fieldOwners} />
           </div>
@@ -177,6 +205,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               id='breakMin'
               value={breakMin}
               min={1}
+              max={maxBreakMin < 120 ? maxBreakMin : 120}
               className='bg-background! h-12 w-26 border-white/20'
               isOwned={!!fieldOwners['breakMin']}
               ownerColor={fieldOwners['breakMin']?.color}
@@ -197,6 +226,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
           <div className='flex flex-col gap-1'>
             <Label htmlFor='rounds' className='text-xs'>
               반복 횟수
+              <span className='text-muted-foreground'>(최대 20회)</span>
             </Label>
             <OwnerIndicator fieldKey='rounds' fieldOwners={fieldOwners} />
           </div>
@@ -205,6 +235,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               id='rounds'
               value={rounds}
               min={1}
+              max={maxRounds < 20 ? maxRounds : 20}
               className='bg-background! h-12 w-26 border border-white/20'
               isOwned={!!fieldOwners['rounds']}
               ownerColor={fieldOwners['rounds']?.color}
