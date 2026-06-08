@@ -354,9 +354,32 @@ export class TimerService implements OnModuleInit {
               jobId: endJobId(room.code),
               delay: remaining,
               removeOnComplete: true,
+              removeOnFail: 100, 
             },
           )
           .catch(() => undefined);
+
+        const { focusMin, breakMin, rounds } = room.template;
+        for (let r = 1; r < rounds; r++) {
+          const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
+          const targetTime = room.startedAt.getTime() + notifyTimeMs;
+          const delay = targetTime - Date.now();
+
+          if (delay > 0) {
+            await this.sessionQueue
+              .add(
+                'break-warning',
+                { kind: 'break-warning', roomCode: room.code, round: r },
+                {
+                  jobId: warnJobId(room.code, r),
+                  delay,
+                  removeOnComplete: true,
+                  removeOnFail: 100,
+                },
+              )
+              .catch(() => undefined);
+          }
+        }
       }
     }
   }

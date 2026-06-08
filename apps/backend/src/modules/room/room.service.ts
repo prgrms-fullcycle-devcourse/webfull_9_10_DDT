@@ -331,7 +331,7 @@ export class RoomService {
             `room:state:${room.code}`,
             JSON.stringify(state),
             'EX',
-            7200,
+            86400,
           );
         }
       }
