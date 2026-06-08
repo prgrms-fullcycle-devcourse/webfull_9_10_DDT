@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { jwtDecode } from 'jwt-decode';
-import { Award, ChevronDown, ThumbsUp, Trophy, X } from 'lucide-react';
+import { ChevronDown, ThumbsUp, Trophy, X } from 'lucide-react';
 import { getResultApi } from '@/api/generated/result-api-결과-조회/result-api-결과-조회';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -93,7 +93,7 @@ const formatEscapeTime = (totalMs: number) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
-  return `${minutes}분${seconds}초`;
+  return `${minutes}분 ${seconds.toString().padStart(2, '0')}초`;
 };
 
 const formatTierRange = (minPct: number, maxPct: number | null) =>
@@ -118,6 +118,10 @@ const isGuestToken = () => {
 const getUnknownPenaltyCount = (member: ResultMember) =>
   Math.max(0, member.penalties.totalCount - member.penaltyCount);
 
+const getPenaltyContents = (member: ResultMember) =>
+  member.penalties.items.flatMap((penalty) =>
+    Array.from({ length: penalty.count }, () => penalty.content),
+  );
 
 export function TotalResult() {
   const router = useRouter();
@@ -125,8 +129,9 @@ export function TotalResult() {
   const searchParams = useSearchParams();
   const { me } = useAuth();
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
-  const [selectedPenaltyMember, setSelectedPenaltyMember] =
-    useState<ResultMember | null>(null);
+  const [expandedPenaltyMemberIds, setExpandedPenaltyMemberIds] = useState<
+    string[]
+  >([]);
   const {
     data: result,
     isError,
@@ -162,11 +167,6 @@ export function TotalResult() {
   const penaltyMembers = rankedMembers.filter(
     (member) => member.penalties.totalCount > 0,
   );
-  const activePenaltyMember = selectedPenaltyMember
-    ? (rankedMembers.find(
-        (member) => member.memberId === selectedPenaltyMember.memberId,
-      ) ?? selectedPenaltyMember)
-    : null;
   const tiers = result?.rule?.tierConfig?.tiers ?? [];
   const totalTime = formatSessionTime(result?.totalSessionMs ?? null);
   const completedSessions = result?.rule
@@ -174,6 +174,14 @@ export function TotalResult() {
     : '-';
   const isLoggedInUser = me?.role === 'user';
   const closeTarget = searchParams.get('from') === 'mypage' ? '/mypage' : '/';
+
+  const togglePenaltyMember = (memberId: string) => {
+    setExpandedPenaltyMemberIds((prev) =>
+      prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId],
+    );
+  };
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -310,9 +318,7 @@ export function TotalResult() {
                           </div>
                         </div>
                         <span className='shrink-0 text-xs font-medium text-slate-400'>
-                          {member.totalEscapeMs > 0
-                            ? formatEscapeTime(member.totalEscapeMs)
-                            : '이탈 없음'}
+                          {formatEscapeTime(member.totalEscapeMs)}
                         </span>
                       </div>
                     );
@@ -324,7 +330,7 @@ export function TotalResult() {
                 <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
                   멤버별 벌칙 결과
                 </h3>
-                <div className='flex flex-col gap-2'>
+                <div className='overflow-hidden rounded-xl bg-[#181828]'>
                   {penaltyMembers.length > 0 ? (
                     penaltyMembers.map((member) => {
                       const isMe =
@@ -332,41 +338,88 @@ export function TotalResult() {
                       const unknownPenaltyCount =
                         getUnknownPenaltyCount(member);
                       const isRoulettePending = unknownPenaltyCount > 0;
+                      const isExpanded = expandedPenaltyMemberIds.includes(
+                        member.memberId,
+                      );
+                      const penaltyContents = getPenaltyContents(member);
+                      const profileImageSrc = getProfileImageSrc(
+                        member.profileImage,
+                      );
 
                       return (
-                        <div
+                        <section
                           key={member.memberId}
-                          className='flex min-w-0 items-center justify-between rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-3'
+                          className='border-t border-white/5 first:border-t-0'
                         >
-                          <div className='flex min-w-0 items-center gap-3'>
-                            <Award className='h-4 w-4 shrink-0 text-[#FBBF24]' />
-                            <span className='truncate text-sm font-semibold text-slate-100'>
-                              {member.nickname}
-                              {isMe ? ' (나)' : ''}
-                            </span>
-                          </div>
                           <button
                             type='button'
-                            onClick={() => {
-                              if (!isRoulettePending) {
-                                setSelectedPenaltyMember(member);
-                              }
-                            }}
-                            disabled={isRoulettePending}
-                            className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors enabled:hover:bg-white/5 disabled:cursor-default disabled:text-white/45'
-                            aria-label={`${member.nickname} 벌칙 상세 보기`}
+                            onClick={() => togglePenaltyMember(member.memberId)}
+                            aria-expanded={isExpanded}
+                            aria-controls={`${member.memberId}-penalties`}
+                            className='flex w-full items-center gap-2.5 px-4 py-[9px] text-left transition-colors hover:bg-white/[0.03]'
                           >
-                            벌칙 {member.penalties.totalCount}개
-                            {isRoulettePending ? ' 뽑는중....' : ''}
-                            {!isRoulettePending ? (
-                              <ChevronDown className='h-4 w-4 text-white/35' />
-                            ) : null}
+                            <Avatar className='h-9 w-9 shrink-0 border border-white/10 bg-[#2a2a3e]'>
+                              {profileImageSrc ? (
+                                <AvatarImage
+                                  src={profileImageSrc}
+                                  alt={`${member.nickname} 프로필 이미지`}
+                                />
+                              ) : null}
+                              <AvatarFallback className='bg-transparent text-xs text-white/70'>
+                                {member.nickname.slice(0, 1)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className='min-w-0 flex-1'>
+                              <span className='truncate text-sm font-medium text-white/85'>
+                                {member.nickname}
+                                {member.isHost ? ' (방장)' : ''}
+                                {isMe ? ' (본인)' : ''}
+                              </span>
+                            </div>
+                            <span
+                              className={`shrink-0 text-sm ${
+                                isRoulettePending
+                                  ? 'text-white/45'
+                                  : 'text-white/75'
+                              }`}
+                            >
+                              {isRoulettePending
+                                ? '벌칙 뽑는 중'
+                                : `벌칙 ${member.penalties.totalCount}개`}
+                            </span>
+                            <ChevronDown
+                              className={`h-5 w-5 shrink-0 text-white/35 transition-transform duration-200 ${
+                                isExpanded ? 'rotate-180' : ''
+                              }`}
+                            />
                           </button>
-                        </div>
+                          {isExpanded ? (
+                            <div
+                              id={`${member.memberId}-penalties`}
+                              className='bg-[#0f0f1a] px-4 py-3.5'
+                            >
+                              {isRoulettePending ? (
+                                <p className='text-center text-sm text-white/70'>
+                                  벌칙을 뽑고 있어요.
+                                </p>
+                              ) : (
+                                <ul className='flex list-disc flex-col gap-2 pl-7 text-sm text-white/70 marker:text-white/70'>
+                                  {penaltyContents.map((penalty, index) => (
+                                    <li
+                                      key={`${member.memberId}-penalty-${index}`}
+                                    >
+                                      {penalty}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ) : null}
+                        </section>
                       );
                     })
                   ) : (
-                    <div className='flex items-center gap-3 rounded-xl border border-slate-800/70 bg-[#151926] px-4 py-4 text-sm text-slate-300'>
+                    <div className='flex items-center gap-3 px-4 py-4 text-sm text-slate-300'>
                       <ThumbsUp className='h-4 w-4 text-[#FBBF24]' />
                       벌칙 결과가 없어요.
                     </div>
@@ -407,69 +460,6 @@ export function TotalResult() {
           </div>
         </div>
       </div>
-
-      <Dialog
-        open={!!selectedPenaltyMember}
-        onOpenChange={(open) => !open && setSelectedPenaltyMember(null)}
-      >
-        <DialogContent className='w-[calc(100%-36px)] max-w-[354px] overflow-hidden rounded-xl border border-white/10 bg-[#1A1F31] p-0 text-left text-white/85'>
-          <DialogClose asChild>
-            <Button
-              type='button'
-              variant='ghost'
-              size='icon'
-              aria-label='닫기'
-              className='absolute right-3 top-3 h-8 w-8 rounded-full text-white/70 hover:bg-white/10 hover:text-white'
-            >
-              <X className='h-4 w-4' />
-            </Button>
-          </DialogClose>
-          {activePenaltyMember ? (
-            <>
-              <div className='px-4 pb-3 pr-12 pt-4'>
-                <DialogTitle className='text-base font-bold text-white/90'>
-                  {activePenaltyMember.nickname}
-                  {me?.role === 'user' && activePenaltyMember.userId === me.id
-                    ? ' (본인)'
-                    : ''}
-                </DialogTitle>
-              </div>
-
-              <div className='flex flex-col'>
-                {activePenaltyMember.penalties.items.map((penalty, index) => (
-                  <div
-                    key={`${activePenaltyMember.memberId}-${penalty.content}-${index}`}
-                    className='flex items-center gap-[9.7px] border-t border-white/5 px-4 py-[9px]'
-                  >
-                    <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
-                    <div className='flex min-w-0 flex-1 flex-col'>
-                      <span className='truncate text-sm font-medium text-white/85'>
-                        {penalty.content}
-                      </span>
-                    </div>
-                    <span className='shrink-0 text-xs text-white/75'>
-                      {penalty.count}개
-                    </span>
-                  </div>
-                ))}
-                {getUnknownPenaltyCount(activePenaltyMember) > 0 ? (
-                  <div className='flex items-center gap-[9.7px] border-t border-white/5 px-4 py-[9px]'>
-                    <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
-                    <div className='flex min-w-0 flex-1 flex-col'>
-                      <span className='truncate text-sm font-medium text-white/50'>
-                        룰렛 대기중
-                      </span>
-                    </div>
-                    <span className='shrink-0 text-xs text-white/75'>
-                      {getUnknownPenaltyCount(activePenaltyMember)}개
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
         <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'>

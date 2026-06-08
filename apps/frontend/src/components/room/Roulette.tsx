@@ -220,8 +220,8 @@ export function Roulette() {
         return;
       }
 
-      setSpinErrorMessage(message ?? '룰렛 나가기에 실패했습니다.');
       setIsDialogOpen(false);
+      router.push('/');
     },
   });
 

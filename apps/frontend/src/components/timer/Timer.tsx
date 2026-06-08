@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
@@ -47,6 +47,7 @@ export default function Timer() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const isFocusRef = useRef(true);
+  const isCheckingRoomPhaseRef = useRef(false);
 
   useEffect(() => {
     const myMember = me ? members[me.id] : undefined;
@@ -177,6 +178,33 @@ export default function Timer() {
   const focusDurationSec = (sessionInfo?.focusMin ?? 0) * 60;
   const breakDurationSec = (sessionInfo?.breakMin ?? 0) * 60;
 
+  const syncEndedSessionRoute = useCallback(async () => {
+    if (!sessionInfo || isCheckingRoomPhaseRef.current) return;
+
+    isCheckingRoomPhaseRef.current = true;
+    try {
+      const res = await getRoomApi().roomControllerFindById(room.code);
+      const data = res.data as { phase?: string };
+
+      if (data.phase === 'result') {
+        router.replace(`/room/${room.code}/semi-result`);
+      } else if (data.phase === 'closed') {
+        router.replace(`/room/${room.code}/total-result`);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        router.replace(`/room/${room.code}/total-result`);
+      }
+    } finally {
+      isCheckingRoomPhaseRef.current = false;
+    }
+  }, [room.code, router, sessionInfo]);
+
+  useEffect(() => {
+    if (phaseRemainingSec > 0) return;
+    void syncEndedSessionRoute();
+  }, [phaseRemainingSec, syncEndedSessionRoute]);
+
   useEffect(() => {
     if (!socket || !sessionInfo) return;
 
@@ -203,6 +231,7 @@ export default function Timer() {
         }
       } else {
         socket.emit('escape:end');
+        void syncEndedSessionRoute();
       }
     };
     const handleBlur = () => {
@@ -213,6 +242,7 @@ export default function Timer() {
 
     const handleFocus = () => {
       socket.emit('escape:end');
+      void syncEndedSessionRoute();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -223,7 +253,7 @@ export default function Timer() {
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [socket, sessionInfo]);
+  }, [socket, sessionInfo, syncEndedSessionRoute]);
 
   if (!me) return null;
   if (!sessionInfo)
