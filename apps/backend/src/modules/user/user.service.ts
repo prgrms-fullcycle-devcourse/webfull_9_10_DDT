@@ -182,7 +182,7 @@ export class UsersService {
       totalEscapeMs: m.result?.totalEscapeMs || 0,
       penaltyTier: m.result?.penaltyTier || 0,
       memberCount: m.room._count.roomMembers,
-      endedAt: m.room.endedAt,
+      endedAt: m.room.endedAt ?? m.gaveUpAt ?? new Date(),
     }));
 
     return {

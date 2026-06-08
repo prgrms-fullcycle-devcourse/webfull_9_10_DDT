@@ -32,12 +32,21 @@ export default function Timer() {
   const me = useAuth().me;
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
+  const members = useRoomStore((s) => s.members);
 
   const { isSupported: isWakeLockSupported } = useWakeLock();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const isFocusRef = useRef(true);
+
+  useEffect(() => {
+    const myMember = me ? members[me.id] : undefined;
+    if (myMember?.gaveUpAt) {
+      toast.error('이미 중도 포기한 세션입니다.');
+      router.replace(`/room/${room.code}/roulette?from=giveup`);
+    }
+  }, [me, members, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;

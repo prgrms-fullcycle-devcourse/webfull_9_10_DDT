@@ -291,6 +291,20 @@ export class TimerService implements OnModuleInit {
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
 
+    const raw = await this.redis.instance.get(`room:state:${roomCode}`);
+    if (raw) {
+      const state = JSON.parse(raw);
+      if (state.members[userId]) {
+        state.members[userId].gaveUpAt = now.toISOString();
+        await this.redis.instance.set(
+          `room:state:${roomCode}`,
+          JSON.stringify(state),
+          'EX',
+          7200,
+        );
+      }
+    }
+
     return responseData;
   }
 

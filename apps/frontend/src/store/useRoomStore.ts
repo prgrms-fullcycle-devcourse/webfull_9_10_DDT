@@ -10,7 +10,7 @@ export interface RoomMember {
   socketId?: string;
   isSigned?: boolean;
   canEdit?: boolean;
-  gaveUpAt?: boolean;
+  gaveUpAt?: string | null;
 }
 
 interface SessionInfo {

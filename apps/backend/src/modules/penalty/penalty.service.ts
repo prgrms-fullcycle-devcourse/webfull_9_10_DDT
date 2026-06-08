@@ -11,6 +11,27 @@ import type { PenaltyItem } from '@prisma/client';
 export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // 💡 중복된 이탈 시간(Interval)을 하나로 병합하는 헬퍼 메서드
+  private mergeIntervals(
+    intervals: { start: number; end: number }[],
+  ): { start: number; end: number }[] {
+    if (intervals.length <= 1) return intervals;
+    intervals.sort((a, b) => a.start - b.start);
+
+    const merged = [intervals[0]];
+    for (let i = 1; i < intervals.length; i++) {
+      const current = intervals[i];
+      const last = merged[merged.length - 1];
+
+      if (current.start <= last.end) {
+        last.end = Math.max(last.end, current.end);
+      } else {
+        merged.push(current);
+      }
+    }
+    return merged;
+  }
+
   private getEffectiveFocusEscapeMs(
     escapedAtMs: number,
     returnedAtMs: number,
@@ -71,21 +92,21 @@ export class PenaltyService {
         : new Date());
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
+    
+    // 💡 전체 집중 시간을 계산합니다. (최대치 상한용)
+    const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
     await this.prisma.$transaction(async (tx) => {
       for (const member of room.roomMembers) {
-        // give-up 멤버는 실제 anchor로 재산정, 나머지 기산정 멤버는 skip.
         if (processedIds.has(member.id) && !member.gaveUpAt) continue;
 
-        let totalEscapeMs = 0;
+        const intervals: { start: number; end: number }[] = [];
 
         for (const log of member.escapeLogs) {
           const escStart = log.escapedAt.getTime();
-
           const rawEnd = log.returnedAt
             ? log.returnedAt.getTime()
             : sessionEndedAt.getTime();
-          // 혹시 모를 오차를 위해 세션 종료 시간을 넘지 않도록 제한
           const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
 
           const effectiveMs = this.getEffectiveFocusEscapeMs(
@@ -96,8 +117,6 @@ export class PenaltyService {
             breakMin,
             rounds,
           );
-
-          totalEscapeMs += effectiveMs;
 
           if (log.returnedAt === null) {
             await tx.escapeLog.update({
@@ -110,19 +129,34 @@ export class PenaltyService {
               data: { durationMs: effectiveMs },
             });
           }
+
+          intervals.push({ start: escStart, end: escEnd });
         }
 
         if (member.gaveUpAt) {
-          const giveUpMs = this.getEffectiveFocusEscapeMs(
-            member.gaveUpAt.getTime(),
-            sessionEndedAt.getTime(),
+          intervals.push({
+            start: member.gaveUpAt.getTime(),
+            end: sessionEndedAt.getTime(),
+          });
+        }
+
+        // 💡 1단계: 겹치는 이탈 시간 병합
+        const mergedIntervals = this.mergeIntervals(intervals);
+        let totalEscapeMs = 0;
+        
+        for (const interval of mergedIntervals) {
+          totalEscapeMs += this.getEffectiveFocusEscapeMs(
+            interval.start,
+            interval.end,
             sessionStartMs,
             focusMin,
             breakMin,
             rounds,
           );
-          totalEscapeMs += giveUpMs;
         }
+
+        // 💡 2단계: 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정
+        totalEscapeMs = Math.min(totalEscapeMs, totalFocusMsConst);
 
         const existing = await tx.roomResult.findUnique({
           where: { roomMemberId: member.id },
@@ -137,7 +171,6 @@ export class PenaltyService {
           );
 
           if (existing) {
-            // 이탈시간·등급만 갱신, 벌칙 행은 보존.
             await tx.roomResult.update({
               where: { roomMemberId: member.id },
               data: { totalEscapeMs, penaltyTier },
@@ -197,7 +230,6 @@ export class PenaltyService {
     });
   }
 
-  /** 포기 시점 단독 벌칙 임시 산정·저장. 등급=이탈시간 기반, 개수=최대, 즉시 전체공개. */
   async calculateAndSaveForGiveUp(
     roomCode: string,
     memberId: string,
@@ -234,9 +266,12 @@ export class PenaltyService {
         : new Date());
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
+    
+    // 💡 전체 집중 시간을 계산합니다. (최대치 상한용)
+    const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
     await this.prisma.$transaction(async (tx) => {
-      let totalEscapeMs = 0;
+      const intervals: { start: number; end: number }[] = [];
 
       for (const log of member.escapeLogs) {
         const escStart = log.escapedAt.getTime();
@@ -253,8 +288,6 @@ export class PenaltyService {
           rounds,
         );
 
-        totalEscapeMs += effectiveMs;
-
         if (log.returnedAt === null) {
           await tx.escapeLog.update({
             where: { id: log.id },
@@ -266,19 +299,34 @@ export class PenaltyService {
             data: { durationMs: effectiveMs },
           });
         }
+
+        intervals.push({ start: escStart, end: escEnd });
       }
 
-      // timer.giveUp이 열린 로그를 gaveUpAt으로 마감하므로 위 구간과 이중합산 없음.
       if (member.gaveUpAt) {
+        intervals.push({
+          start: member.gaveUpAt.getTime(),
+          end: sessionEndedAt.getTime(),
+        });
+      }
+
+      // 💡 1단계: 겹치는 이탈 시간 병합
+      const mergedIntervals = this.mergeIntervals(intervals);
+      let totalEscapeMs = 0;
+
+      for (const interval of mergedIntervals) {
         totalEscapeMs += this.getEffectiveFocusEscapeMs(
-          member.gaveUpAt.getTime(),
-          sessionEndedAt.getTime(),
+          interval.start,
+          interval.end,
           sessionStartMs,
           focusMin,
           breakMin,
           rounds,
         );
       }
+
+      // 💡 2단계: 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정
+      totalEscapeMs = Math.min(totalEscapeMs, totalFocusMsConst);
 
       const { penaltyTier } = calculatePenaltyTier(
         totalEscapeMs,
@@ -319,7 +367,6 @@ export class PenaltyService {
     });
   }
 
-  /** Fisher-Yates 셔플 후 penaltyCount만큼 순환 배정. */
   private assignPenalties(
     pool: PenaltyItem[],
     count: number,
