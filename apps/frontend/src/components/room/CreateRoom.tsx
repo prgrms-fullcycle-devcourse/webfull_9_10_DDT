@@ -175,13 +175,11 @@ export const CreateRoom = () => {
     const text = `[${roomName}] 에 초대합니다\n비밀번호 : ${password}\n방 코드 : ${roomCode}\n입장 링크 : ${inviteLink}`;
 
     // 모바일/태블릿이면 네이티브 공유 시트로, 그 외에는 클립보드 복사로 폴백한다.
+    // text에 이미 제목·비밀번호·코드·링크가 모두 담겨 있으므로 title·url은 넘기지 않는다.
+    // (둘을 함께 넘기면 공유 앱이 text 앞뒤로 합쳐 중복 표기됨)
     if (isMobileOrTablet() && navigator.share) {
       try {
-        await navigator.share({
-          title: `[${roomName}] 에 초대합니다`,
-          text,
-          url: inviteLink,
-        });
+        await navigator.share({ text });
         return;
       } catch (err) {
         // 사용자가 공유 시트를 닫은 경우(AbortError)는 조용히 무시한다.

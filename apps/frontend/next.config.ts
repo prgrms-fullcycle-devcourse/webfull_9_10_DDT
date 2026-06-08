@@ -11,10 +11,13 @@ const nextConfig: NextConfig = {
 
 const withPWA = withPWAInit({
   dest: 'public',
+  register: true,
+  customWorkerSrc: 'worker',
+  customWorkerDest: 'public',
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === 'development',
+  //disable: process.env.NODE_ENV === 'development',
   workboxOptions: {
     disableDevLogs: true,
   },

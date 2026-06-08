@@ -15,12 +15,20 @@ export class SessionProcessor extends WorkerHost {
 
   async process(job: Job<SessionJob>): Promise<void> {
     const data = job.data;
+    this.logger.log(
+      `[BullMQ] 잡 실행 시작 (kind=${data.kind}, room=${data.roomCode})`,
+    );
     try {
       if (data.kind === 'end') {
         await this.timerService.endSession(data.roomCode);
-      } else {
+      } else if (data.kind === 'break-start') {
+        await this.timerService.emitEscapeSummary(data.roomCode);
+      } else if (data.kind === 'break-warning') {
         await this.timerService.sendBreakWarning(data.roomCode);
       }
+      this.logger.log(
+        `[BullMQ] 잡 실행 완료 (kind=${data.kind}, room=${data.roomCode})`,
+      );
     } catch (err: unknown) {
       Sentry.captureException(err);
       this.logger.error(

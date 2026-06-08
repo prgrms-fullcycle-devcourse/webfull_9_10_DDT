@@ -182,7 +182,7 @@ export class UsersService {
       totalEscapeMs: m.result?.totalEscapeMs || 0,
       penaltyTier: m.result?.penaltyTier || 0,
       memberCount: m.room._count.roomMembers,
-      endedAt: m.room.endedAt,
+      endedAt: m.room.endedAt ?? m.gaveUpAt ?? new Date(),
     }));
 
     return {
@@ -225,7 +225,7 @@ export class UsersService {
         const { focusMin, rounds } = m.room.template;
         const plannedFocusMs = focusMin * rounds * 60 * 1000;
         const effectiveFocus = plannedFocusMs - (m.result?.totalEscapeMs || 0);
-        
+
         totalFocusMs += effectiveFocus > 0 ? effectiveFocus : 0;
       }
     });

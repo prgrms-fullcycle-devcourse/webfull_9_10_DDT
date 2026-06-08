@@ -1,7 +1,6 @@
 import {
   Injectable,
   BadRequestException,
-  ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
@@ -9,6 +8,23 @@ import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { RedisService } from '../../common/redis/redis.service';
 import { User } from '@prisma/client';
+
+// 가입 시 랜덤 부여할 기본 프로필 이미지 풀 (user.service의 validProfileImages와 동일)
+const PROFILE_IMAGE_KEYS = [
+  'basic_image_key_01',
+  'basic_image_key_02',
+  'basic_image_key_03',
+  'basic_image_key_04',
+  'basic_image_key_05',
+  'basic_image_key_06',
+  'basic_image_key_07',
+  'basic_image_key_08',
+  'basic_image_key_09',
+  'basic_image_key_10',
+];
+
+const getRandomProfileImage = () =>
+  PROFILE_IMAGE_KEYS[Math.floor(Math.random() * PROFILE_IMAGE_KEYS.length)];
 
 interface GoogleProfile {
   id: string;
@@ -54,7 +70,8 @@ export class AuthService {
           nickname: nickname || '수감자',
           provider: 'google',
           providerId: id,
-          profileImage: 'DEFAULT_PROFILE_1',
+          // 가입 시 최초 1회 프로필 이미지를 랜덤 부여한다.
+          profileImage: getRandomProfileImage(),
           isTermsAgreed: false,
         },
       });
@@ -78,7 +95,7 @@ export class AuthService {
     const payload = { sub: guestId, role: 'guest' };
 
     return {
-      accessToken: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload, { expiresIn: '12h' }),
       guestToken: guestId,
     };
   }
@@ -99,7 +116,7 @@ export class AuthService {
     }
 
     if (user.isTermsAgreed) {
-      throw new ConflictException('이미 약관 동의가 완료된 계정입니다.');
+      return { success: true };
     }
 
     await this.prisma.user.update({

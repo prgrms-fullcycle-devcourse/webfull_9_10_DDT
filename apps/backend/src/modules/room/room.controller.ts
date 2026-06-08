@@ -21,6 +21,7 @@ import {
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JoinRoomDto } from './dto/join-room.dto';
+import { EscapeService } from '../escape/escape.service';
 
 interface AuthenticatedRequest extends Request {
   user: { id: string; email: string; role: string };
@@ -29,7 +30,10 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('Room API')
 @Controller('rooms')
 export class RoomController {
-  constructor(private readonly roomService: RoomService) {}
+  constructor(
+    private readonly roomService: RoomService,
+    private readonly escapeService: EscapeService,
+  ) {}
 
   @ApiBearerAuth()
   @ApiOperation({
@@ -184,5 +188,12 @@ export class RoomController {
   @UseGuards(AuthGuard('jwt'))
   async getMyActiveRoom(@Req() req: AuthenticatedRequest) {
     return this.roomService.findMyActiveRoom(req.user.id);
+  }
+
+  @Get(':code/escape-summary')
+  @UseGuards(AuthGuard('jwt'))
+  async getEscapeSummary(@Param('code') code: string) {
+    const summary = await this.escapeService.getCurrentSummary(code);
+    return summary;
   }
 }

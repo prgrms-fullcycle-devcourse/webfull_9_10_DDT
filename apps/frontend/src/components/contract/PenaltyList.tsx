@@ -14,6 +14,7 @@ import { Input } from '../ui/input';
 import { cn } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
+import { ComponentPropsWithoutRef, useEffect, useRef, useState } from 'react';
 
 interface PenaltyListProps {
   yjs: Pick<
@@ -26,6 +27,66 @@ interface PenaltyListProps {
     | 'handleFocus'
     | 'handleBlur'
   >;
+}
+
+interface PenaltyInputProps extends Omit<
+  ComponentPropsWithoutRef<typeof Input>,
+  'value' | 'onChange'
+> {
+  content: string;
+  onUpdate: (val: string) => void;
+}
+
+function PenaltyInput({
+  content,
+  onUpdate,
+  onFocus,
+  onBlur,
+  ...props
+}: PenaltyInputProps) {
+  const [draft, setDraft] = useState(content ?? '');
+  const isEditingRef = useRef(false);
+  const isComposingRef = useRef(false);
+
+  // 편집 중이 아닐 때만 외부 Yjs 값 반영 (다른 유저 업데이트)
+  useEffect(() => {
+    if (!isEditingRef.current) {
+      setDraft(content ?? '');
+    }
+  }, [content]);
+
+  return (
+    <Input
+      maxLength={50}
+      value={draft}
+      onFocus={(e) => {
+        isEditingRef.current = true;
+        onFocus?.(e);
+      }}
+      onCompositionStart={() => {
+        isComposingRef.current = true;
+      }}
+      onCompositionEnd={(e) => {
+        isComposingRef.current = false;
+        const val = (e.target as HTMLInputElement).value;
+        setDraft(val);
+        onUpdate(val);
+      }}
+      onChange={(e) => {
+        const val = e.target.value;
+        setDraft(val); // 로컬 상태만 업데이트 → cursor 유지
+        if (!isComposingRef.current) {
+          onUpdate(val); // 한글 조합 중 아닐 때만 Yjs 동기화
+        }
+      }}
+      onBlur={(e) => {
+        isEditingRef.current = false;
+        onUpdate(draft); // blur 시 최종 값 Yjs 동기화
+        onBlur?.(e);
+      }}
+      {...props}
+    />
+  );
 }
 
 export default function PenaltyList({ yjs }: PenaltyListProps) {
@@ -60,7 +121,6 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
           <div className='flex flex-col gap-2'>
             {penalties.map((p, i) => {
               const penaltyKey = `penalty_${p.id}`; // 고유 필드 키 생성
-
               return (
                 <div key={p.id} className='space-y-2'>
                   <OwnerIndicator
@@ -69,8 +129,9 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                   />
                   <div className='flex gap-2 items-center'>
                     <div className='w-full h-fit relative'>
-                      <Input
-                        value={p.content}
+                      <PenaltyInput
+                        content={p.content}
+                        onUpdate={(val) => updatePenalty(i, val)}
                         className={cn(
                           fieldOwners[penaltyKey] &&
                             'outline-2 outline-offset-1',
@@ -79,7 +140,6 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                         style={{
                           outlineColor: fieldOwners[penaltyKey]?.color,
                         }}
-                        // 여기서 본인이 아닌 다른 사람이 편집 중일 때 입력을 막음
                         disabled={
                           !canEdit ||
                           (!!fieldOwners[penaltyKey] &&
@@ -90,7 +150,6 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                           handleFocus(penaltyKey, me.id, myNickname)
                         }
                         onBlur={handleBlur}
-                        onChange={(e) => updatePenalty(i, e.target.value)}
                       />
                       {canEdit && (
                         <Button

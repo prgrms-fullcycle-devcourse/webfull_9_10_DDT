@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
 import { useRoom } from '@/contexts/RoomContext';
 import { useSocket } from '@/contexts/SocketContext';
-import { useRoomStore } from '@/store/useRoomStore';
+import { EscapeSummaryItem, useRoomStore } from '@/store/useRoomStore';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
@@ -24,6 +24,8 @@ import {
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDuration } from '@/lib/format';
+import { getRoomApi } from '@/api/generated/room-api/room-api';
 
 export default function Timer() {
   const router = useRouter();
@@ -32,12 +34,28 @@ export default function Timer() {
   const me = useAuth().me;
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
+  const members = useRoomStore((s) => s.members);
+
+  const escapeSummary = useRoomStore((s) => s.escapeSummary);
+  const setEscapeSummary = useRoomStore((s) => s.setEscapeSummary);
+  const myEscapeMs =
+    escapeSummary.find((m: EscapeSummaryItem) => m.identifier === me?.id)
+      ?.totalEscapeMs ?? 0;
 
   const { isSupported: isWakeLockSupported } = useWakeLock();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const isFocusRef = useRef(true);
+  const isCheckingRoomPhaseRef = useRef(false);
+
+  useEffect(() => {
+    const myMember = me ? members[me.id] : undefined;
+    if (myMember?.gaveUpAt) {
+      toast.error('이미 중도 포기한 세션입니다.');
+      router.replace(`/room/${room.code}/roulette?from=giveup`);
+    }
+  }, [me, members, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;
@@ -60,9 +78,17 @@ export default function Timer() {
     if (!socket || !sessionInfo) return;
     const interval = window.setInterval(() => {
       socket.emit('heartbeat');
-    }, 10000);
+    }, 5000);
     return () => window.clearInterval(interval);
   }, [socket, sessionInfo]);
+
+  useEffect(() => {
+    void getRoomApi()
+      .roomControllerGetEscapeSummary(room.code)
+      .then((res) =>
+        setEscapeSummary(res.data as unknown as EscapeSummaryItem[]),
+      );
+  }, [room.code, setEscapeSummary]);
 
   useEffect(() => {
     async function subscribeToPush() {
@@ -107,7 +133,13 @@ export default function Timer() {
     onSuccess: () => {
       toast.info('중도 포기 처리되었습니다.');
       setIsModalOpen(false);
-      router.push(`/room/${room.code}/roulette?from=giveup`);
+      
+      if (me?.role === 'guest') {
+        document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        router.push(`/room/${room.code}/total-result`);
+      } else {
+        router.push(`/room/${room.code}/roulette?from=giveup`);
+      }
     },
     onError: (error) => {
       const message = axios.isAxiosError(error)
@@ -152,6 +184,33 @@ export default function Timer() {
   const focusDurationSec = (sessionInfo?.focusMin ?? 0) * 60;
   const breakDurationSec = (sessionInfo?.breakMin ?? 0) * 60;
 
+  const syncEndedSessionRoute = useCallback(async () => {
+    if (!sessionInfo || isCheckingRoomPhaseRef.current) return;
+
+    isCheckingRoomPhaseRef.current = true;
+    try {
+      const res = await getRoomApi().roomControllerFindById(room.code);
+      const data = res.data as { phase?: string };
+
+      if (data.phase === 'result') {
+        router.replace(`/room/${room.code}/semi-result`);
+      } else if (data.phase === 'closed') {
+        router.replace(`/room/${room.code}/total-result`);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        router.replace(`/room/${room.code}/total-result`);
+      }
+    } finally {
+      isCheckingRoomPhaseRef.current = false;
+    }
+  }, [room.code, router, sessionInfo]);
+
+  useEffect(() => {
+    if (phaseRemainingSec > 0) return;
+    void syncEndedSessionRoute();
+  }, [phaseRemainingSec, syncEndedSessionRoute]);
+
   useEffect(() => {
     if (!socket || !sessionInfo) return;
 
@@ -168,7 +227,7 @@ export default function Timer() {
   useEffect(() => {
     if (!socket || !sessionInfo) return;
 
-    const handler = () => {
+    const handleVisibilityChange = () => {
       if (document.hidden) {
         if (isFocusRef.current) {
           socket.emit('escape:start');
@@ -178,12 +237,29 @@ export default function Timer() {
         }
       } else {
         socket.emit('escape:end');
+        void syncEndedSessionRoute();
+      }
+    };
+    const handleBlur = () => {
+      if (isFocusRef.current) {
+        socket.emit('escape:start');
       }
     };
 
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, [socket, sessionInfo]);
+    const handleFocus = () => {
+      socket.emit('escape:end');
+      void syncEndedSessionRoute();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [socket, sessionInfo, syncEndedSessionRoute]);
 
   if (!me) return null;
   if (!sessionInfo)
@@ -285,7 +361,9 @@ export default function Timer() {
         {!isFocus && (
           <div className='text-center mt-10 w-full max-w-sm'>
             <p className='text-xs text-muted-foreground mb-1'>총 이탈 시간</p>
-            <p className='text-2xl font-bold tracking-wider mb-4'>00:00</p>
+            <p className='text-2xl font-bold tracking-wider mb-4'>
+              {myEscapeMs > 0 ? formatDuration(myEscapeMs) : '0초'}
+            </p>
 
             <div className='flex items-center justify-center gap-2 bg-muted/20 border border-border rounded-xl px-4 py-3 text-xs text-primary'>
               <svg

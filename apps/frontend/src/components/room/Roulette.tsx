@@ -98,8 +98,8 @@ const getUnrevealedPenaltyCount = (
 export function Roulette() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
+  const { me } = useAuth();
   const searchParams = useSearchParams();
-  const { me, refetchMe } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -113,10 +113,6 @@ export function Roulette() {
   const finishTarget = isGiveUpRoulette
     ? '/'
     : `/room/${params.code}/total-result`;
-
-  useEffect(() => {
-    if (!me) void refetchMe();
-  }, [refetchMe, me]);
 
   const {
     data: result,
@@ -150,9 +146,7 @@ export function Roulette() {
   const rouletteItems = useMemo<RoulettePenalty[]>(
     () =>
       toRouletteItems(
-        isGiveUpRoulette
-          ? giveUpResult?.penaltyPool
-          : result?.rule?.penalties,
+        isGiveUpRoulette ? giveUpResult?.penaltyPool : result?.rule?.penalties,
       ),
     [giveUpResult, isGiveUpRoulette, result],
   );
@@ -226,8 +220,8 @@ export function Roulette() {
         return;
       }
 
-      setSpinErrorMessage(message ?? '룰렛 나가기에 실패했습니다.');
       setIsDialogOpen(false);
+      router.push('/');
     },
   });
 
@@ -268,13 +262,15 @@ export function Roulette() {
     router,
   ]);
 
-  const revealedChances = isGiveUpRoulette ? 0 : myResult?.penaltyCount ?? 0;
+  const revealedChances = isGiveUpRoulette ? 0 : (myResult?.penaltyCount ?? 0);
   const totalChances = isGiveUpRoulette
     ? giveUpSpinResults.length
     : getUnrevealedPenaltyCount(myResult);
   const pickedSpins = Math.min(totalChances, currentIndex);
   const remainingChances = Math.max(0, totalChances - pickedSpins);
   const hasResolvedResult = isGiveUpRoulette || !!myResult;
+  // 멤버 1명(혼자) 방: "다른 멤버"가 없으므로 완료 버튼 라벨을 분기.
+  const isSoloMember = (result?.members?.length ?? 0) <= 1;
   const isAllCompleted =
     (hasResolvedResult && totalChances === 0) ||
     (totalChances > 0 && remainingChances === 0) ||
@@ -411,7 +407,9 @@ export function Roulette() {
                 : isAllCompleted
                   ? isGiveUpRoulette
                     ? '홈 화면으로 이동'
-                    : '다른 멤버 벌칙 보기'
+                    : isSoloMember
+                      ? '결과 확인하기'
+                      : '다른 멤버 벌칙 보기'
                   : `룰렛 돌리기 (${Math.max(
                       0,
                       remainingChances,
