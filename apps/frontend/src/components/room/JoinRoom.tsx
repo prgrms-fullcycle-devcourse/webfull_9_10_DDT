@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import {
   PROFILE_IMAGE_OPTIONS,
   getProfileImageOptionKey,
+  getRandomProfileIndex,
 } from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { getErrorMessage } from '@/lib/error';
@@ -41,8 +42,13 @@ export const JoinRoom = () => {
   // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
   const isMember = isLoggedIn && me?.role === 'user';
   const defaultNickname = isMember ? (me?.nickname ?? '') : '';
+
+  // 게스트(비로그인) 입장 시 초기 프로필은 랜덤 부여한다.
+  // useState 초기화로 1회만 뽑아 재렌더마다 바뀌지 않게 한다.
+  const [guestRandomProfile] = useState(getRandomProfileIndex);
+
   const defaultProfile = (() => {
-    if (!isMember) return 0;
+    if (!isMember) return guestRandomProfile;
     const optionKey = getProfileImageOptionKey(me?.profileImage);
     const idx = PROFILE_IMAGE_OPTIONS.findIndex(
       (item) => item.key === optionKey,

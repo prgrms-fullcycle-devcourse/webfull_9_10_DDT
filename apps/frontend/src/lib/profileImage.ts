@@ -13,6 +13,10 @@ export const PROFILE_IMAGE_OPTIONS = [
 
 export const DEFAULT_PROFILE_IMAGE_KEY = 'basic_image_key_01';
 
+// 프로필 이미지 옵션 중 랜덤 인덱스를 반환한다. (게스트 입장 시 초기 프로필 랜덤 부여용)
+export const getRandomProfileIndex = () =>
+  Math.floor(Math.random() * PROFILE_IMAGE_OPTIONS.length);
+
 const activeToLegacyProfileKey: Record<string, string> = {
   AVATAR_BEAR: 'basic_image_key_01',
   AVATAR_CAT: 'basic_image_key_02',
