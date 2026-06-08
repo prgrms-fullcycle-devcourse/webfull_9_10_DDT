@@ -35,7 +35,7 @@ export const MainPage = () => {
   };
 
   const normalizeRoomCode = (value: string) =>
-    value.replace(/[^a-zA-Z0-9]/g, '');
+    value.replace(/[^a-zA-Z0-9_]/g, '');
 
   const normalizedRoomCode = normalizeRoomCode(roomCode);
   const isCodeValid = normalizedRoomCode.length === 8;
