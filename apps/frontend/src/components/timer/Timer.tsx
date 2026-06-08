@@ -44,7 +44,7 @@ export default function Timer() {
     const myMember = me ? members[me.id] : undefined;
     if (myMember?.gaveUpAt) {
       toast.error('이미 중도 포기한 세션입니다.');
-      router.replace(`/`);
+      router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
   }, [me, members, room.code, router]);
 
