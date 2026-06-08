@@ -183,23 +183,10 @@ export class ResultService {
     return count > 0;
   }
 
-  async getResult(
-    roomCode: string,
-    userId: string | null,
-    guestToken: string | null,
-  ) {
+  async getResult(roomCode: string) {
     let room = await this.fetchRoom(roomCode);
 
     if (!room) throw new NotFoundException('결과를 찾을 수 없습니다.');
-
-    // 로드된 members 재사용해 추가 쿼리 없이 멤버십 검증.
-    const isMember = room.roomMembers.some(
-      (m) =>
-        (userId !== null && m.userId === userId) ||
-        (guestToken !== null && m.guestToken === guestToken),
-    );
-    if (!isMember)
-      throw new ForbiddenException('해당 방의 결과 조회 권한이 없습니다.');
 
     // phase='closed'여도 endedAt 있으면 결과 조회 허용 (빈 방 정리와 결과 조회 공존).
     const isViewable =
