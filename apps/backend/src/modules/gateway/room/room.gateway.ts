@@ -142,6 +142,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId: client.data.userId,
       ...roomState.members[client.data.userId],
     });
+
+    if (roomState.phase === 'timer') {
+      if (userId) {
+        await this.escapeService.logEscapeEnd(roomCode, userId);
+      }
+      await this.emitSessionStartedIfTimer(client, roomCode);
+    }
   }
 
   async handleDisconnect(client: RoomSocket): Promise<void> {
@@ -152,6 +159,9 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!roomCode || !userId) {
       return;
     }
+
+    // 💡 로그 스팸을 방지하기 위해 정상 종료 시 Heartbeat 삭제!
+    await this.escapeService.clearHeartbeat(roomCode, userId);
 
     const roomState = await this.roomService.getRoomState(roomCode);
 
@@ -207,6 +217,16 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async handleRoomCleanup(roomCode: string): Promise<void> {
+    const roomState = await this.roomService.getRoomState(roomCode);
+
+    // 타이머/결과 진행 중이거나 전원이 오프라인이어도 방을 폭파하지 않고 유지합니다.
+    if (roomState && ['timer', 'result'].includes(roomState.phase)) {
+      this.logger.log(
+        `[보호됨] 타이머/결과 진행 중이므로 방(${roomCode})을 폭파하지 않습니다.`,
+      );
+      return;
+    }
+
     const currentCount = await this.roomService.countConnectedMembers(roomCode);
     if (currentCount === 0) {
       this.server.to(roomCode).emit('room:closed', {
@@ -338,5 +358,43 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .to(roomCode)
       .emit('edit:all-updated', { canEdit: body.canEdit });
+  }
+
+  @SubscribeMessage('heartbeat')
+  async handleHeartbeat(@ConnectedSocket() client: RoomSocket) {
+    const { roomCode, userId } = client.data;
+    await this.escapeService.updateHeartbeat(roomCode, userId);
+  }
+
+  @SubscribeMessage('escape:start')
+  async handleEscapeStart(@ConnectedSocket() client: RoomSocket) {
+    const { roomCode, userId } = client.data;
+    await this.escapeService.logEscapeStart(roomCode, userId);
+  }
+
+  @SubscribeMessage('escape:end')
+  async handleEscapeEnd(@ConnectedSocket() client: RoomSocket) {
+    const { roomCode, userId } = client.data;
+    await this.escapeService.logEscapeEnd(roomCode, userId);
+  }
+
+  private async emitSessionStartedIfTimer(
+    client: RoomSocket,
+    roomCode: string,
+  ) {
+    const room = await this.roomService.findRoomWithTemplate(roomCode);
+
+    if (!room?.startedAt || !room.template) {
+      this.logger.warn(`timer phase인데 정보 부족: ${roomCode}`);
+      return;
+    }
+
+    client.emit('session:started', {
+      startedAt: room.startedAt,
+      focusMin: room.template.focusMin,
+      breakMin: room.template.breakMin,
+      totalRounds: room.template.rounds,
+      serverTime: new Date(),
+    });
   }
 }

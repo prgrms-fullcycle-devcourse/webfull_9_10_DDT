@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { EscapeService } from './escape.service';
-import { EscapeGateway } from './escape.gateway';
+import { HeartBeatExpirationService } from './heartbeat-expiration.service';
 
 @Module({
-  providers: [EscapeService, EscapeGateway],
+  providers: [EscapeService, HeartBeatExpirationService],
   exports: [EscapeService],
 })
 export class EscapeModule {}

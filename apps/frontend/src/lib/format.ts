@@ -1,11 +1,15 @@
 export const formatDuration = (milliseconds: number) => {
-  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60_000));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
 
-  if (hours > 0 && minutes > 0) return `${hours}시간 ${minutes}분`;
-  if (hours > 0) return `${hours}시간 00분`;
-  return `${minutes}분`;
+  // 0이 아닌 단위만 조합한다. (1분 미만의 이탈도 '초'로 드러나 색 판정과 일치)
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours}시간`);
+  if (minutes > 0) parts.push(`${minutes}분`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}초`);
+  return parts.join(' ');
 };
 
 export const formatDateWithDots = (value: string | Date) => {

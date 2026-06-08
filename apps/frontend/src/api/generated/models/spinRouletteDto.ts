@@ -7,6 +7,6 @@
  */
 
 export interface SpinRouletteDto {
-  /** 스핀할 룰렛의 인덱스 (1부터 시작) */
+  /** 전역 스핀 순번(1부터 remainingSpins까지). content 오름차순을 count만큼 펼친 인스턴스 순번이며, 1부터 순차 증가시켜 보냅니다. 마지막 순번(= count 총합)에서 전체 공개 + result:revealed 브로드캐스트가 발생합니다. 범위를 벗어나면 400, 이미 전부 공개된 뒤 재호출 시 409. */
   spinIndex: number;
 }

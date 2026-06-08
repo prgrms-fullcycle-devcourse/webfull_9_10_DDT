@@ -35,6 +35,9 @@ export class ResultMemberDto {
   @ApiProperty({ example: 'user-uuid', nullable: true, type: String })
   userId!: string | null;
 
+  @ApiProperty({ example: 'guest-uuid', nullable: true, type: String })
+  guestToken!: string | null;
+
   @ApiProperty({ example: '집중왕' })
   nickname!: string;
 

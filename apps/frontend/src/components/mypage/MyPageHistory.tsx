@@ -1,24 +1,15 @@
 'use client';
 
-import axios from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { HeaderTitle } from '../layout/HeaderTitle';
 import { BackButton } from '../layout/BackButton';
 import { MyPageHistoryList, HistoryItem } from '@/components/mypage/MyPageHistoryList';
+import { Button } from '@/components/ui/button';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 
-type ApiEnvelope<T> = {
-  data?: T;
-};
-
 const PAGE_SIZE = 10;
-
-const getCookieToken = () => {
-  if (typeof document === 'undefined') return undefined;
-  return document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
-};
 
 export function MyPageHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -26,7 +17,8 @@ export function MyPageHistory() {
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState(''); // 1페이지(전체) 실패
+  const [loadMoreError, setLoadMoreError] = useState(''); // 추가 페이지(부분) 실패
 
   const loadingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -38,30 +30,33 @@ export function MyPageHistory() {
     loadingRef.current = true;
 
     try {
-      const token = getCookieToken();
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const axiosInstance = axios.create({ baseURL: apiUrl });
-      const usersApi = getUsers(axiosInstance);
+      // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
+      const response = await getUsers().usersControllerGetMyHistory({
+        page: nextPage,
+        limit: PAGE_SIZE,
+      });
 
-      const response = await usersApi.usersControllerGetMyHistory(
-        { page: nextPage, limit: PAGE_SIZE },
-        { headers: { Authorization: `Bearer ${token ?? ''}` } },
-      );
-
-      const result = response.data as ApiEnvelope<{
+      const data = response.data as {
         total: number;
         page: number;
         sessions?: HistoryItem[];
-      }>;
+      };
 
-      const sessions = result.data?.sessions ?? [];
-      setTotal(result.data?.total ?? 0);
+      const sessions = data?.sessions ?? [];
+      setTotal(data?.total ?? 0);
       setPage(nextPage);
       setHistory((prev) => (nextPage === 1 ? sessions : [...prev, ...sessions]));
       setErrorMessage('');
+      setLoadMoreError('');
     } catch {
-      if (nextPage === 1) setHistory([]);
-      setErrorMessage('참여 기록을 불러오지 못했습니다.');
+      if (nextPage === 1) {
+        // 전체 실패: 목록을 비우고 전체 에러 표시
+        setHistory([]);
+        setErrorMessage('참여 기록을 불러오지 못했습니다.');
+      } else {
+        // 부분 실패: 기존 목록은 유지하고, 추가 로드 에러만 표시
+        setLoadMoreError('추가 기록을 불러오지 못했습니다.');
+      }
     } finally {
       loadingRef.current = false;
       setIsLoading(false);
@@ -76,10 +71,17 @@ export function MyPageHistory() {
     void Promise.resolve().then(() => loadPage(1));
   }, [loadPage]);
 
-  // 무한 스크롤: 센티넬이 보이면 다음 페이지 로드
+  const loadMore = useCallback(() => {
+    setIsLoadingMore(true);
+    setLoadMoreError('');
+    void loadPage(page + 1);
+  }, [loadPage, page]);
+
+  // 무한 스크롤: 센티넬이 보이면 다음 페이지 로드.
+  // 추가 로드 에러가 떠 있으면 자동 재요청을 멈춘다(동일 실패 무한 반복 방지).
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
+    if (!sentinel || !hasMore || loadMoreError) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -93,7 +95,7 @@ export function MyPageHistory() {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, page, loadPage]);
+  }, [hasMore, page, loadPage, loadMoreError]);
 
   return (
     <RequireAuth>
@@ -117,11 +119,23 @@ export function MyPageHistory() {
         />
 
         {hasMore && (
-          <div
-            ref={sentinelRef}
-            className='py-4 text-center text-[13px] text-[#898793]'
-          >
-            {isLoadingMore ? '불러오는 중...' : ''}
+          <div className='py-4 text-center text-[13px] text-[#898793]'>
+            {loadMoreError ? (
+              <div className='flex flex-col items-center gap-2'>
+                <span className='text-[#FFB3C0]'>{loadMoreError}</span>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='border border-white/20'
+                  onClick={loadMore}
+                >
+                  다시 시도
+                </Button>
+              </div>
+            ) : (
+              // 센티넬: 에러가 없을 때만 화면에 두어 자동 로드를 트리거한다.
+              <div ref={sentinelRef}>{isLoadingMore ? '불러오는 중...' : ''}</div>
+            )}
           </div>
         )}
       </MobileLayout>

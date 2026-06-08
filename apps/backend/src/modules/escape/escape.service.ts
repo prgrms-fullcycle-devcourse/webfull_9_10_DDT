@@ -18,6 +18,11 @@ export class EscapeService {
     );
   }
 
+  // 💡 소켓이 정상적으로 끊어졌을 때 Heartbeat 키를 삭제하는 로직 추가
+  async clearHeartbeat(roomCode: string, identifier: string) {
+    await this.redis.instance.del(`heartbeat:${roomCode}:${identifier}`);
+  }
+
   async logEscapeStart(roomCode: string, identifier: string) {
     const room = await this.prisma.room.findUnique({
       where: { code: roomCode },
@@ -32,7 +37,7 @@ export class EscapeService {
       },
     });
 
-    if (!member) return;
+    if (!member || member.gaveUpAt) return;
 
     const activeEscape = await this.prisma.escapeLog.findFirst({
       where: { roomMemberId: member.id, returnedAt: null },
@@ -57,23 +62,22 @@ export class EscapeService {
       },
     });
 
-    if (!member) return;
-
+    if (!member || member.gaveUpAt) return;
     const activeEscape = await this.prisma.escapeLog.findFirst({
       where: { roomMemberId: member.id, returnedAt: null },
-      orderBy: { escapedAt: 'desc' },
     });
 
-    if (!activeEscape) return;
+    if (activeEscape) {
+      const now = new Date();
+      const durationMs = now.getTime() - activeEscape.escapedAt.getTime();
 
-    const returnedAt = new Date();
-    const durationMs = returnedAt.getTime() - activeEscape.escapedAt.getTime();
-
-    // RoomResult는 세션 종료 시 calculateAndSave가 EscapeLog.durationMs 합산으로
-    // 생성·확정한다. timer phase에는 아직 존재하지 않으므로 여기서 갱신하지 않는다.
-    await this.prisma.escapeLog.update({
-      where: { id: activeEscape.id },
-      data: { returnedAt, durationMs },
-    });
+      await this.prisma.escapeLog.update({
+        where: { id: activeEscape.id },
+        data: {
+          returnedAt: now,
+          durationMs,
+        },
+      });
+    }
   }
 }

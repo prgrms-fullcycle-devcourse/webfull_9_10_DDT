@@ -1,6 +1,5 @@
 import { useSocket } from '@/contexts/SocketContext';
 import { getProfileImageSrc } from '@/lib/profileImage';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useRoomStore } from '@/store/useRoomStore';
 import Image from 'next/image';
 import { Card, CardDescription } from '../ui/card';
@@ -17,10 +16,11 @@ import {
 import { cn } from '@/lib/utils';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function MemberSignList() {
   const socket = useSocket();
-  const me = useAuthStore((state) => state.me);
+  const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
   const hostId = useRoomStore((state) => state.hostId);
   const { confirm, confirmProps } = useConfirm();

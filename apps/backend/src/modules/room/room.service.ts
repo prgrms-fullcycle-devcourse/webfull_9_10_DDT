@@ -107,6 +107,7 @@ export class RoomService {
       url: `${frontendUrl}/room/${room.code}`,
     };
   }
+
   async leaveRoom(
     roomCode: string,
     userId: string | null,
@@ -172,9 +173,6 @@ export class RoomService {
     return { isHost, targetId };
   }
 
-  /**
-   * nanoid 코드가 PK(code)와 충돌(P2002)하면 새 코드로 재시도한다.
-   */
   private async createRoomWithUniqueCode(data: {
     title: string;
     hostId: string;
@@ -270,14 +268,19 @@ export class RoomService {
         })
       : null;
 
-    const isReturning = userId
-      ? !!existing
-      : !!(
-          guestToken &&
-          (await this.prismaService.roomMember.findFirst({
-            where: { roomCode: room.code, guestToken },
-          }))
-        );
+    const guestExisting = guestToken
+      ? await this.prismaService.roomMember.findFirst({
+          where: { roomCode: room.code, guestToken },
+        })
+      : null;
+
+    const returningMember = existing || guestExisting;
+
+    if (returningMember?.gaveUpAt) {
+      throw new ForbiddenException('이미 중도 포기하여 다시 입장할 수 없습니다.');
+    }
+
+    const isReturning = !!returningMember;
 
     if (room.phase === 'timer' && !isReturning) {
       throw new ForbiddenException('이미 진행중인 방입니다.');
@@ -328,7 +331,7 @@ export class RoomService {
             `room:state:${room.code}`,
             JSON.stringify(state),
             'EX',
-            7200,
+            86400,
           );
         }
       }
@@ -416,7 +419,7 @@ export class RoomService {
     const state = JSON.parse(raw) as RoomState;
 
     const onlineMembersCount = Object.values(state.members).filter(
-      (member) => member.isLoggedIn === true && member.connected,
+      (member) => member.connected,
     ).length;
 
     return onlineMembersCount;
@@ -434,6 +437,20 @@ export class RoomService {
       where: { code: roomCode },
       data: { phase },
     });
+  }
+
+  async updateRedisPhase(roomCode: string, phase: string) {
+    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
+    if (!raw) return;
+
+    const state = JSON.parse(raw) as RoomState;
+    state.phase = phase;
+    await this.redisService.instance.set(
+      `room:state:${roomCode}`,
+      JSON.stringify(state),
+      'EX',
+      7200,
+    );
   }
 
   async getRoomState(roomCode: string): Promise<RoomState | null> {
@@ -655,11 +672,18 @@ export class RoomService {
     return true;
   }
 
+  // 💡 방 조회 시, 중도 포기(gaveUpAt)한 멤버는 복귀 대상에서 제외되도록 개선!
   async findMyActiveRoom(userId: string) {
+    const isGuest = userId.startsWith('guest_');
     return this.prismaService.room.findFirst({
       where: {
-        hostId: userId,
         phase: { notIn: ['closed', 'result'] },
+        roomMembers: {
+          some: {
+            ...(isGuest ? { guestToken: userId } : { userId }),
+            gaveUpAt: null, // 포기한 방은 복귀 모달 안 뜨게 필터링
+          },
+        },
       },
       select: { code: true, phase: true, title: true },
     });
@@ -684,5 +708,12 @@ export class RoomService {
     });
 
     return !!member;
+  }
+
+  async findRoomWithTemplate(roomCode: string) {
+    return this.prismaService.room.findUnique({
+      where: { code: roomCode },
+      include: { template: true },
+    });
   }
 }

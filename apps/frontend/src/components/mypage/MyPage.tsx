@@ -1,6 +1,5 @@
 'use client';
 
-import axios from 'axios';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -9,15 +8,28 @@ import { ChevronRight, Clock3 } from 'lucide-react';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { HomeButton } from '@/components/layout/HomeButton';
 import { MobileLayout } from '@/components/layout/mobileLayout';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MyPageSettings } from '@/components/mypage/MyPageSettings';
-import { MyPageHistoryList, HistoryItem } from '@/components/mypage/MyPageHistoryList';
-import { useAuthStore } from '@/store/useAuthStore';
+import {
+  MyPageHistoryList,
+  HistoryItem,
+} from '@/components/mypage/MyPageHistoryList';
 import { formatDuration } from '@/lib/format';
-import { DEFAULT_PROFILE_IMAGE_KEY, getProfileImageSrc } from '@/lib/profileImage';
+import {
+  DEFAULT_PROFILE_IMAGE_KEY,
+  getProfileImageSrc,
+} from '@/lib/profileImage';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
+import { useAuth } from '@/hooks/useAuth';
 
 type UserProfile = {
   userId: string;
@@ -32,21 +44,11 @@ type UserStats = {
   totalEscapeMs: number;
 };
 
-type ApiEnvelope<T> = {
-  data?: T;
-};
-
 const emptyStats: UserStats = {
   totalRoomCount: 0,
   totalFocusMs: 0,
   totalEscapeMs: 0,
 };
-
-const getCookieToken = () => {
-  if (typeof document === 'undefined') return undefined;
-  return document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1];
-};
-
 
 export const MyPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -60,25 +62,18 @@ export const MyPage = () => {
 
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const { logout } = useAuth();
 
   useEffect(() => {
-    const token = getCookieToken();
-    if (!token) return;
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const axiosInstance = axios.create({ baseURL: apiUrl });
-    const usersApi = getUsers(axiosInstance);
+    // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
+    const usersApi = getUsers();
 
     const loadProfile = async () => {
       setIsLoadingProfile(true);
 
       try {
-        const response = await usersApi.usersControllerGetMe({
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const result = response.data as ApiEnvelope<UserProfile>;
-        setProfile(result.data ?? null);
+        const response = await usersApi.usersControllerGetMe();
+        setProfile((response.data as UserProfile) ?? null);
       } catch {
         setErrorMessage('내 정보를 불러오지 못했습니다.');
       } finally {
@@ -91,21 +86,16 @@ export const MyPage = () => {
 
       try {
         const [statsResponse, historyResponse] = await Promise.all([
-          usersApi.usersControllerGetMyStats({
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          usersApi.usersControllerGetMyHistory({ limit: 3 }, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          usersApi.usersControllerGetMyStats(),
+          usersApi.usersControllerGetMyHistory({ limit: 3 }),
         ]);
 
-        const statsResult = statsResponse.data as ApiEnvelope<UserStats>;
-        setStats(statsResult.data ?? emptyStats);
+        setStats((statsResponse.data as UserStats) ?? emptyStats);
 
-        const historyResult = historyResponse.data as ApiEnvelope<{
+        const historyData = historyResponse.data as {
           sessions?: HistoryItem[];
-        }>;
-        setHistory(historyResult.data?.sessions?.slice(0, 3) ?? []);
+        };
+        setHistory(historyData?.sessions?.slice(0, 3) ?? []);
       } catch {
         setErrorMessage('마이페이지 정보를 불러오지 못했습니다.');
       } finally {
@@ -121,7 +111,10 @@ export const MyPage = () => {
     if (!isSettingsOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(event.target as Node)
+      ) {
         setIsSettingsOpen(false);
       }
     };
@@ -135,16 +128,10 @@ export const MyPage = () => {
   };
 
   const executeLogout = async () => {
-    const token = getCookieToken();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    if (token) {
-      const axiosInstance = axios.create({ baseURL: apiUrl });
-      const authApi = getAuthApi(axiosInstance);
-      await authApi.authControllerLogout({
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
-    }
+    // 토큰 첨부는 인터셉터가 처리. 토큰이 없으면 요청은 실패해도 무시하고 로컬 로그아웃 진행.
+    await getAuthApi()
+      .authControllerLogout()
+      .catch(() => {});
 
     logout();
     router.push('/');
@@ -173,7 +160,8 @@ export const MyPage = () => {
   );
 
   const profileImageSrc = profile
-    ? getProfileImageSrc(profile.profileImage) ?? getProfileImageSrc(DEFAULT_PROFILE_IMAGE_KEY)
+    ? (getProfileImageSrc(profile.profileImage) ??
+      getProfileImageSrc(DEFAULT_PROFILE_IMAGE_KEY))
     : undefined;
 
   return (
@@ -182,7 +170,7 @@ export const MyPage = () => {
         <>
           <HomeButton />
           <HeaderTitle>마이 페이지</HeaderTitle>
-           <div className="flex-1" />
+          <div className='flex-1' />
           <MyPageSettings
             ref={settingsRef}
             isOpen={isSettingsOpen}
@@ -215,7 +203,9 @@ export const MyPage = () => {
               <p className='truncate text-[18px] font-bold leading-6 text-white'>
                 {profile.nickname}
               </p>
-              <p className='truncate text-[14px] leading-5 text-[#81808D]'>{profile.email}</p>
+              <p className='truncate text-[14px] leading-5 text-[#81808D]'>
+                {profile.email}
+              </p>
             </>
           ) : isLoadingProfile ? (
             <>
@@ -241,7 +231,9 @@ export const MyPage = () => {
             key={card.label}
             className={`relative overflow-hidden rounded-[12px] px-3 py-4 ${card.className}`}
           >
-            <p className='text-center text-[11px] font-medium text-[#767481]'>{card.label}</p>
+            <p className='text-center text-[11px] font-medium text-[#767481]'>
+              {card.label}
+            </p>
             <p className='mt-1 text-center text-[18px] font-extrabold leading-7 text-white/90'>
               {card.value}
             </p>
@@ -257,7 +249,9 @@ export const MyPage = () => {
 
       <section>
         <div className='mb-3 flex items-center justify-between'>
-          <h2 className='text-[14px] font-medium text-[#898793]'>최근 참여 기록</h2>
+          <h2 className='text-[14px] font-medium text-[#898793]'>
+            최근 참여 기록
+          </h2>
           <Link
             href='/mypage/history'
             className='flex items-center gap-1 text-[13px] font-medium text-[#898793] transition hover:text-white'
@@ -278,21 +272,23 @@ export const MyPage = () => {
       </section>
 
       <Dialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
-        <DialogContent className='bg-[#141A2B] border-white/10 rounded-2xl'>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>로그아웃 하시겠어요?</DialogTitle>
-            <DialogDescription className='text-[#D3D3E3]'>로그아웃하면 다시 로그인해야 합니다.</DialogDescription>
+            <DialogDescription>
+              로그아웃하면 다시 로그인해야 합니다.
+            </DialogDescription>
           </DialogHeader>
-          <DialogFooter className='flex gap-3 pt-3'>
+          <DialogFooter>
             <Button
-               variant='ghost'
+              variant='ghost'
               className='flex-1 py-6! border border-white/20'
               onClick={() => setIsLogoutConfirmOpen(false)}
             >
               아니요
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold'
+              className='flex-1 py-6!'
               onClick={async () => {
                 setIsLogoutConfirmOpen(false);
                 await executeLogout();

@@ -21,8 +21,9 @@ import {
 } from '@/components/ui/dialog';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
-import { useAuthStore } from '@/store/useAuthStore';
+import { getErrorMessage } from '@/lib/error';
+import { isMobileOrTablet } from '@/lib/device';
+import { useAuth } from '@/hooks/useAuth';
 
 type Step = 'form' | 'complete';
 /* ── 완료 화면 ── */
@@ -101,7 +102,7 @@ function CreateRoomComplete({
         onClick={onCopyAll}
         className='w-full h-auto py-3 rounded-[16px] border border-[#8B5CF6] dark:border-[#8B5CF6] text-sm text-white/80 hover:bg-white/5'
       >
-        초대 정보 모두 복사
+        초대 정보 공유
       </Button>
     </div>
   );
@@ -110,8 +111,7 @@ function CreateRoomComplete({
 /* ── 메인 컴포넌트 ── */
 export const CreateRoom = () => {
   const router = useRouter();
-  const me = useAuthStore((state) => state.me);
-  const fetchMe = useAuthStore((state) => state.fetchMe);
+  const { me, refetchMe } = useAuth();
   const isGuest = me?.role === 'guest';
 
   const onBack = () => {
@@ -148,12 +148,7 @@ export const CreateRoom = () => {
       setStep('complete');
     },
     onError: (err) => {
-      const serverMessage = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message
-        : undefined;
-      toast.error(
-        serverMessage ?? (err instanceof Error ? err.message : '방 생성 실패'),
-      );
+      toast.error(getErrorMessage(err, '방 생성 실패'));
     },
   });
 
@@ -162,12 +157,12 @@ export const CreateRoom = () => {
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type === 'OAUTH_SUCCESS') {
-        void fetchMe();
+        void refetchMe();
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fetchMe]);
+  }, [refetchMe]);
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -178,8 +173,28 @@ export const CreateRoom = () => {
 
   const handleCopyAll = async () => {
     const text = `[${roomName}] 에 초대합니다\n비밀번호 : ${password}\n방 코드 : ${roomCode}\n입장 링크 : ${inviteLink}`;
-    await navigator.clipboard.writeText(text);
-    toast.success('초대 정보가 복사되었어요');
+
+    // 모바일/태블릿이면 네이티브 공유 시트로, 그 외에는 클립보드 복사로 폴백한다.
+    if (isMobileOrTablet() && navigator.share) {
+      try {
+        await navigator.share({
+          title: `[${roomName}] 에 초대합니다`,
+          text,
+          url: inviteLink,
+        });
+        return;
+      } catch (err) {
+        // 사용자가 공유 시트를 닫은 경우(AbortError)는 조용히 무시한다.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('초대 정보가 복사되었어요');
+    } catch {
+      toast.error('초대 정보 복사에 실패했습니다.');
+    }
   };
 
   if (isGuest) {
@@ -230,7 +245,8 @@ export const CreateRoom = () => {
         bottomButton={
           step === 'complete' ? (
             <Button
-              className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98]'
+              size='cta'
+              className='hover:scale-[1.01] active:scale-[0.98]'
               onClick={() => router.push(`/room/${roomCode}`)}
             >
               입장하기
@@ -239,7 +255,8 @@ export const CreateRoom = () => {
             <Button
               disabled={!isValid || createRoomMutation.isPending}
               onClick={handleSubmit}
-              className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+              size='cta'
+              className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
             >
               {createRoomMutation.isPending ? '생성 중...' : '방 만들기'}
             </Button>

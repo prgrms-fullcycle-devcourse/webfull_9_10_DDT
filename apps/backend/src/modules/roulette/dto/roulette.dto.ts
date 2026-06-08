@@ -67,3 +67,57 @@ export class ExitRouletteResponseDto {
   })
   revealedPenalties!: RevealedPenaltyDto[];
 }
+
+export class GiveUpPoolItemDto {
+  @ApiProperty({ example: 'a1b2c3d4-1111' })
+  itemId!: string;
+
+  @ApiProperty({ example: '팔굽혀펴기 10회' })
+  content!: string;
+}
+
+export class GiveUpPenaltyDto {
+  @ApiProperty({
+    example: 'a1b2c3d4-1111',
+    nullable: true,
+    type: String,
+    description: '휠 정지 위치 매핑용 PENALTY_ITEM.id (풀에 없으면 null)',
+  })
+  itemId!: string | null;
+
+  @ApiProperty({ example: '팔굽혀펴기 10회' })
+  content!: string;
+
+  @ApiProperty({ example: 2 })
+  count!: number;
+}
+
+export class GiveUpRouletteResponseDto {
+  @ApiProperty({
+    example: '2026-06-05T10:30:00.000Z',
+    type: String,
+    description: '포기 시각(ISO). 룰렛 화면 상단 표기용 (10분 타이머 대체)',
+  })
+  gaveUpAt!: Date;
+
+  @ApiProperty({
+    example: 510000,
+    description:
+      '총 누적 이탈 시간(ms). 실제 이탈 로그 합산 + (계획 종료 시각 − gaveUpAt). ' +
+      '통합결과 화면의 totalEscapeMs와 동일 값.',
+  })
+  totalEscapeMs!: number;
+
+  @ApiProperty({
+    type: [GiveUpPoolItemDto],
+    description: '룰렛 휠 슬롯 구성용 전체 벌칙 후보(계약서 벌칙 풀)',
+  })
+  penaltyPool!: GiveUpPoolItemDto[];
+
+  @ApiProperty({
+    type: [GiveUpPenaltyDto],
+    description:
+      '확정 벌칙 목록(룰렛 정지 위치 + 하단 결과 표기용). forfeit 전체 공개.',
+  })
+  penalties!: GiveUpPenaltyDto[];
+}

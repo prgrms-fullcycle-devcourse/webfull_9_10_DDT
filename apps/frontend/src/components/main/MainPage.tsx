@@ -14,13 +14,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 
 export const MainPage = () => {
   const router = useRouter();
-  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-  const me = useAuthStore((state) => state.me);
-  const logout = useAuthStore((state) => state.logout);
+  const { me, logout, isLoggedIn } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
 
@@ -122,14 +120,14 @@ export const MainPage = () => {
             variant='outline'
             size='main'
             onClick={() => setShowCodeDialog(true)}
-            className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640]!'
+            className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
           >
             방 코드로 입장하기
           </Button>
           <Button
             size='main'
             onClick={() => router.push('/room')}
-            className='w-full rounded-[14px] font-bold'
+            className='rounded-[14px] font-bold'
           >
             방만들기
           </Button>

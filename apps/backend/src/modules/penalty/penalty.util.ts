@@ -22,25 +22,17 @@ export function parseTierConfig(raw: unknown): PenaltyTier[] {
   return config.tiers as PenaltyTier[];
 }
 
-/**
- * 벌칙 산정 함수
- * @param totalEscapeMs 이탈 총 누적 시간(ms)
- * @param focusMin 회차당 집중 시간(분)
- * @param rounds 전체 라운드 수
- * @param tiers 티어 설정 객체 배열
- */
+/** 이탈 비율로 벌칙 등급·개수를 산정한다. */
 export function calculatePenaltyTier(
   totalEscapeMs: number,
   focusMin: number,
   rounds: number,
   tiers: PenaltyTier[],
 ): TierResult {
-  // 1. All Clear 판정
   if (totalEscapeMs === 0) {
     return { penaltyTier: 0, penaltyCount: 0, isForceAll: false };
   }
 
-  // 2. 이탈 비율 계산
   const totalFocusMs = focusMin * rounds * 60 * 1000;
   const escapePercent = (totalEscapeMs / totalFocusMs) * 100;
 
@@ -52,19 +44,18 @@ export function calculatePenaltyTier(
   });
 
   for (const tier of sortedTiers) {
-    // 최고 등급 (maxPct === null)인 경우
+    // maxPct=null: 최상단 구간. resolveForfeitTier와 달리 isForceAll=false.
     if (tier.maxPct === null) {
       if (escapePercent >= tier.minPct) {
         return {
           penaltyTier: tier.tier,
           penaltyCount: tier.count,
-          isForceAll: true,
+          isForceAll: false,
         };
       }
       continue;
     }
 
-    // 일반 구간 (minPct <= x < maxPct)
     if (escapePercent >= tier.minPct && escapePercent < tier.maxPct) {
       return {
         penaltyTier: tier.tier,

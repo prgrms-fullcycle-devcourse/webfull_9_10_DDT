@@ -187,9 +187,26 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+  /* 스크롤바 공간을 항상 확보해, 모달(Radix) 열림 시 스크롤바가 사라지며
+     레이아웃이 좌우로 틀어지는 시프트를 방지한다.
+     body가 flex justify-center 컨테이너이므로 body에도 적용해야 한다. */
   html,
   body {
-    padding-right: 0px !important;
-    --removed-body-scroll-bar-size: 0px !important;
+    scrollbar-gutter: stable;
   }
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+@keyframes rippleOut {
+  0% { width: var(--ripple-start, 10px); height: var(--ripple-start, 10px); opacity: 0.6; }
+  100% { width: var(--ripple-end, 80px); height: var(--ripple-end, 80px); opacity: 0; }
+}
+
+@keyframes textFade {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.75; }
 }

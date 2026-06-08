@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RoomModule } from './modules/room/room.module';
 import { UserModule } from './modules/user/user.module';
 import { TimerModule } from './modules/timer/timer.module';
@@ -13,6 +13,9 @@ import { PrismaModule } from './common/prisma.module';
 import { ResultModule } from './modules/result/result.module';
 import { RouletteModule } from './modules/roulette/roulette.module';
 import { RuleModule } from './modules/rule/rule.module';
+
+import { BullModule } from '@nestjs/bullmq';
+import IORedis from 'ioredis';
 
 import { RedisModule as CustomRedisModule } from './common/redis/redis.module';
 import { HealthModule } from './modules/health/health.module';
@@ -35,6 +38,14 @@ import { HealthModule } from './modules/health/health.module';
     ResultModule,
     RouletteModule,
     HealthModule,
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: new IORedis(config.getOrThrow<string>('REDIS_URL'), {
+          maxRetriesPerRequest: null,
+        }),
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [

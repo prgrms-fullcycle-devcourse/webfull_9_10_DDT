@@ -1,4 +1,4 @@
-import { Controller, Post, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Param, UseGuards, Req, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBearerAuth,
@@ -9,6 +9,7 @@ import {
 } from '@nestjs/swagger';
 import { TimerService } from './timer.service';
 import type { Request } from 'express';
+import type { PushSubscription } from 'web-push';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; email: string; role: string };
@@ -158,5 +159,21 @@ export class TimerController {
   ) {
     const data = await this.timerService.giveUp(roomCode, req.user!.id);
     return { message: '세션 중도 포기가 완료되었습니다.', data };
+  }
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '푸시 알림 구독 정보 저장' })
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':roomCode/push-subscription')
+  async savePushSubscription(
+    @Param('roomCode') roomCode: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() subscription: PushSubscription,
+  ) {
+    await this.timerService.savePushSubscription(
+      roomCode,
+      req.user!.id,
+      subscription,
+    );
+    return { message: '알림 설정이 완료되었습니다.' };
   }
 }

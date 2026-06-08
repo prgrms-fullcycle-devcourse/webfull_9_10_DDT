@@ -11,17 +11,38 @@ import type { PenaltyItem } from '@prisma/client';
 export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * 세션 종료 시점에 호출. 로그인 멤버 전원의 벌칙 산정 후 DB 저장.
-   * 멱등성 보장: 트랜잭션 진입 전 기존 결과 일괄 조회 후 skip.
-   */
+  private getEffectiveFocusEscapeMs(
+    escapedAtMs: number,
+    returnedAtMs: number,
+    sessionStartMs: number,
+    focusMin: number,
+    breakMin: number,
+    rounds: number,
+  ): number {
+    let overlapMs = 0;
+    const cycleMs = (focusMin + breakMin) * 60 * 1000;
+    const focusMs = focusMin * 60 * 1000;
+
+    for (let i = 0; i < rounds; i++) {
+      const focusStart = sessionStartMs + i * cycleMs;
+      const focusEnd = focusStart + focusMs;
+
+      const overlapStart = Math.max(escapedAtMs, focusStart);
+      const overlapEnd = Math.min(returnedAtMs, focusEnd);
+
+      if (overlapStart < overlapEnd) {
+        overlapMs += overlapEnd - overlapStart;
+      }
+    }
+    return overlapMs;
+  }
+
   async calculateAndSave(roomCode: string): Promise<void> {
     const room = await this.prisma.room.findUnique({
       where: { code: roomCode },
       include: {
         template: { include: { penalties: true } },
         roomMembers: {
-          where: { isLoggedIn: true },
           include: { escapeLogs: { where: { deletedAt: null } } },
         },
       },
@@ -34,66 +55,122 @@ export class PenaltyService {
     const { focusMin, breakMin, rounds } = room.template;
     const penaltyPool = room.template.penalties;
 
-    // 멱등성: 트랜잭션 진입 전 기존 결과 일괄 조회 (N+1 제거)
     const existingResults = await this.prisma.roomResult.findMany({
       where: { roomMemberId: { in: room.roomMembers.map((m) => m.id) } },
       select: { roomMemberId: true },
     });
     const processedIds = new Set(existingResults.map((r) => r.roomMemberId));
 
-    // 세션 종료 기준 시각(미복귀 EscapeLog 마감·포기자 잔여 합산의 공통 anchor).
-    // 정상 경로에선 endedAt이 채워져 있다. 누락 시 now()를 쓰면 lazy 산정이 늦을수록
-    // 잔여 시간이 과대 합산되므로, '계획된 종료 시각'(시작 + 계획 세션 길이)으로 결정적 대체한다.
-    const plannedDurationMs = (focusMin + breakMin) * rounds * 60 * 1000;
+    const plannedDurationMs =
+      (focusMin * rounds + breakMin * Math.max(0, rounds - 1)) * 60 * 1000;
+
     const sessionEndedAt =
       room.endedAt ??
       (room.startedAt
         ? new Date(room.startedAt.getTime() + plannedDurationMs)
         : new Date());
 
+    const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
+
     await this.prisma.$transaction(async (tx) => {
       for (const member of room.roomMembers) {
-        if (processedIds.has(member.id)) continue;
+        // give-up 멤버는 실제 anchor로 재산정, 나머지 기산정 멤버는 skip.
+        if (processedIds.has(member.id) && !member.gaveUpAt) continue;
 
-        // 미복귀(returnedAt=null) EscapeLog를 endedAt으로 마감 후 합산.
-        // domain-rules.md §2 — 세션 종료 시 미복귀 유저 이탈 시간 미집계 방지(어뷰징 차단).
         let totalEscapeMs = 0;
+
         for (const log of member.escapeLogs) {
+          const escStart = log.escapedAt.getTime();
+
+          const rawEnd = log.returnedAt
+            ? log.returnedAt.getTime()
+            : sessionEndedAt.getTime();
+          // 혹시 모를 오차를 위해 세션 종료 시간을 넘지 않도록 제한
+          const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
+
+          const effectiveMs = this.getEffectiveFocusEscapeMs(
+            escStart,
+            escEnd,
+            sessionStartMs,
+            focusMin,
+            breakMin,
+            rounds,
+          );
+
+          totalEscapeMs += effectiveMs;
+
           if (log.returnedAt === null) {
-            const durationMs = Math.max(
-              0,
-              sessionEndedAt.getTime() - log.escapedAt.getTime(),
-            );
             await tx.escapeLog.update({
               where: { id: log.id },
-              data: { returnedAt: sessionEndedAt, durationMs },
+              data: { returnedAt: sessionEndedAt, durationMs: effectiveMs },
             });
-            totalEscapeMs += durationMs;
-          } else {
-            totalEscapeMs += log.durationMs ?? 0;
+          } else if (log.durationMs !== effectiveMs) {
+            await tx.escapeLog.update({
+              where: { id: log.id },
+              data: { durationMs: effectiveMs },
+            });
           }
         }
 
-        // 중도 포기자(탈주): 포기~종료 잔여 시간을 이탈 시간에 합산(UI 표기용). 음수 가드.
         if (member.gaveUpAt) {
-          totalEscapeMs += Math.max(
-            0,
-            sessionEndedAt.getTime() - member.gaveUpAt.getTime(),
+          const giveUpMs = this.getEffectiveFocusEscapeMs(
+            member.gaveUpAt.getTime(),
+            sessionEndedAt.getTime(),
+            sessionStartMs,
+            focusMin,
+            breakMin,
+            rounds,
           );
+          totalEscapeMs += giveUpMs;
         }
-
-        const { penaltyTier, penaltyCount, isForceAll } = member.gaveUpAt
-          ? resolveForfeitTier(tiers)
-          : calculatePenaltyTier(totalEscapeMs, focusMin, rounds, tiers);
 
         const existing = await tx.roomResult.findUnique({
           where: { roomMemberId: member.id },
         });
 
-        // 멱등성 + 동시성: 결과 미존재일 때만 생성·배정.
-        // upsert(update:{}) 대신 create를 써서, 동시 트랜잭션 충돌 시 roomMemberId PK
-        // 위반으로 전체 롤백시켜 벌칙 행 중복 INSERT(remainingSpins 과대)를 차단한다.
+        if (member.gaveUpAt) {
+          const { penaltyTier } = calculatePenaltyTier(
+            totalEscapeMs,
+            focusMin,
+            rounds,
+            tiers,
+          );
+
+          if (existing) {
+            // 이탈시간·등급만 갱신, 벌칙 행은 보존.
+            await tx.roomResult.update({
+              where: { roomMemberId: member.id },
+              data: { totalEscapeMs, penaltyTier },
+            });
+          } else {
+            const { penaltyCount, isForceAll } = resolveForfeitTier(tiers);
+            await tx.roomResult.create({
+              data: {
+                roomMemberId: member.id,
+                roomCode,
+                totalEscapeMs,
+                penaltyTier,
+              },
+            });
+            if (penaltyCount > 0 && penaltyPool.length > 0) {
+              const assigned = this.assignPenalties(penaltyPool, penaltyCount);
+              await tx.resultPenalty.createMany({
+                data: Object.entries(assigned).map(([content, count]) => ({
+                  roomMemberId: member.id,
+                  content,
+                  count,
+                  isRevealed: isForceAll,
+                })),
+                skipDuplicates: true,
+              });
+            }
+          }
+          continue;
+        }
+
         if (!existing) {
+          const { penaltyTier, penaltyCount, isForceAll } =
+            calculatePenaltyTier(totalEscapeMs, focusMin, rounds, tiers);
           await tx.roomResult.create({
             data: {
               roomMemberId: member.id,
@@ -120,11 +197,129 @@ export class PenaltyService {
     });
   }
 
-  /**
-   * penaltyCount만큼 pool에서 무작위 배정.
-   * pool 크기 초과 시 순환 배정, 동일 content는 count++.
-   * Fisher-Yates 셔플 적용.
-   */
+  /** 포기 시점 단독 벌칙 임시 산정·저장. 등급=이탈시간 기반, 개수=최대, 즉시 전체공개. */
+  async calculateAndSaveForGiveUp(
+    roomCode: string,
+    memberId: string,
+  ): Promise<void> {
+    const room = await this.prisma.room.findUnique({
+      where: { code: roomCode },
+      include: {
+        template: { include: { penalties: true } },
+        roomMembers: {
+          where: { id: memberId },
+          include: { escapeLogs: { where: { deletedAt: null } } },
+        },
+      },
+    });
+
+    if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
+    if (!room.template) throw new NotFoundException('계약서 정보가 없습니다.');
+
+    const member = room.roomMembers[0];
+    if (!member)
+      throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
+
+    const tiers = parseTierConfig(room.template.tierConfig);
+    const { focusMin, breakMin, rounds } = room.template;
+    const penaltyPool = room.template.penalties;
+
+    const plannedDurationMs =
+      (focusMin * rounds + breakMin * Math.max(0, rounds - 1)) * 60 * 1000;
+
+    const sessionEndedAt =
+      room.endedAt ??
+      (room.startedAt
+        ? new Date(room.startedAt.getTime() + plannedDurationMs)
+        : new Date());
+
+    const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
+
+    await this.prisma.$transaction(async (tx) => {
+      let totalEscapeMs = 0;
+
+      for (const log of member.escapeLogs) {
+        const escStart = log.escapedAt.getTime();
+        const escEnd = log.returnedAt
+          ? log.returnedAt.getTime()
+          : sessionEndedAt.getTime();
+
+        const effectiveMs = this.getEffectiveFocusEscapeMs(
+          escStart,
+          escEnd,
+          sessionStartMs,
+          focusMin,
+          breakMin,
+          rounds,
+        );
+
+        totalEscapeMs += effectiveMs;
+
+        if (log.returnedAt === null) {
+          await tx.escapeLog.update({
+            where: { id: log.id },
+            data: { returnedAt: sessionEndedAt, durationMs: effectiveMs },
+          });
+        } else if (log.durationMs !== effectiveMs) {
+          await tx.escapeLog.update({
+            where: { id: log.id },
+            data: { durationMs: effectiveMs },
+          });
+        }
+      }
+
+      // timer.giveUp이 열린 로그를 gaveUpAt으로 마감하므로 위 구간과 이중합산 없음.
+      if (member.gaveUpAt) {
+        totalEscapeMs += this.getEffectiveFocusEscapeMs(
+          member.gaveUpAt.getTime(),
+          sessionEndedAt.getTime(),
+          sessionStartMs,
+          focusMin,
+          breakMin,
+          rounds,
+        );
+      }
+
+      const { penaltyTier } = calculatePenaltyTier(
+        totalEscapeMs,
+        focusMin,
+        rounds,
+        tiers,
+      );
+      const { penaltyCount } = resolveForfeitTier(tiers);
+      const isForceAll = true;
+
+      const existing = await tx.roomResult.findUnique({
+        where: { roomMemberId: member.id },
+      });
+
+      if (!existing) {
+        await tx.roomResult.create({
+          data: {
+            roomMemberId: member.id,
+            roomCode,
+            totalEscapeMs,
+            penaltyTier,
+          },
+        });
+
+        if (penaltyCount > 0 && penaltyPool.length > 0) {
+          const assigned = this.assignPenalties(penaltyPool, penaltyCount);
+          await tx.resultPenalty.createMany({
+            data: Object.entries(assigned).map(([content, count]) => ({
+              roomMemberId: member.id,
+              content,
+              count,
+              isRevealed: isForceAll,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    });
+  }
+
+  /** Fisher-Yates 셔플 후 penaltyCount만큼 순환 배정. */
   private assignPenalties(
     pool: PenaltyItem[],
     count: number,
@@ -134,6 +329,7 @@ export class PenaltyService {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
+
     const result: Record<string, number> = {};
     for (let i = 0; i < count; i++) {
       const item = shuffled[i % shuffled.length];

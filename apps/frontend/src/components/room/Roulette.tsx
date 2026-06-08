@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { X } from 'lucide-react';
+import { toast } from 'sonner';
 import { getResultApi } from '@/api/generated/result-api-결과-조회/result-api-결과-조회';
 import { getRouletteApi } from '@/api/generated/roulette-api-벌칙-룰렛/roulette-api-벌칙-룰렛';
 import { MobileLayout } from '@/components/layout/mobileLayout';
@@ -15,7 +17,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
+import type {
+  GiveUpRouletteResponseDto,
+  ResultMemberDto,
+  ResultResponseDto,
+  SpinRouletteResponseDto,
+} from '@/api/generated/models';
 
 const PenaltyRoulette = dynamic(
   () => import('@/components/ui/custom-roulette'),
@@ -32,35 +40,9 @@ type RoulettePenalty = {
   label: string;
 };
 
-type ResultRulePenalty = {
+type RouletteRulePenalty = {
   itemId: string;
   content: string;
-};
-
-type ResultMember = {
-  userId: string | null;
-  remainingSpins: number;
-  penalties: {
-    totalCount: number;
-    items: { content: string; count: number }[];
-  };
-};
-
-type ResultResponse = {
-  serverTime: string;
-  rouletteEndsAt: string | null;
-  members: ResultMember[];
-  rule: {
-    penalties: ResultRulePenalty[];
-  } | null;
-};
-
-type SpinRouletteResponse = {
-  spinIndex: number;
-  penaltyItemId: string | null;
-  penaltyContent: string;
-  remainingSpins: number;
-  isFinished: boolean;
 };
 
 const formatRemainingTime = (totalSeconds: number) => {
@@ -83,34 +65,58 @@ const getRemainingSeconds = (
 
   const elapsedMs = Math.max(0, now - dataUpdatedAt);
   const adjustedServerNow = new Date(serverTime).getTime() + elapsedMs;
-  const remainingMs =
-    new Date(rouletteEndsAt).getTime() - adjustedServerNow;
+  const remainingMs = new Date(rouletteEndsAt).getTime() - adjustedServerNow;
 
   return Math.max(0, Math.floor(remainingMs / 1000));
 };
 
-const toRouletteItems = (penalties: ResultRulePenalty[] = []) =>
+const toRouletteItems = (penalties: RouletteRulePenalty[] = []) =>
   penalties.map((item) => ({
     id: item.itemId,
     label: item.content,
   }));
 
+const shuffleItems = <T,>(items: T[]) => {
+  const shuffled = [...items];
+
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+};
+
+const getUnrevealedPenaltyCount = (
+  member: ResultMemberDto | null | undefined,
+) =>
+  Math.max(
+    0,
+    (member?.penalties.totalCount ?? 0) - (member?.penaltyCount ?? 0),
+  );
+
 export function Roulette() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
-  const { me, fetchMe } = useAuthStore();
+  const searchParams = useSearchParams();
+  const { me, refetchMe } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [currentSpinResult, setCurrentSpinResult] =
-    useState<SpinRouletteResponse | null>(null);
+    useState<SpinRouletteResponseDto | null>(null);
   const [spinErrorMessage, setSpinErrorMessage] = useState('');
+  const hasShownNoPenaltyToastRef = useRef(false);
+  const isGiveUpRoulette = searchParams.get('from') === 'giveup';
+  const finishTarget = isGiveUpRoulette
+    ? '/'
+    : `/room/${params.code}/total-result`;
 
   useEffect(() => {
-    if (!me) void fetchMe();
-  }, [fetchMe, me]);
+    if (!me) void refetchMe();
+  }, [refetchMe, me]);
 
   const {
     data: result,
@@ -121,27 +127,47 @@ export function Roulette() {
     queryKey: ['result', params.code],
     queryFn: async () => {
       const res = await getResultApi().resultControllerGetResult(params.code);
-      return res.data as ResultResponse;
+      return res.data as unknown as ResultResponseDto;
     },
+    enabled: !isGiveUpRoulette,
+  });
+
+  const {
+    data: giveUpResult,
+    isError: isGiveUpResultError,
+    isLoading: isGiveUpResultLoading,
+  } = useQuery({
+    queryKey: ['give-up-roulette', params.code],
+    queryFn: async () => {
+      const res = await getRouletteApi().rouletteControllerGetGiveUpResult(
+        params.code,
+      );
+      return res.data as unknown as GiveUpRouletteResponseDto;
+    },
+    enabled: isGiveUpRoulette,
   });
 
   const rouletteItems = useMemo<RoulettePenalty[]>(
-    () => toRouletteItems(result?.rule?.penalties),
-    [result],
+    () =>
+      toRouletteItems(
+        isGiveUpRoulette
+          ? giveUpResult?.penaltyPool
+          : result?.rule?.penalties,
+      ),
+    [giveUpResult, isGiveUpRoulette, result],
   );
 
   const myResult = useMemo(() => {
-    if (!result) return null;
+    if (!result || !me) return null;
 
     if (me?.role === 'user') {
       return result.members.find((member) => member.userId === me.id) ?? null;
     }
 
     if (me?.role === 'guest') {
-      const guestPenaltyMembers = result.members.filter(
-        (member) => member.userId === null && member.remainingSpins > 0,
+      return (
+        result.members.find((member) => member.guestToken === me.id) ?? null
       );
-      return guestPenaltyMembers[0] ?? null;
     }
 
     return null;
@@ -162,21 +188,98 @@ export function Roulette() {
         { spinIndex },
       );
 
-      return res.data as SpinRouletteResponse;
+      return res.data as unknown as SpinRouletteResponseDto;
     },
   });
 
-  const initialRemainingSpins = myResult?.remainingSpins ?? 0;
-  const totalChances = initialRemainingSpins;
+  const exitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await getRouletteApi().rouletteControllerExitRoulette(
+        params.code,
+      );
+
+      return res.data;
+    },
+    onSuccess: () => {
+      setIsDialogOpen(false);
+      router.push(finishTarget);
+    },
+    onError: (err) => {
+      const errorData = axios.isAxiosError(err) ? err.response?.data : null;
+      const rawMessage =
+        errorData && typeof errorData === 'object' && 'message' in errorData
+          ? (errorData as { message?: unknown }).message
+          : undefined;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join(', ')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : undefined;
+
+      if (
+        axios.isAxiosError(err) &&
+        (err.response?.status === 400 || err.response?.status === 409) &&
+        message?.includes('이미 완료')
+      ) {
+        setIsDialogOpen(false);
+        router.push(finishTarget);
+        return;
+      }
+
+      setSpinErrorMessage(message ?? '룰렛 나가기에 실패했습니다.');
+      setIsDialogOpen(false);
+    },
+  });
+
+  const giveUpSpinResults = useMemo(() => {
+    const penalties = giveUpResult?.penalties ?? [];
+
+    return shuffleItems(
+      penalties.flatMap((penalty) =>
+        Array.from({ length: penalty.count }, () => ({
+          spinIndex: 0,
+          penaltyItemId: penalty.itemId,
+          penaltyContent: penalty.content,
+          remainingSpins: 0,
+          isFinished: false,
+        })),
+      ),
+    );
+  }, [giveUpResult]);
+
+  useEffect(() => {
+    if (!isGiveUpRoulette || isGiveUpResultLoading || isGiveUpResultError) {
+      return;
+    }
+
+    if (giveUpResult && giveUpSpinResults.length === 0) {
+      if (!hasShownNoPenaltyToastRef.current) {
+        toast.info('뽑을 벌칙이 없어요');
+        hasShownNoPenaltyToastRef.current = true;
+      }
+      router.replace('/');
+    }
+  }, [
+    giveUpResult,
+    giveUpSpinResults.length,
+    isGiveUpResultError,
+    isGiveUpResultLoading,
+    isGiveUpRoulette,
+    router,
+  ]);
+
+  const revealedChances = isGiveUpRoulette ? 0 : myResult?.penaltyCount ?? 0;
+  const totalChances = isGiveUpRoulette
+    ? giveUpSpinResults.length
+    : getUnrevealedPenaltyCount(myResult);
+  const pickedSpins = Math.min(totalChances, currentIndex);
+  const remainingChances = Math.max(0, totalChances - pickedSpins);
+  const hasResolvedResult = isGiveUpRoulette || !!myResult;
   const isAllCompleted =
-    (!!myResult && totalChances === 0) ||
-    (totalChances > 0 && currentIndex >= totalChances) ||
+    (hasResolvedResult && totalChances === 0) ||
+    (totalChances > 0 && remainingChances === 0) ||
     !!spinMutation.data?.isFinished;
-  const nextSpinIndex =
-    (myResult?.penalties.totalCount ?? 0) -
-    initialRemainingSpins +
-    currentIndex +
-    1;
+  const nextSpinIndex = revealedChances + pickedSpins + 1;
   const remainingSeconds = result
     ? getRemainingSeconds(
         result.serverTime,
@@ -205,17 +308,17 @@ export function Roulette() {
   const hasRouletteItems = rouletteItems.length > 0;
   const hasInvalidTarget = !!currentSpinResult && targetIndex < 0;
   const cannotStart =
-    isResultLoading ||
-    isResultError ||
+    (isGiveUpRoulette ? isGiveUpResultLoading : isResultLoading) ||
+    (isGiveUpRoulette ? isGiveUpResultError : isResultError) ||
     spinMutation.isPending ||
     isSpinning ||
     !hasRouletteItems ||
-    !myResult ||
+    (!isGiveUpRoulette && !myResult) ||
     hasInvalidTarget;
 
   const handleStartSpinning = async () => {
     if (isAllCompleted) {
-      router.push(`/room/${params.code}/result-After`);
+      router.push(finishTarget);
       return;
     }
 
@@ -223,7 +326,13 @@ export function Roulette() {
 
     try {
       setSpinErrorMessage('');
-      const spinResult = await spinMutation.mutateAsync(nextSpinIndex);
+      const spinResult = isGiveUpRoulette
+        ? giveUpSpinResults[pickedSpins]
+        : await spinMutation.mutateAsync(nextSpinIndex);
+      if (!spinResult) {
+        setSpinErrorMessage('룰렛 결과를 찾을 수 없습니다.');
+        return;
+      }
       const spinTargetIndex = rouletteItems.findIndex(
         (item) =>
           item.id === spinResult.penaltyItemId ||
@@ -231,33 +340,40 @@ export function Roulette() {
       );
 
       if (spinTargetIndex < 0) {
-        setSpinErrorMessage(
-          '서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.',
-        );
+        setSpinErrorMessage('서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.');
         return;
       }
 
       setCurrentSpinResult(spinResult);
       setIsSpinning(true);
     } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        router.push(finishTarget);
+        return;
+      }
+
       setSpinErrorMessage(
         err instanceof Error ? err.message : '룰렛 실행에 실패했습니다.',
       );
     }
   };
 
-  const handleStopSpinning = () => {
+  const handleStopSpinning = useCallback(() => {
     if (currentSpinResult) {
       setHistory((prev) => [...prev, currentSpinResult.penaltyContent]);
     }
     setCurrentIndex((prev) => prev + 1);
     setIsSpinning(false);
     setCurrentSpinResult(null);
-  };
+  }, [currentSpinResult]);
 
   const handleExit = () => {
-    setIsDialogOpen(false);
-    console.log('룰렛 나가기');
+    if (isGiveUpRoulette) {
+      router.push(finishTarget);
+      return;
+    }
+
+    exitMutation.mutate();
   };
 
   return (
@@ -286,18 +402,20 @@ export function Roulette() {
           onClick={handleStartSpinning}
           disabled={cannotStart && !isAllCompleted}
         >
-          {isResultLoading
+          {(isGiveUpRoulette ? isGiveUpResultLoading : isResultLoading)
             ? '룰렛 준비 중...'
             : spinMutation.isPending
               ? '당첨 벌칙 확인 중...'
               : isSpinning
-            ? '룰렛 돌리는 중...'
-            : isAllCompleted
-              ? '다른 멤버 벌칙 보기'
-              : `룰렛 돌리기 (${Math.max(
-                  0,
-                  totalChances - currentIndex,
-                )}/${totalChances})`}
+                ? '룰렛 돌리는 중...'
+                : isAllCompleted
+                  ? isGiveUpRoulette
+                    ? '홈 화면으로 이동'
+                    : '다른 멤버 벌칙 보기'
+                  : `룰렛 돌리기 (${Math.max(
+                      0,
+                      remainingChances,
+                    )}/${totalChances})`}
         </Button>
       }
     >
@@ -319,17 +437,18 @@ export function Roulette() {
             onStopSpinning={handleStopSpinning}
             items={rouletteLabels}
           />
-          {isResultError ? (
+          {(isGiveUpRoulette ? isGiveUpResultError : isResultError) ? (
             <p className='mt-4 text-sm text-destructive'>
               룰렛 목록을 불러오지 못했습니다.
             </p>
           ) : null}
-          {!isResultLoading && !hasRouletteItems ? (
+          {!(isGiveUpRoulette ? isGiveUpResultLoading : isResultLoading) &&
+          !hasRouletteItems ? (
             <p className='mt-4 text-sm text-destructive'>
               룰렛에 사용할 벌칙 목록이 없습니다.
             </p>
           ) : null}
-          {!isResultLoading && !myResult ? (
+          {!isGiveUpRoulette && !isResultLoading && !myResult ? (
             <p className='mt-4 text-sm text-destructive'>
               내 룰렛 정보를 찾을 수 없습니다.
             </p>
@@ -340,9 +459,7 @@ export function Roulette() {
             </p>
           ) : null}
           {spinErrorMessage ? (
-            <p className='mt-4 text-sm text-destructive'>
-              {spinErrorMessage}
-            </p>
+            <p className='mt-4 text-sm text-destructive'>{spinErrorMessage}</p>
           ) : null}
         </div>
 
@@ -386,9 +503,10 @@ export function Roulette() {
             <Button
               type='button'
               onClick={handleExit}
+              disabled={exitMutation.isPending}
               className='h-14 rounded-[14px] bg-primary text-sm font-bold text-primary-foreground'
             >
-              나가기
+              {exitMutation.isPending ? '처리 중...' : '나가기'}
             </Button>
           </div>
         </DialogContent>

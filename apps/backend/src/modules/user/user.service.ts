@@ -207,17 +207,12 @@ export class UsersService {
     });
 
     const roomMembers = await this.prisma.roomMember.findMany({
-      where: {
-        userId,
-        result: { isNot: null },
-      },
+      where: { userId, result: { isNot: null } },
       include: {
         room: {
-          select: { startedAt: true, endedAt: true },
+          select: { startedAt: true, endedAt: true, template: true },
         },
-        result: {
-          select: { totalEscapeMs: true },
-        },
+        result: { select: { totalEscapeMs: true } },
       },
     });
 
@@ -226,10 +221,11 @@ export class UsersService {
 
     roomMembers.forEach((m) => {
       totalEscapeMs += m.result?.totalEscapeMs || 0;
-      if (m.room.startedAt && m.room.endedAt) {
-        const sessionDuration =
-          m.room.endedAt.getTime() - m.room.startedAt.getTime();
-        const effectiveFocus = sessionDuration - (m.result?.totalEscapeMs || 0);
+      if (m.room.startedAt && m.room.endedAt && m.room.template) {
+        const { focusMin, rounds } = m.room.template;
+        const plannedFocusMs = focusMin * rounds * 60 * 1000;
+        const effectiveFocus = plannedFocusMs - (m.result?.totalEscapeMs || 0);
+        
         totalFocusMs += effectiveFocus > 0 ? effectiveFocus : 0;
       }
     });

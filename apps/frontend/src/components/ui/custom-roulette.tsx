@@ -23,12 +23,12 @@ const getCssVariable = (name: string) => {
     .trim();
 };
 
-export const PenaltyRoulette = ({
+export const PenaltyRoulette = React.memo(function PenaltyRoulette({
   mustStartSpinning,
   targetIndex,
   onStopSpinning,
   items = [],
-}: PenaltyRouletteProps) => {
+}: PenaltyRouletteProps) {
   const displayItems = useMemo(
     () => (items.length > 0 ? items : ['준비중']),
     [items],
@@ -84,6 +84,6 @@ export const PenaltyRoulette = ({
       </div>
     </div>
   );
-};
+});
 
 export default PenaltyRoulette;

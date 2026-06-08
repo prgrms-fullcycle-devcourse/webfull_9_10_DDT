@@ -1,7 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
+import { useRoom } from '@/contexts/RoomContext';
+import { useSocket } from '@/contexts/SocketContext';
+import { useRoomStore } from '@/store/useRoomStore';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
@@ -14,78 +21,177 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useSocket } from '@/contexts/SocketContext';
-import { useRoom } from '@/contexts/RoomContext';
-import { useAuthStore } from '@/store/useAuthStore';
-import { useRoomStore } from '@/store/useRoomStore';
-import { toast } from 'sonner';
-
-type TimerMode = 'FOCUS' | 'BREAK';
-
-interface TimerTick {
-  timeLeft: number;
-  mode: TimerMode;
-  currentSession: number;
-  totalSessions: number;
-  focusDuration: number;
-  breakDuration: number;
-}
+import { urlBase64ToUint8Array } from '@/lib/utils';
+import { useWakeLock } from '@/hooks/useWakeLock';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Timer() {
   const router = useRouter();
   const socket = useSocket();
   const room = useRoom();
-  const me = useAuthStore((s) => s.me);
+  const me = useAuth().me;
   const phase = useRoomStore((s) => s.phase);
+  const sessionInfo = useRoomStore((s) => s.sessionInfo);
+
+  const { isSupported: isWakeLockSupported } = useWakeLock();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const isFocusRef = useRef(true);
 
-  // 타이머 상태 (백엔드 timer:tick 수신)
-  const [timer, setTimer] = useState<TimerTick>({
-    timeLeft: 0,
-    mode: 'FOCUS',
-    currentSession: 1,
-    totalSessions: 1,
-    focusDuration: 0,
-    breakDuration: 0,
-  });
-
-  // 백엔드 timer:tick 수신
   useEffect(() => {
-    if (!socket) return;
+    if (!sessionInfo) return;
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [sessionInfo]);
 
-    const handleTick = (data: TimerTick) => {
-      setTimer(data);
-    };
-
-    socket.on('timer:tick', handleTick);
-
-    return () => {
-      socket.off('timer:tick', handleTick);
-    };
-  }, [socket]);
-
-  // phase 변경 시 자동 이동
   useEffect(() => {
     if (!phase) return;
     if (phase === 'contract') {
       router.replace(`/room/${room.code}/contract`);
     } else if (phase === 'result') {
-      router.replace(`/room/${room.code}/result-before`);
+      router.replace(`/room/${room.code}/semi-result`);
     }
   }, [phase, room.code, router]);
 
+  useEffect(() => {
+    if (!socket || !sessionInfo) return;
+    const interval = window.setInterval(() => {
+      socket.emit('heartbeat');
+    }, 10000);
+    return () => window.clearInterval(interval);
+  }, [socket, sessionInfo]);
+
+  useEffect(() => {
+    async function subscribeToPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+          if (!publicVapidKey) return;
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+          });
+        }
+
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+          subscription,
+          {
+            headers: {
+              Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}`,
+            },
+          },
+        );
+      } catch (error) {
+        console.error('푸시 알림 설정 실패:', error);
+      }
+    }
+    subscribeToPush();
+  }, [room.code]);
+
+  const giveUpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await getTimerApi().timerControllerGiveUp(room.code);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.info('중도 포기 처리되었습니다.');
+      setIsModalOpen(false);
+      router.push(`/room/${room.code}/roulette?from=giveup`);
+    },
+    onError: (error) => {
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data as { message?: string })?.message
+        : undefined;
+      toast.error(message ?? '중도 포기 처리에 실패했습니다.');
+    },
+  });
+
   const handleForfeit = () => {
-    if (!socket) return;
-    socket.emit('member:giveup');
-    setIsModalOpen(false);
-    toast.info('중도 포기 처리됩니다.');
+    giveUpMutation.mutate();
   };
 
-  if (!me) return null;
+  const adjustedNow = now + (sessionInfo?.serverOffset ?? 0);
+  const elapsed = adjustedNow - (sessionInfo?.startedAt ?? adjustedNow);
+  const focusMs = (sessionInfo?.focusMin ?? 0) * 60 * 1000;
+  const breakMs = (sessionInfo?.breakMin ?? 0) * 60 * 1000;
+  const cycleMs = focusMs + breakMs;
+  const totalRounds = sessionInfo?.totalRounds ?? 1;
+  const totalMs =
+    focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
 
-  const isFocus = timer.mode === 'FOCUS';
-  const totalDuration = isFocus ? timer.focusDuration : timer.breakDuration;
+  const clampedElapsed = Math.min(Math.max(0, elapsed), totalMs);
+  const lastRoundStartMs = cycleMs * Math.max(0, totalRounds - 1);
+  const isLastRound = cycleMs > 0 ? clampedElapsed >= lastRoundStartMs : true;
+
+  const round = isLastRound
+    ? totalRounds
+    : Math.floor(clampedElapsed / cycleMs) + 1;
+  const cycleElapsed = isLastRound
+    ? clampedElapsed - lastRoundStartMs
+    : clampedElapsed % cycleMs;
+  const isFocus = isLastRound || cycleElapsed < focusMs;
+
+  const phaseRemainingMs = isFocus
+    ? focusMs - cycleElapsed
+    : cycleMs - cycleElapsed;
+  const phaseTotalMs = isFocus ? focusMs : breakMs;
+
+  const phaseRemainingSec = Math.max(0, Math.ceil(phaseRemainingMs / 1000));
+  const phaseTotalSec = Math.ceil(phaseTotalMs / 1000);
+  const focusDurationSec = (sessionInfo?.focusMin ?? 0) * 60;
+  const breakDurationSec = (sessionInfo?.breakMin ?? 0) * 60;
+
+  useEffect(() => {
+    if (!socket || !sessionInfo) return;
+
+    if (document.hidden) {
+      if (isFocus) {
+        socket.emit('escape:start');
+      } else {
+        socket.emit('escape:end');
+      }
+    }
+    isFocusRef.current = isFocus;
+  }, [isFocus, socket, sessionInfo]);
+
+  useEffect(() => {
+    if (!socket || !sessionInfo) return;
+
+    const handler = () => {
+      if (document.hidden) {
+        if (isFocusRef.current) {
+          socket.emit('escape:start');
+          toast.error('화면을 이탈했습니다! 벌칙 시간이 누적됩니다.', {
+            duration: 3000,
+          });
+        }
+      } else {
+        socket.emit('escape:end');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, [socket, sessionInfo]);
+
+  if (!me) return null;
+  if (!sessionInfo)
+    return (
+      <div className='flex items-center justify-center w-full h-screen text-white'>
+        로딩 중...
+      </div>
+    );
 
   const theme = {
     textColor: isFocus ? 'text-primary' : 'text-success',
@@ -99,7 +205,7 @@ export default function Timer() {
       header={
         <div className='w-full text-center'>
           <h1 className={`text-xl font-bold ${theme.textColor}`}>
-            {theme.statusText} {timer.currentSession}/{timer.totalSessions}
+            {theme.statusText} {round} / {totalRounds}
           </h1>
         </div>
       }
@@ -128,9 +234,10 @@ export default function Timer() {
               <Button
                 type='button'
                 onClick={handleForfeit}
+                disabled={giveUpMutation.isPending}
                 className='flex-1 py-5 bg-[#F85A5A] hover:bg-[#E04F4F] text-white font-bold rounded-xl transition-colors border-none'
               >
-                포기하기
+                {giveUpMutation.isPending ? '처리 중...' : '포기하기'}
               </Button>
               <Button
                 type='button'
@@ -146,21 +253,34 @@ export default function Timer() {
     >
       <div className='flex flex-col items-center justify-center w-full py-6'>
         <TimerProgressBar
-          mode={timer.mode}
-          currentSession={timer.currentSession}
-          totalSessions={timer.totalSessions}
-          timeLeft={timer.timeLeft}
-          totalDuration={totalDuration}
-          focusDuration={timer.focusDuration}
-          breakDuration={timer.breakDuration}
+          mode={isFocus ? 'FOCUS' : 'BREAK'}
+          currentSession={round}
+          totalSessions={totalRounds}
+          timeLeft={phaseRemainingSec}
+          totalDuration={phaseTotalSec}
+          focusDuration={focusDurationSec}
+          breakDuration={breakDurationSec}
         />
 
         <TimerCircle
-          timeLeft={timer.timeLeft}
-          totalDuration={totalDuration}
+          timeLeft={phaseRemainingSec}
+          totalDuration={phaseTotalSec}
           strokeColor={theme.strokeColor}
           subStatusText={theme.subStatusText}
         />
+
+        {!isWakeLockSupported && (
+          <div className='text-center mt-4 w-full max-w-sm px-4'>
+            <div className='flex items-start justify-center gap-2 bg-[#F85A5A]/10 border border-[#F85A5A]/30 rounded-xl px-4 py-3 text-xs text-[#F85A5A]'>
+              <span>
+                현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.
+                <br />
+                원활한 집중을 위해 기기의 <b>자동 화면 꺼짐 시간</b>을
+                늘려주세요.
+              </span>
+            </div>
+          </div>
+        )}
 
         {!isFocus && (
           <div className='text-center mt-10 w-full max-w-sm'>

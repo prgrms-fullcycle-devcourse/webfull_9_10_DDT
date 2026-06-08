@@ -5,9 +5,11 @@ import { IncomingMessage } from 'http';
 import { RedisService } from '../../../common/redis/redis.service';
 import { setupYjsWSConnection } from './yjs.utils';
 import { Duplex } from 'stream';
+import { JwtService } from '@nestjs/jwt';
 
 interface RoomState {
-  phase: string;
+  phase?: string;
+  members?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -16,7 +18,10 @@ export class YjsGateway implements OnModuleDestroy {
   private readonly logger: Logger = new Logger(YjsGateway.name);
   private clientRoomMap = new Map<WebSocket, string>();
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   init(httpServer: Server) {
     this.wss = new WebSocketServer({
@@ -53,8 +58,23 @@ export class YjsGateway implements OnModuleDestroy {
       return;
     }
 
+    const url = new URL(req.url ?? '', 'http://localhost');
+    const token = url.searchParams.get('token')?.replace(/\/$/, '') ?? null;
+    if (!token) {
+      ws.close(1008, 'Unauthorized');
+      return;
+    }
+
+    let payload: { sub: string; role: string };
+    try {
+      payload = this.jwtService.verify<{ sub: string; role: string }>(token);
+    } catch {
+      ws.close(1008, 'Invalid token');
+      this.logger.error('Invalid token');
+      return;
+    }
+
     const raw = await this.redis.instance.get(`room:state:${roomCode}`);
-    const state = raw ? (JSON.parse(raw) as RoomState) : null;
 
     if (!raw) {
       this.logger.warn(`방 정보를 찾을 수 없음: ${roomCode}`);
@@ -62,7 +82,19 @@ export class YjsGateway implements OnModuleDestroy {
       return;
     }
 
-    if (state?.phase === 'timer') {
+    const state = JSON.parse(raw) as RoomState;
+
+    const identifier = payload.sub;
+    if (!state.members?.[identifier]) {
+      ws.close(1008, 'Forbidden');
+      return;
+    }
+
+    if (
+      state.phase === 'timer' ||
+      state.phase === 'result' ||
+      state.phase === 'closed'
+    ) {
       this.logger.log(`연결 종료(타이머 페이즈): ${roomCode}`);
       ws.close();
       return;

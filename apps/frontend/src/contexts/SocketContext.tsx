@@ -126,6 +126,38 @@ export function SocketProvider({
       });
     });
 
+    s.on(
+      'session:started',
+      (data: {
+        startedAt: string;
+        focusMin: number;
+        breakMin: number;
+        totalRounds: number;
+        serverTime: string;
+      }) => {
+        const clientNow = Date.now();
+        const serverNow = new Date(data.serverTime).getTime();
+
+        useRoomStore.getState().setState({ phase: 'timer' });
+        useRoomStore.getState().setSessionInfo({
+          startedAt: new Date(data.startedAt).getTime(),
+          focusMin: data.focusMin,
+          breakMin: data.breakMin,
+          totalRounds: data.totalRounds,
+          serverOffset: serverNow - clientNow,
+        });
+      },
+    );
+
+    s.on('session:ended', () => {
+      useRoomStore.getState().setState({ phase: 'result' });
+      useRoomStore.getState().setSessionInfo(null);
+    });
+
+    s.on('member:gave-up', ({ userId, gaveUpAt }) => {
+      useRoomStore.getState().upsertMember(userId, { gaveUpAt });
+    });
+
     socketRef.current = s;
     setSocket(s);
 

@@ -52,7 +52,19 @@ const timerControllerGiveUp = (
       undefined,options
     );
   }
-return {timerControllerStartTimer,timerControllerForceStartTimer,timerControllerGiveUp}};
+/**
+ * @summary 푸시 알림 구독 정보 저장
+ */
+const timerControllerSavePushSubscription = (
+    roomCode: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.post(
+      `/rooms/${roomCode}/push-subscription`,
+      undefined,options
+    );
+  }
+return {timerControllerStartTimer,timerControllerForceStartTimer,timerControllerGiveUp,timerControllerSavePushSubscription}};
 export type TimerControllerStartTimerResult = AxiosResponse<unknown>
 export type TimerControllerForceStartTimerResult = AxiosResponse<unknown>
 export type TimerControllerGiveUpResult = AxiosResponse<unknown>
+export type TimerControllerSavePushSubscriptionResult = AxiosResponse<void>

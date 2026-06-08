@@ -15,7 +15,8 @@ export type HistoryItem = {
 };
 
 const getPenaltyTextColor = (milliseconds: number) => {
-  return milliseconds === 0 ? 'text-[#10B981]' : 'text-[#FF606B]';
+  // 표시(formatDuration)가 초 단위로 내림하므로, 1초 미만은 '0초'와 동일하게 초록 처리
+  return milliseconds < 1000 ? 'text-[#10B981]' : 'text-[#FF606B]';
 };
 
 interface MyPageHistoryListProps {
@@ -58,7 +59,7 @@ export const MyPageHistoryList = ({
         history.map((item) => (
           <Link
             key={item.roomCode}
-            href={`/room/${item.roomCode}/result`}
+            href={`/room/${item.roomCode}/total-result?from=mypage`}
             className='flex min-h-[95px] items-center justify-between rounded-[12px] bg-[#1D1C31] px-[14px] py-4 transition hover:bg-[#24223A]'
           >
             <div className='min-w-0'>

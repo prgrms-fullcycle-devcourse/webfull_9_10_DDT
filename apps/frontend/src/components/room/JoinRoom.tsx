@@ -16,10 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
-import { useAuthStore } from '@/store/useAuthStore';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
 import {
@@ -27,6 +26,8 @@ import {
   getProfileImageOptionKey,
 } from '@/lib/profileImage';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
+import { getErrorMessage } from '@/lib/error';
+import { useAuth } from '@/hooks/useAuth';
 
 // 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
 const noopSubscribe = () => () => {};
@@ -35,7 +36,7 @@ export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
   const code = params.code as string;
-  const { isLoggedIn, checkLoginStatus, me } = useAuthStore();
+  const { isLoggedIn, isLoading, me, refetchMe } = useAuth();
 
   // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
   const isMember = isLoggedIn && me?.role === 'user';
@@ -73,8 +74,8 @@ export const JoinRoom = () => {
   );
 
   useEffect(() => {
-    checkLoginStatus();
-  }, [checkLoginStatus]);
+    refetchMe();
+  }, [refetchMe]);
 
   const isValid =
     nickname.trim().length > 0 &&
@@ -100,7 +101,7 @@ export const JoinRoom = () => {
         document.cookie = `access_token=${event.data.token}; path=/; max-age=86400`;
       }
 
-      await useAuthStore.getState().fetchMe(); // loadMe로 이름 바꿨으면 그쪽
+      await refetchMe(); // loadMe로 이름 바꿨으면 그쪽
       setDialogDismissed(true);
     };
 
@@ -120,12 +121,7 @@ export const JoinRoom = () => {
       router.push(`/room/${code}/contract`);
     },
     onError: (err) => {
-      const serverMessage = axios.isAxiosError(err)
-        ? (err.response?.data as { message?: string })?.message
-        : undefined;
-      toast.error(
-        serverMessage ?? (err instanceof Error ? err.message : '입장 실패'),
-      );
+      toast.error(getErrorMessage(err, '입장 실패'));
     },
   });
 
@@ -147,11 +143,11 @@ export const JoinRoom = () => {
 
       document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400`;
 
-      await useAuthStore.getState().fetchMe();
+      await refetchMe();
 
       setDialogDismissed(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '게스트 시작 실패');
+      toast.error(getErrorMessage(error, '게스트 시작 실패'));
     }
   };
 
@@ -215,30 +211,28 @@ export const JoinRoom = () => {
   return (
     <>
       <Dialog open={!isLoggedIn && !dialogDismissed}>
-        <DialogContent className='bg-[#1F2937] border-white/10 rounded-2xl max-w-[320px]'>
-          <DialogHeader className='gap-2'>
-            <DialogTitle className='text-white text-xl font-bold'>
-              어떤 계정으로 입장할까요?
-            </DialogTitle>
-            <DialogDescription className='text-white/60 text-sm'>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>어떤 계정으로 입장할까요?</DialogTitle>
+            <DialogDescription>
               로그인을 하면 집중 기록이 저장돼요.
             </DialogDescription>
           </DialogHeader>
-          <div className='flex gap-3 mt-2'>
+          <DialogFooter>
             <Button
               variant='outline'
-              className='flex-1 h-12 rounded-[14px] border-white/[0.18] bg-[#111827] text-white hover:bg-white/5'
+              className='flex-1 py-6! border border-white/20'
               onClick={handleGuestStart}
             >
               게스트로 시작
             </Button>
             <Button
-              className='flex-1 h-12 rounded-[14px] font-bold'
+              className='flex-1 py-6! font-bold'
               onClick={handleGoogleLogin}
             >
               구글 로그인
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -253,7 +247,8 @@ export const JoinRoom = () => {
           <Button
             disabled={!isValid || joinMutation.isPending}
             onClick={handleSubmit}
-            className='w-full h-14 rounded-[24px] text-base font-bold hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            size='cta'
+            className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
           >
             {joinMutation.isPending ? '입장 중...' : '입장하기'}
           </Button>

@@ -12,7 +12,6 @@ export const SOCKET_EVENTS = {
     PING: "ping",
     MEMBER_SIGN: "member:sign",
     MEMBER_KICK: "member:kick",
-    MEMBER_GIVEUP: "member:giveup",
     CONTRACT_EDITED: "contract:edited",
     EDIT_MEMBER: "edit:member",
     EDIT_ALL: "edit:all",
@@ -54,7 +53,7 @@ export interface EditAllPayload {
   canEdit: boolean;
 }
 
-// ContractEdited, MemberGiveup, Ping은 페이로드 없음
+// ContractEdited, Ping은 페이로드 없음
 
 // ============================================
 // 페이로드 타입 - 서버 → 클라이언트
@@ -108,7 +107,6 @@ export interface ClientToServerEvents {
   ping: () => void;
   "member:sign": (payload: MemberSignPayload) => void;
   "member:kick": (payload: MemberKickPayload) => void;
-  "member:giveup": () => void;
   "contract:edited": () => void;
   "edit:member": (payload: EditMemberPayload) => void;
   "edit:all": (payload: EditAllPayload) => void;
