@@ -59,7 +59,7 @@ export const MyPageHistoryList = ({
         history.map((item) => (
           <Link
             key={item.roomCode}
-            href={`/room/${item.roomCode}/total-result`}
+            href={`/room/${item.roomCode}/total-result?from=mypage`}
             className='flex min-h-[95px] items-center justify-between rounded-[12px] bg-[#1D1C31] px-[14px] py-4 transition hover:bg-[#24223A]'
           >
             <div className='min-w-0'>

@@ -34,6 +34,7 @@ export default function Timer() {
   const me = useAuth().me;
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
+  const members = useRoomStore((s) => s.members);
 
   const escapeSummary = useRoomStore((s) => s.escapeSummary);
   const setEscapeSummary = useRoomStore((s) => s.setEscapeSummary);
@@ -46,6 +47,14 @@ export default function Timer() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const isFocusRef = useRef(true);
+
+  useEffect(() => {
+    const myMember = me ? members[me.id] : undefined;
+    if (myMember?.gaveUpAt) {
+      toast.error('이미 중도 포기한 세션입니다.');
+      router.replace(`/room/${room.code}/roulette?from=giveup`);
+    }
+  }, [me, members, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;
@@ -123,7 +132,7 @@ export default function Timer() {
     onSuccess: () => {
       toast.info('중도 포기 처리되었습니다.');
       setIsModalOpen(false);
-      router.push('/');
+      router.push(`/room/${room.code}/roulette?from=giveup`);
     },
     onError: (error) => {
       const message = axios.isAxiosError(error)

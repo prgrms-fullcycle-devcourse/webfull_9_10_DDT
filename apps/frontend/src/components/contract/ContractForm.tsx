@@ -44,7 +44,10 @@ const ContractForm = () => {
   const members = useRoomStore((state) => state.members);
   const hostId = useRoomStore((s) => s.hostId);
   const phase = useRoomStore((s) => s.phase);
-  const noSleep = new NoSleep();
+  const noSleepRef = useRef<NoSleep | null>(null);
+  if (noSleepRef.current === null) {
+    noSleepRef.current = new NoSleep();
+  }
 
   const isHost = me?.id === hostId;
 
@@ -127,7 +130,7 @@ const ContractForm = () => {
 
   const handleForceStartFocus = async () => {
     try {
-      noSleep.enable();
+      noSleepRef.current?.enable();
     } catch {}
     try {
       const dto = toBackendFormat(fields, tiers, penalties);
@@ -186,7 +189,7 @@ const ContractForm = () => {
     <MobileLayout
       header={
         <>
-          <BackButton />
+          <BackButton onClick={handleLeaveRoom} />
           <HeaderTitle>계약서</HeaderTitle>
           <div className='absolute right-4 flex gap-1'>
             <ContractActions

@@ -1,18 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { jwtDecode } from 'jwt-decode';
-import { Award, ChevronDown, ThumbsUp, Trophy } from 'lucide-react';
+import { Award, ChevronDown, ThumbsUp, Trophy, X } from 'lucide-react';
 import { getResultApi } from '@/api/generated/result-api-결과-조회/result-api-결과-조회';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { MobileLayout } from '@/components/layout/mobileLayout';
+import { CloseButton } from '@/components/layout/CloseButton';
 import { getToken } from '@/lib/getToken';
+import { getProfileImageSrc } from '@/lib/profileImage';
+import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
 
 type ResultPenaltyItem = {
@@ -80,6 +88,14 @@ const formatSessionTime = (totalMs: number | null) => {
   return `${hours}시간 ${minutes}분`;
 };
 
+const formatEscapeTime = (totalMs: number) => {
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}분${seconds}초`;
+};
+
 const formatTierRange = (minPct: number, maxPct: number | null) =>
   maxPct === null ? `${minPct}% ~` : `${minPct} ~ ${maxPct}%`;
 
@@ -102,21 +118,11 @@ const isGuestToken = () => {
 const getUnknownPenaltyCount = (member: ResultMember) =>
   Math.max(0, member.penalties.totalCount - member.penaltyCount);
 
-const isMobileOrTablet = () => {
-  if (typeof navigator === 'undefined') return false;
-
-  const userAgent = navigator.userAgent.toLowerCase();
-  const hasTouchScreen =
-    navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent);
-
-  return (
-    /android|iphone|ipad|ipod|mobile|tablet/.test(userAgent) || hasTouchScreen
-  );
-};
 
 export function TotalResult() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
+  const searchParams = useSearchParams();
   const { me } = useAuth();
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [selectedPenaltyMember, setSelectedPenaltyMember] =
@@ -167,6 +173,7 @@ export function TotalResult() {
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
     : '-';
   const isLoggedInUser = me?.role === 'user';
+  const closeTarget = searchParams.get('from') === 'mypage' ? '/mypage' : '/';
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -195,6 +202,7 @@ export function TotalResult() {
   const HeaderComponent = (
     <div className='relative flex w-full items-center justify-center text-foreground'>
       <h1 className='text-base font-medium tracking-tight'>통합 결과</h1>
+      <CloseButton onClick={() => router.push(closeTarget)} />
     </div>
   );
 
@@ -257,6 +265,9 @@ export function TotalResult() {
                       ? (me.role === 'user' && member.userId === me.id) ||
                         (me.role === 'guest' && member.guestToken === me.id)
                       : false;
+                    const profileImageSrc = getProfileImageSrc(
+                      member.profileImage,
+                    );
                     return (
                       <div
                         key={member.memberId}
@@ -271,6 +282,12 @@ export function TotalResult() {
                             </div>
                           )}
                           <Avatar className='h-9 w-9 border border-slate-700 bg-[#22293F]'>
+                            {profileImageSrc ? (
+                              <AvatarImage
+                                src={profileImageSrc}
+                                alt={`${member.nickname} 프로필 이미지`}
+                              />
+                            ) : null}
                             <AvatarFallback className='bg-transparent text-xs text-slate-300'>
                               {member.nickname.slice(0, 1)}
                             </AvatarFallback>
@@ -288,16 +305,11 @@ export function TotalResult() {
                                 </Badge>
                               ) : null}
                             </div>
-                            <p className='mt-0.5 text-xs text-slate-500'>
-                              {member.isAllClear
-                                ? '이탈 없음'
-                                : `${member.rank}위`}
-                            </p>
                           </div>
                         </div>
                         <span className='shrink-0 text-xs font-medium text-slate-400'>
                           {member.totalEscapeMs > 0
-                            ? formatSessionTime(member.totalEscapeMs)
+                            ? formatEscapeTime(member.totalEscapeMs)
                             : '이탈 없음'}
                         </span>
                       </div>
@@ -317,6 +329,7 @@ export function TotalResult() {
                         me?.role === 'user' && member.userId === me.id;
                       const unknownPenaltyCount =
                         getUnknownPenaltyCount(member);
+                      const isRoulettePending = unknownPenaltyCount > 0;
 
                       return (
                         <div
@@ -332,15 +345,20 @@ export function TotalResult() {
                           </div>
                           <button
                             type='button'
-                            onClick={() => setSelectedPenaltyMember(member)}
-                            className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors hover:bg-white/5'
+                            onClick={() => {
+                              if (!isRoulettePending) {
+                                setSelectedPenaltyMember(member);
+                              }
+                            }}
+                            disabled={isRoulettePending}
+                            className='flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/85 transition-colors enabled:hover:bg-white/5 disabled:cursor-default disabled:text-white/45'
                             aria-label={`${member.nickname} 벌칙 상세 보기`}
                           >
                             벌칙 {member.penalties.totalCount}개
-                            {unknownPenaltyCount > 0
-                              ? ` (룰렛 대기중 ${unknownPenaltyCount})`
-                              : ''}
-                            <ChevronDown className='h-4 w-4 text-white/35' />
+                            {isRoulettePending ? ' 뽑는중....' : ''}
+                            {!isRoulettePending ? (
+                              <ChevronDown className='h-4 w-4 text-white/35' />
+                            ) : null}
                           </button>
                         </div>
                       );
@@ -393,9 +411,20 @@ export function TotalResult() {
         onOpenChange={(open) => !open && setSelectedPenaltyMember(null)}
       >
         <DialogContent className='w-[calc(100%-36px)] max-w-[354px] overflow-hidden rounded-xl border border-white/10 bg-[#1A1F31] p-0 text-left text-white/85'>
+          <DialogClose asChild>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              aria-label='닫기'
+              className='absolute right-3 top-3 h-8 w-8 rounded-full text-white/70 hover:bg-white/10 hover:text-white'
+            >
+              <X className='h-4 w-4' />
+            </Button>
+          </DialogClose>
           {activePenaltyMember ? (
             <>
-              <div className='px-4 pb-3 pt-4'>
+              <div className='px-4 pb-3 pr-12 pt-4'>
                 <DialogTitle className='text-base font-bold text-white/90'>
                   {activePenaltyMember.nickname}
                   {me?.role === 'user' && activePenaltyMember.userId === me.id
@@ -440,15 +469,22 @@ export function TotalResult() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={isContractDialogOpen}
-        onOpenChange={setIsContractDialogOpen}
-      >
-        <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] text-left text-white/85'>
+      <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
+        <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'>
+          <DialogClose asChild>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              aria-label='닫기'
+              className='absolute right-3 top-3 h-8 w-8 rounded-full text-white/70 hover:bg-white/10 hover:text-white'
+            >
+              <X className='h-4 w-4' />
+            </Button>
+          </DialogClose>
           <div className='flex flex-col gap-4'>
             <div className='flex items-center'>
-              <div className='flex h-9 min-w-0 items-center gap-0.5 pr-5'>
-                <div className='h-9 w-9 shrink-0 rounded-[18px] bg-[#22293F]' />
+              <div className='flex min-w-0 items-center pr-5'>
                 <DialogTitle className='truncate text-base font-medium text-white/85'>
                   {result?.roomTitle ?? params.code}의 계약서
                 </DialogTitle>

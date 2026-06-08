@@ -298,8 +298,28 @@ export class TimerService implements OnModuleInit {
 
     await this.safeCalculateForGiveUp(roomCode, member.id);
 
+    const sockets = await this.roomGateway.server.in(roomCode).fetchSockets();
+    const userSocket = sockets.find((s) => s.data.userId === userId);
+    userSocket?.disconnect();
+
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
+
+    const raw = await this.redis.instance.get(`room:state:${roomCode}`);
+    if (raw) {
+      const state = JSON.parse(raw) as {
+        members: Record<string, { gaveUpAt?: string | null }>;
+      };
+      if (state.members[userId]) {
+        state.members[userId].gaveUpAt = now.toISOString();
+        await this.redis.instance.set(
+          `room:state:${roomCode}`,
+          JSON.stringify(state),
+          'EX',
+          86400,
+        );
+      }
+    }
 
     return responseData;
   }
@@ -364,9 +384,32 @@ export class TimerService implements OnModuleInit {
               jobId: endJobId(room.code),
               delay: remaining,
               removeOnComplete: true,
+              removeOnFail: 100,
             },
           )
           .catch(() => undefined);
+
+        const { focusMin, breakMin, rounds } = room.template;
+        for (let r = 1; r < rounds; r++) {
+          const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
+          const targetTime = room.startedAt.getTime() + notifyTimeMs;
+          const delay = targetTime - Date.now();
+
+          if (delay > 0) {
+            await this.sessionQueue
+              .add(
+                'break-warning',
+                { kind: 'break-warning', roomCode: room.code, round: r },
+                {
+                  jobId: warnJobId(room.code, r),
+                  delay,
+                  removeOnComplete: true,
+                  removeOnFail: 100,
+                },
+              )
+              .catch(() => undefined);
+          }
+        }
       }
     }
   }

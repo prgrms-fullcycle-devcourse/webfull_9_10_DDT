@@ -33,6 +33,7 @@ export function useWakeLock() {
           throw new Error('WakeLock API 미지원 환경');
         }
       } catch (err) {
+        console.log(err);
         try {
           if (noSleepEnableRef.current) {
             return;
@@ -42,7 +43,10 @@ export function useWakeLock() {
           console.log('NoSleep.js 활성화 완료 (Fallback)');
           setIsSupported(true);
         } catch (fallbackErr) {
-          console.error('화면 꺼짐 방지 최종 실패:', fallbackErr);
+          console.warn(
+            '화면 꺼짐 방지 활성화 불가 (사용자 제스처 필요)',
+            fallbackErr,
+          );
           setIsSupported(false);
         }
       }
@@ -59,7 +63,9 @@ export function useWakeLock() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        enableWakeLock();
+        if ('wakeLock' in navigator) {
+          void enableWakeLock();
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);

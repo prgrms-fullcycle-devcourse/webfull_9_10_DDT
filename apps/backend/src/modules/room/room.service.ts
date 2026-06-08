@@ -48,7 +48,7 @@ export interface CreateRoomResult {
   url: string;
 }
 
-const ROOM_STATE_TTL = 36600;
+const ROOM_STATE_TTL = 86400;
 
 @Injectable()
 export class RoomService {
@@ -72,11 +72,19 @@ export class RoomService {
         hostId,
         phase: { notIn: ['closed', 'result'] },
       },
-      select: { code: true, phase: true, title: true },
+      include: {
+        roomMembers: {
+          where: { userId: hostId },
+          select: { gaveUpAt: true },
+        },
+      },
     });
 
     if (existing) {
-      throw new ConflictException('이미 진행중인 방이 있습니다.');
+      const hostMember = existing.roomMembers[0];
+      if (!hostMember?.gaveUpAt) {
+        throw new ConflictException('이미 진행중인 방이 있습니다.');
+      }
     }
     const { title, password } = createRoomDto;
     const passwordHash = await bcrypt.hash(password, 10);
@@ -270,14 +278,21 @@ export class RoomService {
         })
       : null;
 
-    const isReturning = userId
-      ? !!existing
-      : !!(
-          guestToken &&
-          (await this.prismaService.roomMember.findFirst({
-            where: { roomCode: room.code, guestToken },
-          }))
-        );
+    const guestExisting = guestToken
+      ? await this.prismaService.roomMember.findFirst({
+          where: { roomCode: room.code, guestToken },
+        })
+      : null;
+
+    const returningMember = existing || guestExisting;
+
+    if (returningMember?.gaveUpAt) {
+      throw new ForbiddenException(
+        '이미 중도 포기하여 다시 입장할 수 없습니다.',
+      );
+    }
+
+    const isReturning = !!returningMember;
 
     if (room.phase === 'timer' && !isReturning) {
       throw new ForbiddenException('이미 진행중인 방입니다.');
@@ -692,7 +707,7 @@ export class RoomService {
           // 입장 완료한 방
           { roomMembers: { some: { userId, gaveUpAt: null } } },
           // 생성만 하고 아직 입장 안 한 방
-          { hostId: userId },
+          { hostId: userId, roomMembers: { none: { userId } } },
         ],
       },
       select: { code: true, phase: true, title: true },
@@ -724,6 +739,11 @@ export class RoomService {
     return this.prismaService.room.findUnique({
       where: { code: roomCode },
       include: { template: true },
+    });
+  }
+  async countActiveMembersInRoom(roomCode: string): Promise<number> {
+    return this.prismaService.roomMember.count({
+      where: { roomCode, gaveUpAt: null },
     });
   }
 }

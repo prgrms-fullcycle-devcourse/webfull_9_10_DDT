@@ -99,7 +99,7 @@ export class AuthService {
     }
 
     if (user.isTermsAgreed) {
-      throw new ConflictException('이미 약관 동의가 완료된 계정입니다.');
+      return { success: true };
     }
 
     await this.prisma.user.update({
