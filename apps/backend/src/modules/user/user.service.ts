@@ -153,7 +153,7 @@ export class UsersService {
         result: { isNot: null },
       },
       orderBy: {
-        result: { createdAt: 'desc' },
+        room: { endedAt: 'desc' },
       },
       skip,
       take: limit,

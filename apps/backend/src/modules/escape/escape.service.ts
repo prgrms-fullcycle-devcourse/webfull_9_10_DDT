@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import {
-  getEffectiveFocusEscapeMs,
-  mergeIntervals,
-} from '../penalty/penalty.util';
 
 @Injectable()
 export class EscapeService {
@@ -86,39 +82,27 @@ export class EscapeService {
   }
 
   async getCurrentSummary(roomCode: string) {
-    const room = await this.prisma.room.findUnique({
-      where: { code: roomCode },
+    const members = await this.prisma.roomMember.findMany({
+      where: { roomCode },
       include: {
-        template: true,
-        roomMembers: {
-          include: { escapeLogs: { where: { deletedAt: null } } },
-        },
+        escapeLogs: { where: { deletedAt: null } },
       },
     });
-    if (!room?.template || !room.startedAt) return [];
 
-    const { focusMin, breakMin, rounds } = room.template;
-    const sessionStartMs = room.startedAt.getTime();
     const now = Date.now();
-
-    return room.roomMembers.map((member) => {
-      const intervals = member.escapeLogs.map((log) => ({
-        start: log.escapedAt.getTime(),
-        end: log.returnedAt ? log.returnedAt.getTime() : now,
-      }));
-      const merged = mergeIntervals(intervals);
+    return members.map((member) => {
       let totalEscapeMs = 0;
-      for (const { start, end } of merged) {
-        totalEscapeMs += getEffectiveFocusEscapeMs(
-          start,
-          end,
-          sessionStartMs,
-          focusMin,
-          breakMin,
-          rounds,
-        );
+      for (const log of member.escapeLogs) {
+        if (log.returnedAt) {
+          totalEscapeMs += log.durationMs ?? 0;
+        } else {
+          totalEscapeMs += now - log.escapedAt.getTime();
+        }
       }
-      return { identifier: member.userId ?? member.guestToken, totalEscapeMs };
+      return {
+        identifier: member.userId ?? member.guestToken,
+        totalEscapeMs,
+      };
     });
   }
 }

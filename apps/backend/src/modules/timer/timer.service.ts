@@ -352,12 +352,7 @@ export class TimerService implements OnModuleInit {
     });
 
     await this.roomService.updateRedisPhase(roomCode, 'result');
-    try {
-      await this.penaltyService.calculateAndSave(roomCode);
-    } catch (err) {
-      Sentry.captureException(err);
-      this.logger.error(`세션 결과 저장 실패 (room=${roomCode})`, err as Error);
-    }
+    await this.penaltyService.calculateAndSave(roomCode);
 
     await this.cancelSessionJobs(roomCode);
     this.roomGateway.server

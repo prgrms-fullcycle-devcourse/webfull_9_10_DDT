@@ -4,7 +4,6 @@ import { useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { getToken } from '@/lib/getToken';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
-import { queryKeys } from '@/lib/queryKeys';
 
 interface JwtPayload {
   sub: string;
@@ -64,7 +63,7 @@ export function useAuth() {
   const queryClient = useQueryClient();
 
   const { data: me, isLoading } = useQuery<Me | null>({
-    queryKey: queryKeys.auth.me(),
+    queryKey: ['me'],
     queryFn: fetchMe,
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -73,11 +72,11 @@ export function useAuth() {
   const logout = useCallback(() => {
     document.cookie =
       'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    queryClient.setQueryData(queryKeys.auth.me(), null);
+    queryClient.setQueryData(['me'], null);
   }, [queryClient]);
 
   const refetchMe = useCallback(() => {
-    return queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+    return queryClient.invalidateQueries({ queryKey: ['me'] });
   }, [queryClient]);
 
   return {

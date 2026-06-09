@@ -31,7 +31,6 @@ import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { getErrorMessage } from '@/lib/error';
 import { useAuth } from '@/hooks/useAuth';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
-import { queryKeys } from '@/lib/queryKeys';
 
 interface RoomInfo {
   title: string;
@@ -79,7 +78,7 @@ export const JoinRoom = () => {
     isLoading: isRoomLoading,
     isError: isRoomInvalid,
   } = useQuery({
-    queryKey: queryKeys.room.detail(code),
+    queryKey: ['room', code],
     queryFn: async () => {
       const res = await getRoomApi().roomControllerFindById(code);
       console.log(res.data);

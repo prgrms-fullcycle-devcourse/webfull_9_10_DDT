@@ -7,7 +7,6 @@ import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useAuth } from '@/hooks/useAuth';
-import { queryKeys } from '@/lib/queryKeys';
 import { clearGuestAccessToken } from '@/lib/authToken';
 
 export function SessionRestorer() {
@@ -24,7 +23,7 @@ export function SessionRestorer() {
     isError: isActiveRoomError,
     isFetched: isActiveRoomFetched,
   } = useQuery({
-    queryKey: queryKeys.room.active(isLoggedIn, isOnHomePage),
+    queryKey: ['activeRoom', isLoggedIn, isOnHomePage],
     queryFn: async () => {
       const res = await getRoomApi().roomControllerGetMyActiveRoom();
       const data = (
@@ -36,7 +35,6 @@ export function SessionRestorer() {
     },
     enabled: isLoggedIn && isOnHomePage,
     staleTime: 0,
-    gcTime: 0,
     retry: false,
   });
 

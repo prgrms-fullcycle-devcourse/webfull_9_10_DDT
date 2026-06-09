@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import {
   calculatePenaltyTier,
-  getEffectiveFocusEscapeMs,
   parseTierConfig,
   resolveForfeitTier,
 } from './penalty.util';
@@ -11,6 +10,8 @@ import type { PenaltyItem } from '@prisma/client';
 @Injectable()
 export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // 💡 중복된 이탈 시간(Interval)을 하나로 병합하는 헬퍼 메서드
   private mergeIntervals(
     intervals: { start: number; end: number }[],
   ): { start: number; end: number }[] {
@@ -29,6 +30,32 @@ export class PenaltyService {
       }
     }
     return merged;
+  }
+
+  private getEffectiveFocusEscapeMs(
+    escapedAtMs: number,
+    returnedAtMs: number,
+    sessionStartMs: number,
+    focusMin: number,
+    breakMin: number,
+    rounds: number,
+  ): number {
+    let overlapMs = 0;
+    const cycleMs = (focusMin + breakMin) * 60 * 1000;
+    const focusMs = focusMin * 60 * 1000;
+
+    for (let i = 0; i < rounds; i++) {
+      const focusStart = sessionStartMs + i * cycleMs;
+      const focusEnd = focusStart + focusMs;
+
+      const overlapStart = Math.max(escapedAtMs, focusStart);
+      const overlapEnd = Math.min(returnedAtMs, focusEnd);
+
+      if (overlapStart < overlapEnd) {
+        overlapMs += overlapEnd - overlapStart;
+      }
+    }
+    return overlapMs;
   }
 
   async calculateAndSave(roomCode: string): Promise<void> {
@@ -82,7 +109,7 @@ export class PenaltyService {
             : sessionEndedAt.getTime();
           const escEnd = Math.min(rawEnd, sessionEndedAt.getTime());
 
-          const effectiveMs = getEffectiveFocusEscapeMs(
+          const effectiveMs = this.getEffectiveFocusEscapeMs(
             escStart,
             escEnd,
             sessionStartMs,
@@ -118,7 +145,7 @@ export class PenaltyService {
         let totalEscapeMs = 0;
 
         for (const interval of mergedIntervals) {
-          totalEscapeMs += getEffectiveFocusEscapeMs(
+          totalEscapeMs += this.getEffectiveFocusEscapeMs(
             interval.start,
             interval.end,
             sessionStartMs,
@@ -252,7 +279,7 @@ export class PenaltyService {
           ? log.returnedAt.getTime()
           : sessionEndedAt.getTime();
 
-        const effectiveMs = getEffectiveFocusEscapeMs(
+        const effectiveMs = this.getEffectiveFocusEscapeMs(
           escStart,
           escEnd,
           sessionStartMs,
@@ -283,11 +310,12 @@ export class PenaltyService {
         });
       }
 
+      // 💡 1단계: 겹치는 이탈 시간 병합
       const mergedIntervals = this.mergeIntervals(intervals);
       let totalEscapeMs = 0;
 
       for (const interval of mergedIntervals) {
-        totalEscapeMs += getEffectiveFocusEscapeMs(
+        totalEscapeMs += this.getEffectiveFocusEscapeMs(
           interval.start,
           interval.end,
           sessionStartMs,
