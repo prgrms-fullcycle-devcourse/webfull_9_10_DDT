@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { jwtDecode } from 'jwt-decode';
@@ -129,6 +129,7 @@ export function TotalResult() {
   const params = useParams<{ code: string }>();
   const searchParams = useSearchParams();
   const { me } = useAuth();
+  const isSharingRef = useRef(false);
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [expandedPenaltyMemberIds, setExpandedPenaltyMemberIds] = useState<
     string[]
@@ -185,26 +186,30 @@ export function TotalResult() {
   };
 
   const handleShare = async () => {
-    const shareUrl = window.location.href;
+    if (isSharingRef.current) return;
 
-    if (isMobileOrTablet() && navigator.share) {
-      try {
-        await navigator.share({
-          title: 'DDT 통합 결과',
-          text: `${result?.roomTitle ?? 'DDT'} 결과를 확인해보세요.`,
-          url: shareUrl,
-        });
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-      }
-    }
+    const shareUrl = window.location.href;
+    const shareText = `${result?.roomTitle ?? '감옥'} 결과를 확인해보세요.\n${shareUrl}`;
+    isSharingRef.current = true;
 
     try {
+      if (isMobileOrTablet() && navigator.share) {
+        try {
+          await navigator.share({
+            text: shareText,
+          });
+          return;
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+        }
+      }
+
       await navigator.clipboard.writeText(shareUrl);
       toast.success('URL이 복사되었어요.');
     } catch {
       toast.error('URL 복사에 실패했습니다.');
+    } finally {
+      isSharingRef.current = false;
     }
   };
 

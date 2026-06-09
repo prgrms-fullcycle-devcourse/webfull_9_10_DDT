@@ -7,7 +7,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 self.addEventListener('push', (event: PushEvent) => {
   const data = event.data?.json() ?? {};
-  const title = data.title || 'DDT 집중 시간 알림';
+  const title = data.title || '감옥 집중 시간 알림';
   const options = {
     body: data.body || '곧 집중 시간이 시작됩니다!',
     icon: '/icons/icon-192x192.png',

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
+import { clearGuestAccessToken } from '@/lib/authToken';
 import type {
   GiveUpRouletteResponseDto,
   ResultMemberDto,
@@ -98,6 +99,7 @@ const getUnrevealedPenaltyCount = (
 export function Roulette() {
   const router = useRouter();
   const params = useParams<{ code: string }>();
+  const queryClient = useQueryClient();
   const { me } = useAuth();
   const searchParams = useSearchParams();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -113,6 +115,25 @@ export function Roulette() {
   const finishTarget = isGiveUpRoulette
     ? '/'
     : `/room/${params.code}/total-result`;
+
+  const clearGuestSession = useCallback(() => {
+    if (clearGuestAccessToken()) {
+      queryClient.setQueryData(['me'], null);
+    }
+  }, [queryClient]);
+
+  const moveToFinishTarget = useCallback((replace = false) => {
+    if (finishTarget === '/') {
+      clearGuestSession();
+    }
+
+    if (replace) {
+      router.replace(finishTarget);
+      return;
+    }
+
+    router.push(finishTarget);
+  }, [clearGuestSession, finishTarget, router]);
 
   const {
     data: result,
@@ -196,7 +217,7 @@ export function Roulette() {
     },
     onSuccess: () => {
       setIsDialogOpen(false);
-      router.push(finishTarget);
+      moveToFinishTarget();
     },
     onError: (err) => {
       const errorData = axios.isAxiosError(err) ? err.response?.data : null;
@@ -216,11 +237,12 @@ export function Roulette() {
         message?.includes('이미 완료')
       ) {
         setIsDialogOpen(false);
-        router.push(finishTarget);
+        moveToFinishTarget();
         return;
       }
 
       setIsDialogOpen(false);
+      clearGuestSession();
       router.push('/');
     },
   });
@@ -251,6 +273,7 @@ export function Roulette() {
         toast.info('뽑을 벌칙이 없어요');
         hasShownNoPenaltyToastRef.current = true;
       }
+      clearGuestSession();
       router.replace('/');
     }
   }, [
@@ -259,6 +282,7 @@ export function Roulette() {
     isGiveUpResultError,
     isGiveUpResultLoading,
     isGiveUpRoulette,
+    clearGuestSession,
     router,
   ]);
 
@@ -314,7 +338,7 @@ export function Roulette() {
 
   const handleStartSpinning = async () => {
     if (isAllCompleted) {
-      router.push(finishTarget);
+      moveToFinishTarget();
       return;
     }
 
@@ -344,7 +368,7 @@ export function Roulette() {
       setIsSpinning(true);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
-        router.push(finishTarget);
+        moveToFinishTarget();
         return;
       }
 
@@ -365,7 +389,7 @@ export function Roulette() {
 
   const handleExit = () => {
     if (isGiveUpRoulette) {
-      router.push(finishTarget);
+      moveToFinishTarget();
       return;
     }
 
