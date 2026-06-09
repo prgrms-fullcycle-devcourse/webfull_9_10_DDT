@@ -47,7 +47,7 @@ function CreateRoomComplete({
       </p>
 
       {/* 정보 카드 */}
-      <div className='bg-[#111827] border border-white/[0.12] rounded-[16px] px-4 py-5 flex flex-col gap-4'>
+      <div className='bg-card border border-border rounded-[16px] px-4 py-5 flex flex-col gap-4'>
         {/* 방 이름 & 최대 인원 */}
         <div className='flex gap-4'>
           <div className='flex-1 flex flex-col gap-1'>
@@ -83,12 +83,12 @@ function CreateRoomComplete({
         {/* 친구 초대 링크 */}
         <div className='flex flex-col gap-1'>
           <span className='text-xs text-[#6B7280]'>친구 초대 링크</span>
-          <span className='text-xs text-[#8B5CF6] break-all'>{inviteLink}</span>
+          <span className='text-xs text-ring break-all'>{inviteLink}</span>
         </div>
       </div>
 
       {/* 안내 문구 */}
-      <div className='flex items-start gap-2 text-xs text-[#9CA3AF] leading-relaxed'>
+      <div className='flex items-start gap-2 text-xs text-muted-foreground leading-relaxed'>
         <Lightbulb size={14} className='text-[#FACC15] shrink-0 mt-0.5' />
         <span>
           링크와 비밀번호를 공유하여 같이 집중할 멤버들과 함께 입장해
@@ -100,7 +100,7 @@ function CreateRoomComplete({
       <Button
         variant='outline'
         onClick={onCopyAll}
-        className='w-full h-auto py-3 rounded-[16px] border border-[#8B5CF6] dark:border-[#8B5CF6] text-sm text-white/80 hover:bg-white/5'
+        className='w-full h-auto py-3 rounded-[16px] border border-ring text-sm text-white/80 hover:bg-white/5'
       >
         초대 정보 공유
       </Button>
@@ -254,7 +254,7 @@ export const CreateRoom = () => {
               disabled={!isValid || createRoomMutation.isPending}
               onClick={handleSubmit}
               size='cta'
-              className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+              className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-secondary disabled:text-muted-foreground'
             >
               {createRoomMutation.isPending ? '생성 중...' : '방 만들기'}
             </Button>
@@ -278,7 +278,7 @@ export const CreateRoom = () => {
             </p>
 
             <div className='flex justify-center mb-8'>
-              <div className='inline-flex items-center gap-2.5 bg-[#111827] border border-white/[0.12] rounded-[16px] px-4 py-[14px] text-sm text-[#9CA3AF]'>
+              <div className='inline-flex items-center gap-2.5 bg-card border border-border rounded-lg px-4 py-3.5 text-sm text-muted-foreground'>
                 <Users size={18} className='text-[#6B7280] shrink-0' />
                 최대 10명까지 입장 가능합니다.
               </div>

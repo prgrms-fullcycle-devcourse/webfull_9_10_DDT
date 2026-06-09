@@ -38,7 +38,7 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className='bg-[#1F2937]! flex flex-col gap-2 py-4'>
+      <AlertDialogContent className='bg-secondary! flex flex-col gap-2 py-4'>
         <AlertDialogHeader className='mt-4'>
           <AlertDialogTitle>{options.title}</AlertDialogTitle>
         </AlertDialogHeader>
