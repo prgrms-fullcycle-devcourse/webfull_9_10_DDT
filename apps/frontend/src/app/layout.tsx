@@ -1,6 +1,5 @@
 'use client';
 
-import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_KR } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
