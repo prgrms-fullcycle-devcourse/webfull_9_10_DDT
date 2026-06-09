@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { startTermsAgreementLogin } from '@/lib/authNavigation';
 
 export const MainPage = () => {
   const router = useRouter();
@@ -23,11 +24,7 @@ export const MainPage = () => {
   const [roomCode, setRoomCode] = useState('');
 
   const handleOpenTerms = () => {
-    window.open(
-      '/terms',
-      'Terms Agreement',
-      'width=390,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
-    );
+    startTermsAgreementLogin(router.push);
   };
 
   const handleLogout = () => {

@@ -24,6 +24,7 @@ import { useMutation } from '@tanstack/react-query';
 import { getErrorMessage } from '@/lib/error';
 import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
+import { startTermsAgreementLogin } from '@/lib/authNavigation';
 
 type Step = 'form' | 'complete';
 /* ── 완료 화면 ── */
@@ -120,11 +121,7 @@ export const CreateRoom = () => {
 
   // 로그인 팝업(/terms) 열기
   const handleOpenLogin = () => {
-    window.open(
-      '/terms',
-      'Terms Agreement',
-      'width=400,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
-    );
+    startTermsAgreementLogin(router.push);
   };
   const [step, setStep] = useState<Step>('form');
   const [roomName, setRoomName] = useState('');
