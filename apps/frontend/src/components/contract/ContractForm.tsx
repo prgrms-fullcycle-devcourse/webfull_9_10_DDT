@@ -23,13 +23,14 @@ import { ContractActions } from './ContractActions';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useEffect, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
 import axios from 'axios';
 import { ContractDataForSave, toBackendFormat } from '@/lib/contractTransform';
 import { getRuleApi } from '@/api/generated/rule-api-계약서-관리/rule-api-계약서-관리';
 import { useAuth } from '@/hooks/useAuth';
 import NoSleep from 'nosleep.js';
+import { clearGuestAccessToken } from '@/lib/authToken';
 
 interface ContractFormValues {
   focusMin: number;
@@ -38,6 +39,7 @@ interface ContractFormValues {
 }
 
 const ContractForm = () => {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const room = useRoom();
   const me = useAuth().me;
@@ -168,6 +170,9 @@ const ContractForm = () => {
 
     try {
       await getRoomApi().roomControllerLeaveRoom(room.code);
+      if (clearGuestAccessToken()) {
+        queryClient.setQueryData(['me'], null);
+      }
       router.replace('/');
     } catch {
       toast.error('퇴장 처리에 실패했습니다.');

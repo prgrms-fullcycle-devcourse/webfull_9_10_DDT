@@ -82,7 +82,6 @@ export const JoinRoom = () => {
     queryKey: queryKeys.room.detail(code),
     queryFn: async () => {
       const res = await getRoomApi().roomControllerFindById(code);
-      console.log(res.data);
       return res.data as RoomInfo;
     },
     enabled: !!code,
