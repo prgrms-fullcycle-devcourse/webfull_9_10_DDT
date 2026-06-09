@@ -320,7 +320,7 @@ export class TimerService implements OnModuleInit {
 
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
-    
+
     const activeCount =
       await this.roomService.countActiveMembersInRoom(roomCode);
 

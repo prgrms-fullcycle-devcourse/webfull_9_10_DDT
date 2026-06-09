@@ -15,6 +15,7 @@ import {
   DialogClose,
   DialogContent,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { CloseButton } from '@/components/layout/CloseButton';
@@ -480,6 +481,9 @@ export function TotalResult() {
                 <DialogTitle className='truncate text-base font-medium text-white/85'>
                   {result?.roomTitle ?? params.code}의 계약서
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  진행했던 방의 계약서 상세 내용입니다.
+                </DialogDescription>
               </div>
             </div>
 
