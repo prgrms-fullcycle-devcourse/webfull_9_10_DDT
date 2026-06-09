@@ -15,6 +15,7 @@ import {
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { clearGuestAccessToken } from '@/lib/authToken';
+import { queryKeys } from '@/lib/queryKeys';
 
 const SocketContext = createContext<Socket | null>(null);
 
@@ -36,7 +37,7 @@ export function SocketProvider({
 
   const clearGuestSession = useCallback(() => {
     if (clearGuestAccessToken()) {
-      queryClient.setQueryData(['me'], null);
+      queryClient.setQueryData(queryKeys.auth.me(), null);
     }
   }, [queryClient]);
 

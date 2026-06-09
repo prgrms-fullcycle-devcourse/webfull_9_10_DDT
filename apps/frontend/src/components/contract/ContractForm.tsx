@@ -31,6 +31,7 @@ import { getRuleApi } from '@/api/generated/rule-api-계약서-관리/rule-api-�
 import { useAuth } from '@/hooks/useAuth';
 import NoSleep from 'nosleep.js';
 import { clearGuestAccessToken } from '@/lib/authToken';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface ContractFormValues {
   focusMin: number;
@@ -171,7 +172,7 @@ const ContractForm = () => {
     try {
       await getRoomApi().roomControllerLeaveRoom(room.code);
       if (clearGuestAccessToken()) {
-        queryClient.setQueryData(['me'], null);
+        queryClient.setQueryData(queryKeys.auth.me(), null);
       }
       router.replace('/');
     } catch {

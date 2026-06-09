@@ -47,7 +47,7 @@ export function SessionRestorer() {
 
     if (isActiveRoomError || !activeRoom) {
       if (clearGuestAccessToken()) {
-        queryClient.setQueryData(['me'], null);
+        queryClient.setQueryData(queryKeys.auth.me(), null);
       }
     }
   }, [
