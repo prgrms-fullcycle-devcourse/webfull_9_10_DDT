@@ -93,10 +93,10 @@ export const MainPage = () => {
         <Image
           src='/images/logo.webp'
           alt='감옥'
-          width={160}
-          height={64}
+          width={596}
+          height={302}
           priority
-          style={{ width: '160px', height: 'auto' }}
+          className="w-[160px] h-auto"
         />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
