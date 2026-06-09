@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -63,6 +64,7 @@ export class CreateRoomRuleDto {
   @ApiProperty({ example: ['노래 부르기', '커피 사기'] })
   @IsArray()
   @ArrayMaxSize(100)
+  @MaxLength(50, { each: true })
   @IsString({ each: true })
   penalties!: string[];
 

@@ -12,7 +12,7 @@ export const CenterLayout = ({
   maxWidthClass = 'md:max-w-2xl',
 }: FullscreenCenterLayoutProps) => {
   return (
-    <div className='relative min-h-screen w-full flex flex-col items-center justify-center p-6 text-white'>
+    <div className='relative min-h-dvh w-full flex flex-col items-center justify-center p-6 text-white'>
       <div
         className='absolute inset-0 bg-cover bg-center bg-no-repeat -z-10'
         style={{ backgroundImage: `url('${bgImage}')` }}

@@ -11,7 +11,7 @@ export const TextIcon = ({
     <div className="flex flex-col items-center text-center space-y-2">
       {icon}
       <p className="text-[12px] font-bold">{title}</p>
-      <p className="text-[11px] text-gray-400 leading-tight">{desc}</p>
+      <p className="text-[11px] text-muted-foreground leading-tight">{desc}</p>
     </div>
   );
 };

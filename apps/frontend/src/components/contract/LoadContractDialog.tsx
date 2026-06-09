@@ -27,6 +27,7 @@ import {
 } from '../ui/accordion';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface LoadContractDialogProps {
   open: boolean;
@@ -64,7 +65,7 @@ export function LoadContractDialog({
   };
 
   const { data: list, isLoading } = useQuery({
-    queryKey: ['saved-rules'],
+    queryKey: queryKeys.rules.saved(),
     queryFn: async () => {
       const res = await getRuleApi().ruleControllerGetSavedRules();
       return res.data as unknown as SavedRule[];
@@ -121,7 +122,7 @@ export function LoadContractDialog({
 
     try {
       await getRuleApi().ruleControllerDeleteRuleTemplate(ruleId);
-      queryClient.invalidateQueries({ queryKey: ['saved-rules'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rules.saved() });
       if (selectedId === ruleId) {
         setSelectedId(null);
       }
@@ -332,9 +333,9 @@ export function LoadContractDialog({
         <DialogFooter className='flex w-full'>
           <Button
             type='button'
-            variant='ghost'
+            variant='secondary'
             onClick={onClose}
-            className='flex-1 py-6! border border-white/20'
+            className='flex-1 h-12 rounded-lg'
           >
             취소
           </Button>
@@ -342,7 +343,7 @@ export function LoadContractDialog({
             type='button'
             onClick={handleLoad}
             disabled={!canLoad}
-            className='flex-1 py-6!'
+            className='flex-1 h-12 rounded-lg font-bold'
           >
             불러오기
           </Button>

@@ -49,6 +49,12 @@ export function useYjsContract(
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
 
+  // isHost는 effect 재실행을 피하기 위해 ref로 추적한다.
+  const isHostRef = useRef(isHost);
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
   useEffect(() => {
     socketRef.current = socket;
   }, [socket]);
@@ -114,7 +120,11 @@ export function useYjsContract(
       if (yjsPenaltiesRef.current) {
         setPenalties(yjsPenaltiesRef.current.toArray());
       }
-      if (yjsTiersRef.current && yjsTiersRef.current.length === 0 && isHost) {
+      if (
+        yjsTiersRef.current &&
+        yjsTiersRef.current.length === 0 &&
+        isHostRef.current
+      ) {
         doc.transact(() => {
           yjsTiersRef.current!.push([
             {
@@ -170,7 +180,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled, isHost]);
+  }, [roomCode, enabled]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {

@@ -184,7 +184,12 @@ export class RoomService {
       throw new ForbiddenException('이미 중도 포기하여 재입장 불가합니다.');
     if (room.phase === 'timer' && !returningMember)
       throw new ForbiddenException('이미 집중 세션이 시작된 방입니다.');
-    if (!(await bcrypt.compare(joinRoomDto.password, room.passwordHash)))
+
+    const isHost = userId === room.hostId;
+    if (
+      !isHost &&
+      !(await bcrypt.compare(joinRoomDto.password, room.passwordHash))
+    )
       throw new UnauthorizedException('비밀번호가 틀렸습니다.');
     if (!returningMember && room._count.roomMembers >= 10)
       throw new ConflictException('방이 가득 찼습니다.');
@@ -244,13 +249,14 @@ export class RoomService {
     return { isHost: room.hostId === userId, targetId };
   }
 
-  async find(code: string) {
+  async find(code: string, userId?: string) {
     const room = await this.prismaService.room.findUnique({
       where: { code },
       select: {
         code: true,
         title: true,
         phase: true,
+        hostId: true,
         _count: { select: { roomMembers: true } },
       },
     });
@@ -261,6 +267,7 @@ export class RoomService {
       id: room.code,
       memberCount: room._count.roomMembers,
       phase: room.phase,
+      isHost: !!userId && room.hostId === userId,
     };
   }
 

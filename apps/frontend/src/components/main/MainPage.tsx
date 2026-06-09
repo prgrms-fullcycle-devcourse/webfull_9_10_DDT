@@ -15,23 +15,30 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { startTermsAgreementLogin } from '@/lib/authNavigation';
 
 export const MainPage = () => {
   const router = useRouter();
-  const { me, logout, isLoggedIn } = useAuth();
+  const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
 
   const handleOpenTerms = () => {
-    window.open(
-      '/terms',
-      'Terms Agreement',
-      'width=390,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no',
-    );
+    startTermsAgreementLogin(router.push);
   };
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleCreateRoom = () => {
+    if (isLoading) return;
+    if (!isLoggedIn) {
+      toast.error('로그인하고 바로 이어가세요.', { id: 'auth-required' });
+      return;
+    }
+    router.push('/room');
   };
 
   const isCodeValid = roomCode.trim().length === 8;
@@ -43,7 +50,7 @@ export const MainPage = () => {
   };
 
   return (
-    <div className='relative min-h-screen w-full overflow-hidden text-white'>
+    <div className='relative min-h-dvh w-full overflow-hidden text-white'>
       {/* 배경 이미지 */}
       <Image
         src='/images/mainBackground.webp'
@@ -58,30 +65,35 @@ export const MainPage = () => {
 
       {/* 우측 상단 로그인 / 마이페이지 */}
       <div className='absolute right-0 top-0 z-20 p-4'>
-        {isLoggedIn && me?.role === 'user' ? (
+        {isLoading ? (
+          <div
+            aria-hidden
+            className='h-9 w-22 rounded-sm border border-transparent'
+          />
+        ) : isLoggedIn && me?.role === 'user' ? (
           <Button
             variant='ghost'
-            size='sm'
+            size='lg'
             asChild
-            className='border border-white/20 px-3 py-3 rounded-sm!'
+            className='border border-white/25 bg-black/35 backdrop-blur-sm px-3 py-3 rounded-sm!'
           >
             <Link href='/mypage'>마이페이지</Link>
           </Button>
         ) : isLoggedIn && me?.role === 'guest' ? (
           <Button
             variant='ghost'
-            size='sm'
+            size='lg'
             onClick={handleLogout}
-            className='border border-white/20 px-3 py-3 rounded-sm!'
+            className='border border-white/25 bg-black/35 backdrop-blur-sm px-3 py-3 rounded-sm!'
           >
             로그아웃
           </Button>
         ) : (
           <Button
             variant='ghost'
-            size='sm'
+            size='lg'
             onClick={handleOpenTerms}
-            className='border border-white/20 px-3 py-3 rounded-sm!'
+            className='border border-white/25 bg-black/35 backdrop-blur-sm px-3 py-3 rounded-sm!'
           >
             로그인
           </Button>
@@ -89,14 +101,14 @@ export const MainPage = () => {
       </div>
 
       {/* 본문 */}
-      <div className='relative z-10 flex min-h-screen flex-col px-6 pb-8 pt-20'>
+      <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image
           src='/images/logo.webp'
           alt='감옥'
-          width={160}
-          height={64}
+          width={596}
+          height={302}
           priority
-          className='h-auto w-[160px]'
+          className="w-[160px] h-auto"
         />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
@@ -107,7 +119,7 @@ export const MainPage = () => {
           집중한다.
         </p>
 
-        <span className='mt-5 inline-block w-fit rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium text-white/70 backdrop-blur-sm'>
+        <span className='mt-5 inline-block w-fit rounded-md bg-white/10 px-3 py-2 text-sm font-medium text-white/75 '>
           계약하고 집중하고 벌칙으로 완성한다
         </span>
 
@@ -126,7 +138,7 @@ export const MainPage = () => {
           </Button>
           <Button
             size='main'
-            onClick={() => router.push('/room')}
+            onClick={handleCreateRoom}
             className='rounded-[14px] font-bold'
           >
             방만들기
@@ -155,8 +167,8 @@ export const MainPage = () => {
           />
           <DialogFooter>
             <Button
-              variant='ghost'
-              className='flex-1 py-6! border border-white/20'
+              variant='secondary'
+              className='flex-1 h-12 rounded-lg'
               onClick={() => setShowCodeDialog(false)}
             >
               취소
@@ -164,7 +176,7 @@ export const MainPage = () => {
             <Button
               disabled={!isCodeValid}
               onClick={handleEnterByCode}
-              className='flex-1 py-6!'
+              className='flex-1 h-12 rounded-lg font-bold'
             >
               입장하기
             </Button>

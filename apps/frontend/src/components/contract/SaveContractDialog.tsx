@@ -94,10 +94,10 @@ export function SaveContractDialog({
         <DialogFooter className='w-full flex'>
           <Button
             type='button'
-            variant='ghost'
+            variant='secondary'
             onClick={onClose}
             disabled={isSaving}
-            className='flex-1 py-6! border border-white/20'
+            className='flex-1 h-12 rounded-lg'
           >
             취소
           </Button>
@@ -105,7 +105,7 @@ export function SaveContractDialog({
             type='button'
             onClick={handleSave}
             disabled={isSaving || !trimmedTitle}
-            className='flex-1 py-6!'
+            className='flex-1 h-12 rounded-lg font-bold'
           >
             {isSaving ? '저장 중...' : willOverwrite ? '덮어쓰기' : '저장'}
           </Button>

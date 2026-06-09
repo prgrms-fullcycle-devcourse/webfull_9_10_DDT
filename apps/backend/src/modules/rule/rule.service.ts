@@ -63,7 +63,9 @@ export class RuleService {
         rounds: dto.rounds,
         tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
         penalties: {
-          create: dto.penalties.map((content) => ({ content })),
+          create: dto.penalties
+            .filter((p) => p.trim() !== '')
+            .map((content) => ({ content })),
         },
       },
       include: { penalties: true },
@@ -131,7 +133,11 @@ export class RuleService {
         breakMin: dto.breakMin,
         rounds: dto.rounds,
         tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
-        penalties: { create: dto.penalties.map((content) => ({ content })) },
+        penalties: {
+          create: dto.penalties
+            .filter((p) => p.trim() !== '')
+            .map((content) => ({ content })),
+        },
       },
     });
 
@@ -168,7 +174,11 @@ export class RuleService {
           breakMin: dto.breakMin,
           rounds: dto.rounds,
           tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
-          penalties: { create: dto.penalties.map((content) => ({ content })) },
+          penalties: {
+            create: dto.penalties
+              .filter((p) => p.trim() !== '')
+              .map((content) => ({ content })),
+          },
         },
       });
     });

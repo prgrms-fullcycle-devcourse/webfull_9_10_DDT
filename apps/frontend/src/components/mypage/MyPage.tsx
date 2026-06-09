@@ -220,7 +220,7 @@ export const MyPage = () => {
 
       <Link
         href='/room'
-        className='mb-4 flex h-[51px] w-full items-center justify-center rounded-[14px] border border-[#914CFF] bg-[#242136] text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640]'
+        className='mb-4 flex h-[51px] w-full items-center justify-center rounded-[14px] border border-[#914CFF] bg-[#242136] text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640] active:scale-[0.98]'
       >
         새로운 방 만들기
       </Link>
@@ -229,18 +229,24 @@ export const MyPage = () => {
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className={`relative overflow-hidden rounded-[12px] px-3 py-4 ${card.className}`}
+            className={`relative flex flex-col overflow-hidden rounded-[12px] px-3 py-4 ${
+              card.icon ? '' : 'justify-center'
+            } ${card.className}`}
           >
-            <p className='text-center text-[11px] font-medium text-[#767481]'>
+            <p
+              className={`text-center text-[11px] font-medium text-[#767481] ${
+                card.icon ? 'mt-2' : ''
+              }`}
+            >
               {card.label}
             </p>
-            <p className='mt-1 text-center text-[18px] font-extrabold leading-7 text-white/90'>
+            <p className='mt-1 text-center text-[20px] font-extrabold leading-7 text-white/90'>
               {card.value}
             </p>
             {card.icon ? (
               <Clock3
                 className='absolute -bottom-[28px] left-1/2 size-[78px] -translate-x-1/2 text-white/10'
-                strokeWidth={2.6}
+                strokeWidth={1.6}
               />
             ) : null}
           </div>
@@ -281,14 +287,14 @@ export const MyPage = () => {
           </DialogHeader>
           <DialogFooter>
             <Button
-              variant='ghost'
-              className='flex-1 py-6! border border-white/20'
+              variant='secondary'
+              className='flex-1 h-12 rounded-lg'
               onClick={() => setIsLogoutConfirmOpen(false)}
             >
               아니요
             </Button>
             <Button
-              className='flex-1 py-6!'
+              className='flex-1 h-12 rounded-lg font-bold'
               onClick={async () => {
                 setIsLogoutConfirmOpen(false);
                 await executeLogout();

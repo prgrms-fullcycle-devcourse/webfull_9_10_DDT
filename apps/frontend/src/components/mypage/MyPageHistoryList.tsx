@@ -16,7 +16,7 @@ export type HistoryItem = {
 
 const getPenaltyTextColor = (milliseconds: number) => {
   // 표시(formatDuration)가 초 단위로 내림하므로, 1초 미만은 '0초'와 동일하게 초록 처리
-  return milliseconds < 1000 ? 'text-[#10B981]' : 'text-[#FF606B]';
+  return milliseconds < 1000 ? 'text-success' : 'text-destructive';
 };
 
 interface MyPageHistoryListProps {
@@ -44,15 +44,15 @@ export const MyPageHistoryList = ({
   return (
     <div className='space-y-3'>
       {isLoading ? (
-        <div className='rounded-[12px] bg-[#1D1C31] px-[14px] py-6 text-center text-[13px] text-[#898793]'>
+        <div className='rounded-md bg-[#1D1C31] px-3.5 py-6 text-center text-[13px] text-[#898793]'>
           {loadingMessage}
         </div>
       ) : shouldShowError ? (
-        <div className='rounded-[12px] bg-[#1D1C31] px-[14px] py-6 text-center text-[13px] text-[#FF606B]'>
+        <div className='rounded-md bg-[#1D1C31] px-3.5 py-6 text-center text-[13px] text-[#FF606B]'>
           {errorMessage}
         </div>
       ) : history.length === 0 ? (
-        <div className='rounded-[12px] bg-[#1D1C31] px-[14px] py-6 text-center text-[13px] text-[#898793]'>
+        <div className='rounded-md bg-[#1D1C31] px-3.5 py-6 text-center text-[13px] text-[#898793]'>
           {emptyMessage}
         </div>
       ) : (
@@ -60,7 +60,7 @@ export const MyPageHistoryList = ({
           <Link
             key={item.roomCode}
             href={`/room/${item.roomCode}/total-result?from=mypage`}
-            className='flex min-h-[95px] items-center justify-between rounded-[12px] bg-[#1D1C31] px-[14px] py-4 transition hover:bg-[#24223A]'
+            className='flex min-h-[95px] items-center justify-between rounded-md bg-[#1D1C31] px-3.5 py-4 transition hover:bg-[#24223A] active:scale-[0.98]'
           >
             <div className='min-w-0'>
               <p className='mb-1 text-[12px] font-medium text-[#747281]'>

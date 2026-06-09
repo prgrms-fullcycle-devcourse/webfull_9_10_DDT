@@ -2,22 +2,29 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/lib/queryKeys';
+import { clearGuestAccessToken } from '@/lib/authToken';
 
 export function SessionRestorer() {
   const router = useRouter();
   const pathname = usePathname();
-  const isLoggedIn = useAuth().isLoggedIn;
+  const queryClient = useQueryClient();
+  const { isLoggedIn, me } = useAuth();
   const { confirm, confirmProps } = useConfirm();
 
-  const hasPromptedRef = useRef(false);
-
-  const { data: activeRoom } = useQuery({
-    queryKey: ['activeRoom', isLoggedIn],
+  const dismissedRoomsRef = useRef<Set<string>>(new Set());
+  const isOnHomePage = pathname === '/';
+  const {
+    data: activeRoom,
+    isError: isActiveRoomError,
+    isFetched: isActiveRoomFetched,
+  } = useQuery({
+    queryKey: queryKeys.room.active(isLoggedIn, isOnHomePage),
     queryFn: async () => {
       const res = await getRoomApi().roomControllerGetMyActiveRoom();
       const data = (
@@ -27,18 +34,37 @@ export function SessionRestorer() {
       ).data;
       return data || null;
     },
-    enabled: isLoggedIn && !pathname.includes('/room/'),
+    enabled: isLoggedIn && isOnHomePage,
+    staleTime: 0,
+    gcTime: 0,
     retry: false,
   });
 
   useEffect(() => {
+    if (!isOnHomePage || me?.role !== 'guest' || !isActiveRoomFetched) {
+      return;
+    }
+
+    if (isActiveRoomError || !activeRoom) {
+      if (clearGuestAccessToken()) {
+        queryClient.setQueryData(queryKeys.auth.me(), null);
+      }
+    }
+  }, [
+    activeRoom,
+    isActiveRoomError,
+    isActiveRoomFetched,
+    isOnHomePage,
+    me?.role,
+    queryClient,
+  ]);
+
+  useEffect(() => {
     if (
       activeRoom?.code &&
-      !hasPromptedRef.current &&
-      !pathname.includes('/room/')
+      !dismissedRoomsRef.current.has(activeRoom.code) &&
+      isOnHomePage
     ) {
-      hasPromptedRef.current = true;
-
       const promptRestore = async () => {
         const ok = await confirm({
           title: '진행 중인 집중 세션이 있습니다.',
@@ -54,11 +80,13 @@ export function SessionRestorer() {
             targetPath = `/room/${activeRoom.code}/semi-result`;
           }
           router.push(targetPath);
+        } else {
+          dismissedRoomsRef.current.add(activeRoom.code!);
         }
       };
       promptRestore();
     }
-  }, [activeRoom, pathname, confirm, router]);
+  }, [activeRoom, confirm, isOnHomePage, router]);
 
   return <ConfirmDialog {...confirmProps} />;
 }

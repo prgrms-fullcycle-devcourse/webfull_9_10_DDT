@@ -23,13 +23,15 @@ import { ContractActions } from './ContractActions';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useEffect, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제어/timer-api-타이머-및-세션-제어';
 import axios from 'axios';
 import { ContractDataForSave, toBackendFormat } from '@/lib/contractTransform';
 import { getRuleApi } from '@/api/generated/rule-api-계약서-관리/rule-api-계약서-관리';
 import { useAuth } from '@/hooks/useAuth';
 import NoSleep from 'nosleep.js';
+import { clearGuestAccessToken } from '@/lib/authToken';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface ContractFormValues {
   focusMin: number;
@@ -38,6 +40,7 @@ interface ContractFormValues {
 }
 
 const ContractForm = () => {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const room = useRoom();
   const me = useAuth().me;
@@ -157,7 +160,7 @@ const ContractForm = () => {
   const handleLeaveRoom = async () => {
     const ok = await confirm({
       title: isHost
-        ? '방장이 나가면 방이 폭파됩니다. 정말 나가시겠어요?'
+        ? `방장이 나가면 방이 폭파됩니다.\n정말 나가시겠어요?`
         : '정말 방에서 나가시겠어요?',
       confirmText: '나가기',
       variant: 'destructive',
@@ -168,10 +171,31 @@ const ContractForm = () => {
 
     try {
       await getRoomApi().roomControllerLeaveRoom(room.code);
+      if (clearGuestAccessToken()) {
+        queryClient.setQueryData(queryKeys.auth.me(), null);
+      }
       router.replace('/');
     } catch {
       toast.error('퇴장 처리에 실패했습니다.');
     }
+  };
+
+  const handleForceStart = async () => {
+    if (!isHost) {
+      return;
+    }
+    const ok = await confirm({
+      title: `강제로 시작하시겠습니까?`,
+      description: '서명하지 않은 유저는 자동으로 강퇴됩니다.',
+      confirmText: '시작하기',
+      cancelText: '아니요',
+      variant: 'destructive',
+    });
+    if (!ok) {
+      return;
+    }
+
+    await handleForceStartFocus();
   };
 
   if (!me) {
@@ -203,7 +227,7 @@ const ContractForm = () => {
       }
     >
       <div className='flex flex-col gap-5'>
-        <div className='flex flex-col gap-5 bg-(--surface) rounded-xl'>
+        <div className='flex flex-col gap-5  rounded-xl'>
           <RoomTitle
             isConnected={isConnected}
             title={room.title}
@@ -247,7 +271,7 @@ const ContractForm = () => {
             </form>
           </FormProvider>
         </div>
-        <div className='flex flex-col gap-5 bg-(--surface) rounded-xl mb-10'>
+        <div className='flex flex-col gap-5  rounded-xl mb-10'>
           <div className='flex flex-col mt-10 mb-5 items-center'>
             <p className='text-xl text-success'>모든 멤버가 서명해야</p>
             <p className='text-xl text-success'>타이머를 시작할 수 있어요!</p>
@@ -258,7 +282,8 @@ const ContractForm = () => {
         <div className='flex w-full gap-2'>
           <Button
             type='button'
-            className='flex-1 py-5! rounded-sm! bg-card! border border-white/10'
+            variant='secondary'
+            className='flex-1 h-12 rounded-[14px] text-base font-bold'
             onClick={handleLeaveRoom}
           >
             나가기
@@ -267,10 +292,8 @@ const ContractForm = () => {
             <Button
               type='button'
               disabled={!isMeSigned}
-              className='flex-1 py-5! rounded-sm! bg-destructive'
-              onClick={async () => {
-                await handleForceStartFocus();
-              }}
+              className='flex-1 h-12 rounded-[14px] text-base font-bold bg-destructive'
+              onClick={handleForceStart}
             >
               강제 시작
             </Button>
@@ -282,7 +305,7 @@ const ContractForm = () => {
               onClick={async () => {
                 await handleStartFocus();
               }}
-              className='flex-1 py-5! rounded-sm!'
+              className='flex-1 h-12 rounded-[14px] text-base font-bold'
             >
               {startTimerMutation.isPending ? '시작 중...' : '집중 시작'}
             </Button>

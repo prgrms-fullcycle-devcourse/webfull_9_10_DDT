@@ -170,7 +170,7 @@ export function MyPageEdit() {
             onClick={handleSave}
             disabled={!isValid || isSaving || isLoading}
             size='cta'
-            className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            className='disabled:bg-secondary disabled:text-muted-foreground'
           >
             {isSaving ? '저장 중...' : '저장하기'}
           </Button>
@@ -218,25 +218,25 @@ export function MyPageEdit() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              회원 탈퇴하면 집중했던 데이터가 사라집니다.
+              회원 탈퇴하면 <br /> 집중했던 데이터가 사라집니다.
             </DialogTitle>
             <DialogDescription>정말로 탈퇴하시겠어요?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
-              variant='ghost'
-              className='flex-1 py-6! border border-white/20'
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
-            >
-              아니요
-            </Button>
-            <Button
-              className='flex-1 py-6! bg-destructive'
+              className='flex-1 h-12 rounded-lg bg-destructive hover:bg-destructive/80 text-white font-bold border-none'
               onClick={confirmDelete}
               disabled={isDeleting}
             >
               {isDeleting ? '탈퇴 중...' : '탈퇴'}
+            </Button>
+            <Button
+              variant='secondary'
+              className='flex-1 h-12 rounded-lg'
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              아니요
             </Button>
           </DialogFooter>
         </DialogContent>

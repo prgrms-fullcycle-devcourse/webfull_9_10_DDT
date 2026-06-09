@@ -80,7 +80,7 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
         fontFamily={rouletteTheme.font}
       />
       <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)] text-[10px] font-bold text-foreground shadow-md">
-        DDT
+        감옥
       </div>
     </div>
   );
