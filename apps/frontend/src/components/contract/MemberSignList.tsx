@@ -109,7 +109,7 @@ export default function MemberSignList() {
               onClick={handleSignToggle}
               className={cn(
                 'ring-1 rounded-sm! px-4!',
-                isMeSigned ? 'ring-success' : 'ring-ring',
+                isMeSigned ? 'ring-primary' : 'ring-success',
               )}
             >
               {isMeSigned ? '취소' : '서명'}

@@ -14,7 +14,7 @@ type CloseButtonProps = Omit<
 
 export function CloseButton({
   className,
-  iconSize = 20,
+  iconSize = 24,
   'aria-label': ariaLabel = '닫기',
   ...props
 }: CloseButtonProps) {
@@ -25,12 +25,12 @@ export function CloseButton({
       size='icon'
       aria-label={ariaLabel}
       className={cn(
-        'absolute right-4 rounded-full text-white/75 hover:bg-white/10 hover:text-white',
-        className
+        'absolute right-4 rounded-full text-icon hover:bg-white/10 hover:text-white',
+        className,
       )}
       {...props}
     >
-      <X size={iconSize} />
+      <X style={{ width: iconSize, height: iconSize }} />
     </Button>
   );
 }

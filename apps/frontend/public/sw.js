@@ -1,6 +1,6 @@
 // 오직 push 이벤트 리스너만 남김
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : { title: 'DDT 알림', body: '집중 시간이 시작되었습니다!' };
+  const data = event.data ? event.data.json() : { title: '감옥 알림', body: '집중 시간이 시작되었습니다!' };
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,

@@ -1,10 +1,12 @@
 'use client';
 
 import { useRoomStore } from '@/store/useRoomStore';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -12,6 +14,7 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
+import { clearGuestAccessToken } from '@/lib/authToken';
 
 const SocketContext = createContext<Socket | null>(null);
 
@@ -29,6 +32,13 @@ export function SocketProvider({
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const clearGuestSession = useCallback(() => {
+    if (clearGuestAccessToken()) {
+      queryClient.setQueryData(['me'], null);
+    }
+  }, [queryClient]);
 
   useEffect(() => {
     if (socketRef.current?.connected) {
@@ -59,9 +69,11 @@ export function SocketProvider({
         router.replace(`/room/${roomCode}`);
       } else if (data.reason === 'room-timer') {
         toast.error('이미 집중 페이즈입니다.');
+        clearGuestSession();
         router.replace('/');
       } else if (data.reason === 'room-closed') {
         toast.error('이미 종료된 방입니다.');
+        clearGuestSession();
         router.replace('/');
       } else if (data.reason === 'duplicate-connection') {
         toast.error('다른 곳에서 접속했습니다.');
@@ -71,6 +83,7 @@ export function SocketProvider({
     s.on('room:closed', ({ reason }: { reason?: string }) => {
       toast.error(reason ?? '방이 종료되었습니다.');
       useRoomStore.getState().reset();
+      clearGuestSession();
       router.replace('/');
     });
 
@@ -99,6 +112,7 @@ export function SocketProvider({
 
     s.on('kicked', () => {
       toast.error('방장에 의해 강퇴되었습니다.');
+      clearGuestSession();
       router.replace('/');
     });
 
@@ -182,7 +196,7 @@ export function SocketProvider({
       useRoomStore.getState().reset();
       socketRef.current = null;
     };
-  }, [roomCode, router, token]);
+  }, [clearGuestSession, roomCode, router, token]);
 
   return (
     <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>

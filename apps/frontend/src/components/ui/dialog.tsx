@@ -32,7 +32,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         'fixed left-1/2 top-1/2 z-50 w-[calc(100%-48px)] max-w-[390px] -translate-x-1/2 -translate-y-1/2',
-        'bg-[#111827] border border-white/[0.12] rounded-[20px] p-6',
+        'bg-card border border-border rounded-xl p-6',
         'shadow-[0_20px_80px_rgba(0,0,0,0.55)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',

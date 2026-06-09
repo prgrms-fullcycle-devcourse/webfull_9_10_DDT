@@ -17,7 +17,7 @@ export const MyPageSettings = forwardRef<HTMLDivElement, MyPageSettingsProps>(
       <button
         type='button'
         aria-label='설정'
-        className='flex h-10 w-10 items-center justify-center rounded-full text-[#8A8A99] transition hover:bg-white/5 hover:text-white'
+        className='flex h-10 w-10 items-center justify-center rounded-full text-icon transition hover:bg-white/5 hover:text-white active:bg-white/15'
         onClick={onToggle}
       >
         <Settings size={24} strokeWidth={1.8} />

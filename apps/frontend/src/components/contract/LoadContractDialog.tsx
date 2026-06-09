@@ -333,9 +333,9 @@ export function LoadContractDialog({
         <DialogFooter className='flex w-full'>
           <Button
             type='button'
-            variant='ghost'
+            variant='secondary'
             onClick={onClose}
-            className='flex-1 py-6! border border-white/20'
+            className='flex-1 h-12 rounded-lg'
           >
             취소
           </Button>
@@ -343,7 +343,7 @@ export function LoadContractDialog({
             type='button'
             onClick={handleLoad}
             disabled={!canLoad}
-            className='flex-1 py-6!'
+            className='flex-1 h-12 rounded-lg font-bold'
           >
             불러오기
           </Button>

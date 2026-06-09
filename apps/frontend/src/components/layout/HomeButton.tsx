@@ -16,7 +16,7 @@ type HomeButtonProps = Omit<
 export function HomeButton({
   className,
   onClick,
-  iconSize = 20,
+  iconSize = 22,
   'aria-label': ariaLabel = '홈으로 이동',
   ...props
 }: HomeButtonProps) {
@@ -30,12 +30,12 @@ export function HomeButton({
       onClick={onClick ?? (() => router.push('/'))}
       aria-label={ariaLabel}
       className={cn(
-        'rounded-full text-white/80 hover:bg-white/10',
+        'rounded-full text-icon hover:bg-white/10 hover:text-white',
         className,
       )}
       {...props}
     >
-      <Home size={iconSize} />
+      <Home style={{ width: iconSize, height: iconSize }} />
     </Button>
   );
 }

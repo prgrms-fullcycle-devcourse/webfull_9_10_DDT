@@ -104,13 +104,13 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
                 onCheckedChange={(c) => updateAgreement('termsOfService', !!c)}
               />
               <label htmlFor='terms' className='ml-3 cursor-pointer'>
-                서비스 이용약관 <span className='text-red-500'>(필수)</span>
+                서비스 이용약관 <span className='text-destructive'>(필수)</span>
               </label>
             </div>
             <Link
               href='/terms/service'
               aria-label='서비스 이용약관 전문 보기'
-              className='rounded-full p-1 text-gray-500 hover:text-white'
+              className='rounded-full p-1 text-muted-foreground hover:text-white'
             >
               <ChevronRight />
             </Link>
@@ -125,13 +125,13 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
               />
               <label htmlFor='privacy' className='ml-3 cursor-pointer'>
                 개인정보 수집 및 이용동의{' '}
-                <span className='text-red-500'>(필수)</span>
+                <span className='text-destructive'>(필수)</span>
               </label>
             </div>
             <Link
               href='/terms/privacy'
               aria-label='개인정보 처리방침 전문 보기'
-              className='rounded-full p-1 text-gray-500 hover:text-white'
+              className='rounded-full p-1 text-muted-foreground hover:text-white'
             >
               <ChevronRight />
             </Link>
@@ -145,13 +145,13 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
                 onCheckedChange={(c) => updateAgreement('ageVerification', !!c)}
               />
               <label htmlFor='isOver14' className='ml-3 cursor-pointer'>
-                만 14세 이상 확인 <span className='text-red-500'>(필수)</span>
+                만 14세 이상 확인 <span className='text-destructive'>(필수)</span>
               </label>
             </div>
           </div>
         </div>
 
-        <p className='text-center text-xs text-gray-500'>
+        <p className='text-center text-xs text-muted-foreground'>
           안전한 보안 환경에서 로그인 진행 중
         </p>
       </div>

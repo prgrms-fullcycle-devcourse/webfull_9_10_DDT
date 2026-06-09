@@ -169,7 +169,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [serverUrl, isHost]);
+  }, [serverUrl, roomCode, enabled, isHost]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {

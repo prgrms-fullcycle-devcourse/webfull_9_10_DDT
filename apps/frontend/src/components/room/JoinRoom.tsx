@@ -174,14 +174,14 @@ export const JoinRoom = () => {
           </DialogHeader>
           <DialogFooter>
             <Button
-              variant='outline'
-              className='flex-1 py-6! border border-white/20'
+              variant='secondary'
+              className='flex-1 h-12 rounded-lg'
               onClick={handleGuestStart}
             >
               게스트로 시작
             </Button>
             <Button
-              className='flex-1 py-6! font-bold'
+              className='flex-1 h-12 rounded-lg font-bold'
               onClick={handleGoogleLogin}
             >
               구글 로그인
@@ -202,7 +202,7 @@ export const JoinRoom = () => {
             disabled={!isValid || joinMutation.isPending}
             onClick={handleSubmit}
             size='cta'
-            className='hover:scale-[1.01] active:scale-[0.98] disabled:bg-[#1F2937] disabled:text-[#9CA3AF]'
+            className='disabled:bg-secondary disabled:text-muted-foreground'
           >
             {joinMutation.isPending ? '입장 중...' : '입장하기'}
           </Button>

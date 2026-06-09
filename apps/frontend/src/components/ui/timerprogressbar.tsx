@@ -77,22 +77,22 @@ export function TimerProgressBar({
                   }}
                 >
                   <div
-                    className="h-1.5 overflow-hidden rounded-full bg-[#1F1E29]"
+                    className="h-1.5 overflow-hidden rounded-full bg-muted"
                     style={{ flexGrow: focusDuration }}
                   >
                     <div
-                      className="h-full origin-left rounded-full bg-[#A855F7] transition-all duration-1000 ease-linear"
+                      className="h-full origin-left rounded-full bg-primary transition-all duration-1000 ease-linear"
                       style={{ width: focusWidth }}
                     />
                   </div>
 
                   {sessionNum < totalSessions && (
                     <div
-                      className="h-1.5 overflow-hidden rounded-full bg-[#1F1E29]"
+                      className="h-1.5 overflow-hidden rounded-full bg-muted"
                       style={{ flexGrow: breakDuration }}
                     >
                       <div
-                        className="h-full origin-left rounded-full bg-[#22C55E] transition-all duration-1000 ease-linear"
+                        className="h-full origin-left rounded-full bg-success transition-all duration-1000 ease-linear"
                         style={{ width: breakWidth }}
                       />
                     </div>
@@ -104,10 +104,10 @@ export function TimerProgressBar({
         ))}
       </div>
 
-      <div className="flex justify-between text-xs text-[#64748B] mt-2">
+      <div className="flex justify-between text-xs text-muted-foreground mt-2">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#A855F7]"></span> 집중
-          <span className="w-2 h-2 rounded-full bg-[#22C55E]"></span> 휴식
+          <span className="w-2 h-2 rounded-full bg-primary"></span> 집중
+          <span className="w-2 h-2 rounded-full bg-success"></span> 휴식
         </div>
         <div className="font-medium">{currentSession}/{totalSessions} 세션</div>
       </div>

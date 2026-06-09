@@ -2,22 +2,28 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/queryKeys';
+import { clearGuestAccessToken } from '@/lib/authToken';
 
 export function SessionRestorer() {
   const router = useRouter();
   const pathname = usePathname();
-  const isLoggedIn = useAuth().isLoggedIn;
+  const queryClient = useQueryClient();
+  const { isLoggedIn, me } = useAuth();
   const { confirm, confirmProps } = useConfirm();
 
   const dismissedRoomsRef = useRef<Set<string>>(new Set());
-  const isOnHomePage = !pathname.includes('/room/');
-  const { data: activeRoom } = useQuery({
+  const isOnHomePage = pathname === '/';
+  const {
+    data: activeRoom,
+    isError: isActiveRoomError,
+    isFetched: isActiveRoomFetched,
+  } = useQuery({
     queryKey: queryKeys.room.active(isLoggedIn, isOnHomePage),
     queryFn: async () => {
       const res = await getRoomApi().roomControllerGetMyActiveRoom();
@@ -33,6 +39,25 @@ export function SessionRestorer() {
     gcTime: 0,
     retry: false,
   });
+
+  useEffect(() => {
+    if (!isOnHomePage || me?.role !== 'guest' || !isActiveRoomFetched) {
+      return;
+    }
+
+    if (isActiveRoomError || !activeRoom) {
+      if (clearGuestAccessToken()) {
+        queryClient.setQueryData(['me'], null);
+      }
+    }
+  }, [
+    activeRoom,
+    isActiveRoomError,
+    isActiveRoomFetched,
+    isOnHomePage,
+    me?.role,
+    queryClient,
+  ]);
 
   useEffect(() => {
     if (

@@ -11,12 +11,14 @@ import { useSocket } from '@/contexts/SocketContext';
 import { EscapeSummaryItem, useRoomStore } from '@/store/useRoomStore';
 import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
+import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
 import { TimerCircle } from '@/components/ui/timercircle';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -279,7 +281,7 @@ export default function Timer() {
     );
 
   const theme = {
-    textColor: isFocus ? 'text-primary' : 'text-success',
+    textColor: isFocus ? '' : 'text-success',
     strokeColor: isFocus ? 'stroke-primary' : 'stroke-success',
     statusText: isFocus ? '집중 시간' : '휴식 시간',
     subStatusText: isFocus ? '집중 중' : '휴식 중',
@@ -288,50 +290,49 @@ export default function Timer() {
   return (
     <MobileLayout
       header={
-        <div className='w-full text-center'>
-          <h1 className={`text-xl font-bold ${theme.textColor}`}>
-            {theme.statusText} {round} / {totalRounds}
-          </h1>
-        </div>
+        <HeaderTitle align='center' className={theme.textColor}>
+          {theme.statusText} {round} / {totalRounds}
+        </HeaderTitle>
       }
       bottomButton={
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button
               type='button'
-              className='w-full py-4 bg-transparent border border-border text-muted-foreground rounded-xl hover:bg-muted/30 transition-colors'
+              className='w-full h-12 rounded-[14px] text-base font-bold bg-transparent border border-border text-muted-foreground hover:bg-muted/30 transition-colors'
             >
               중도 포기
             </Button>
           </DialogTrigger>
-          <DialogContent className='max-w-[320px] rounded-2xl border border-border bg-[#1E2538] p-6 text-white shadow-2xl focus:outline-none'>
-            <DialogHeader className='text-left space-y-2'>
-              <DialogTitle className='text-base font-bold leading-snug tracking-tight text-white'>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
                 포기하면 남은 시간이
                 <br />
                 모두 이탈 시간으로 처리돼요.
               </DialogTitle>
-              <DialogDescription className='text-xs text-slate-400 font-medium leading-relaxed pt-0.5'>
+              <DialogDescription>
                 가장 많은 벌칙을 받게 됩니다.
               </DialogDescription>
             </DialogHeader>
-            <div className='flex gap-2.5 mt-6 w-full'>
+            <DialogFooter>
               <Button
                 type='button'
                 onClick={handleForfeit}
                 disabled={giveUpMutation.isPending}
-                className='flex-1 py-5 bg-[#F85A5A] hover:bg-[#E04F4F] text-white font-bold rounded-xl transition-colors border-none'
+                className='flex-1 h-12 rounded-lg bg-destructive hover:bg-destructive/80 text-white font-bold border-none'
               >
                 {giveUpMutation.isPending ? '처리 중...' : '포기하기'}
               </Button>
               <Button
                 type='button'
+                variant='secondary'
                 onClick={() => setIsModalOpen(false)}
-                className='flex-1 py-5 bg-[#2A314A] hover:bg-[#353D5C] text-white font-bold rounded-xl transition-colors border-none'
+                className='flex-1 h-12 rounded-lg'
               >
                 취소
               </Button>
-            </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       }
@@ -356,7 +357,7 @@ export default function Timer() {
 
         {!isWakeLockSupported && (
           <div className='text-center mt-4 w-full max-w-sm px-4'>
-            <div className='flex items-start justify-center gap-2 bg-[#F85A5A]/10 border border-[#F85A5A]/30 rounded-xl px-4 py-3 text-xs text-[#F85A5A]'>
+            <div className='flex items-start justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 text-xs text-destructive'>
               <span>
                 현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.
                 <br />

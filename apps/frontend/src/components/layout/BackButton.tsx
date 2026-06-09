@@ -16,7 +16,7 @@ type BackButtonProps = Omit<
 export function BackButton({
   className,
   onClick,
-  iconSize = 20,
+  iconSize = 24,
   'aria-label': ariaLabel = '뒤로가기',
   ...props
 }: BackButtonProps) {
@@ -30,12 +30,12 @@ export function BackButton({
       onClick={onClick ?? (() => router.back())}
       aria-label={ariaLabel}
       className={cn(
-        'rounded-full text-white/75 hover:bg-white/10 hover:text-white',
-        className
+        'rounded-full text-icon hover:bg-white/10 hover:text-white',
+        className,
       )}
       {...props}
     >
-      <ArrowLeft size={iconSize} />
+      <ArrowLeft style={{ width: iconSize, height: iconSize }} />
     </Button>
   );
 }

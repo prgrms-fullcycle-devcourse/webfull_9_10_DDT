@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { jwtDecode } from 'jwt-decode';
@@ -9,6 +9,7 @@ import { getResultApi } from '@/api/generated/result-api-결과-조회/result-ap
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -129,6 +130,7 @@ export function TotalResult() {
   const params = useParams<{ code: string }>();
   const searchParams = useSearchParams();
   const { me } = useAuth();
+  const isSharingRef = useRef(false);
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
   const [expandedPenaltyMemberIds, setExpandedPenaltyMemberIds] = useState<
     string[]
@@ -165,6 +167,7 @@ export function TotalResult() {
   const rankedMembers = [...(result?.members ?? [])].sort(
     (a, b) => a.rank - b.rank || b.totalEscapeMs - a.totalEscapeMs,
   );
+  const isSolo = rankedMembers.length <= 1;
   const penaltyMembers = rankedMembers.filter(
     (member) => member.penalties.totalCount > 0,
   );
@@ -185,40 +188,79 @@ export function TotalResult() {
   };
 
   const handleShare = async () => {
-    const shareUrl = window.location.href;
+    if (isSharingRef.current) return;
 
-    if (isMobileOrTablet() && navigator.share) {
-      try {
-        await navigator.share({
-          title: 'DDT 통합 결과',
-          text: `${result?.roomTitle ?? 'DDT'} 결과를 확인해보세요.`,
-          url: shareUrl,
-        });
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-      }
-    }
+    const shareUrl = window.location.href;
+    const shareText = `${result?.roomTitle ?? '감옥'} 결과를 확인해보세요.\n${shareUrl}`;
+    isSharingRef.current = true;
 
     try {
+      if (isMobileOrTablet() && navigator.share) {
+        try {
+          await navigator.share({
+            text: shareText,
+          });
+          return;
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+        }
+      }
+
       await navigator.clipboard.writeText(shareUrl);
       toast.success('URL이 복사되었어요.');
     } catch {
       toast.error('URL 복사에 실패했습니다.');
+    } finally {
+      isSharingRef.current = false;
     }
   };
 
   const HeaderComponent = (
-    <div className='relative flex w-full items-center justify-center text-foreground'>
-      <h1 className='text-base font-medium tracking-tight'>통합 결과</h1>
+    <>
+      <HeaderTitle align='center'>통합 결과</HeaderTitle>
       <CloseButton onClick={() => router.push(closeTarget)} />
+    </>
+  );
+
+  const BottomButtonComponent = (
+    <div className='flex flex-col gap-2.5 bg-linear-to-t from-background from-65% to-transparent px-4 pt-8 pb-[calc(env(safe-area-inset-bottom)+12px)]'>
+      <Button
+        type='button'
+        variant='outline'
+        onClick={() => setIsContractDialogOpen(true)}
+        className='h-12 w-full rounded-[14px] border-primary text-base font-bold text-muted-foreground'
+      >
+        계약서 보기
+      </Button>
+      <div className='grid grid-cols-2 gap-2.5'>
+        <Button
+          type='button'
+          variant='secondary'
+          onClick={handleShare}
+          className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
+        >
+          공유하기
+        </Button>
+        <Button
+          type='button'
+          variant='secondary'
+          onClick={() => router.push(isLoggedInUser ? '/mypage' : '/')}
+          className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
+        >
+          {isLoggedInUser ? '마이페이지' : '홈 화면으로 이동'}
+        </Button>
+      </div>
     </div>
   );
 
   return (
     <>
-      <MobileLayout header={HeaderComponent}>
-        <div className='flex min-w-0 flex-col gap-4 pb-[150px] text-foreground'>
+      <MobileLayout
+        header={HeaderComponent}
+        bottomButton={result ? BottomButtonComponent : undefined}
+        bottomFloating
+      >
+        <div className='flex min-w-0 flex-col gap-4 text-foreground'>
           {isLoading ? (
             <div className='py-10 text-center text-sm text-muted-foreground'>
               통합 결과를 불러오는 중...
@@ -232,8 +274,8 @@ export function TotalResult() {
           {result ? (
             <>
               <section className='flex flex-col items-center px-4 py-5 text-center'>
-                <div className='mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-primary'>
-                  <Trophy className='h-5 w-5' />
+                <div className='mb-2 flex h-9 w-9 items-center justify-center rounded-full text-primary'>
+                  <Trophy className='h-5 w-5 text-[#FBBF24]' />
                 </div>
                 <h2 className='text-xl font-bold text-[#FBBF24]'>
                   모두 고생했어요!
@@ -270,7 +312,7 @@ export function TotalResult() {
                 <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
                   이탈 시간 순위
                 </h3>
-                <div className='overflow-hidden rounded-2xl border border-slate-800/70 bg-[#151926]'>
+                <div className='overflow-hidden rounded-[14px] border border-slate-800/70 bg-[#151926]'>
                   {rankedMembers.map((member) => {
                     const isMe = me
                       ? (me.role === 'user' && member.userId === me.id) ||
@@ -288,7 +330,7 @@ export function TotalResult() {
                           {member.isAllClear ? (
                             <ThumbsUp className='h-4 w-7 shrink-0 text-[#FBBF24]' />
                           ) : (
-                            <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F85A5A]/15 text-xs font-bold text-[#F85A5A]'>
+                            <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-xs font-bold text-destructive'>
                               {member.rank}
                             </div>
                           )}
@@ -308,10 +350,10 @@ export function TotalResult() {
                               <span className='truncate text-sm font-semibold text-slate-100'>
                                 {member.nickname}
                                 {member.isHost ? ' (방장)' : ''}
-                                {isMe ? ' (나)' : ''}
+                                {isMe && !isSolo ? ' (나)' : ''}
                               </span>
                               {member.gaveUpAt ? (
-                                <Badge className='h-5 shrink-0 border-none bg-[#F85A5A] px-1.5 text-[10px] font-bold text-white hover:bg-[#F85A5A]'>
+                                <Badge className='h-5 shrink-0 border-none bg-destructive px-1.5 text-[10px] font-bold text-white hover:bg-destructive'>
                                   중도 포기
                                 </Badge>
                               ) : null}
@@ -331,7 +373,7 @@ export function TotalResult() {
                 <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
                   멤버별 벌칙 결과
                 </h3>
-                <div className='overflow-hidden rounded-xl bg-[#181828]'>
+                <div className='overflow-hidden rounded-[14px] bg-[#181828]'>
                   {penaltyMembers.length > 0 ? (
                     penaltyMembers.map((member) => {
                       const isMe =
@@ -374,7 +416,7 @@ export function TotalResult() {
                               <span className='truncate text-sm font-medium text-white/85'>
                                 {member.nickname}
                                 {member.isHost ? ' (방장)' : ''}
-                                {isMe ? ' (본인)' : ''}
+                                {isMe && !isSolo ? ' (본인)' : ''}
                               </span>
                             </div>
                             <span
@@ -432,37 +474,10 @@ export function TotalResult() {
         </div>
       </MobileLayout>
 
-      <div className='fixed bottom-0 left-1/2 z-50 w-full max-w-[390px] -translate-x-1/2 border-t border-white/10 bg-[#0F111A] px-[18px] pb-5 pt-3'>
-        <div className='flex flex-col gap-2.5'>
-          <Button
-            type='button'
-            onClick={() => setIsContractDialogOpen(true)}
-            className='h-[54px] w-full rounded-[14px] bg-primary text-sm font-bold text-primary-foreground'
-          >
-            계약서 보기
-          </Button>
-          <div className='grid grid-cols-2 gap-2.5'>
-            <Button
-              type='button'
-              variant='secondary'
-              onClick={handleShare}
-              className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-sm font-bold text-white/85'
-            >
-              공유하기
-            </Button>
-            <Button
-              type='button'
-              variant='secondary'
-              onClick={() => router.push(isLoggedInUser ? '/mypage' : '/')}
-              className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-sm font-bold text-white/85'
-            >
-              {isLoggedInUser ? '마이페이지' : '홈 화면으로 이동'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
+      <Dialog
+        open={isContractDialogOpen}
+        onOpenChange={setIsContractDialogOpen}
+      >
         <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'>
           <DialogClose asChild>
             <Button
