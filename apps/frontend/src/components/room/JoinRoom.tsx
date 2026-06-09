@@ -30,6 +30,7 @@ import {
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { getErrorMessage } from '@/lib/error';
 import { useAuth } from '@/hooks/useAuth';
+import { startTermsAgreementLogin } from '@/lib/authNavigation';
 
 // 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
 const noopSubscribe = () => () => {};
@@ -90,29 +91,7 @@ export const JoinRoom = () => {
     (isHost || (password.length >= 4 && password.length <= 20));
 
   const handleGoogleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    window.open(
-      `${apiUrl}/auth/google`,
-      'Google Login',
-      'width=500,height=600',
-    );
-
-    const handler = async (event: MessageEvent) => {
-      if (event.origin !== apiUrl) return;
-      if (event.data?.type !== 'OAUTH_SUCCESS') return;
-
-      window.removeEventListener('message', handler);
-
-      if (event.data.token) {
-        document.cookie = `access_token=${event.data.token}; path=/; max-age=86400`;
-      }
-
-      await refetchMe(); // loadMe로 이름 바꿨으면 그쪽
-      setDialogDismissed(true);
-    };
-
-    window.addEventListener('message', handler);
+    startTermsAgreementLogin(router.push);
   };
 
   const joinMutation = useMutation({
