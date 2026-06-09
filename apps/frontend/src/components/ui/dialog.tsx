@@ -25,42 +25,24 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
-  const defaultDescriptionId = React.useId();
-  const hasDescription = props['aria-describedby'] !== undefined;
-
-  return (
-    <DialogPortal>
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        ref={ref}
-        className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-[calc(100%-48px)] max-w-[390px] -translate-x-1/2 -translate-y-1/2',
-          'bg-[#111827] border border-white/[0.12] rounded-[20px] p-6',
-          'shadow-[0_20px_80px_rgba(0,0,0,0.55)]',
-          'data-[state=open]:animate-in data-[state=closed]:animate-out',
-          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-          className,
-        )}
-        aria-describedby={
-          hasDescription ? props['aria-describedby'] : defaultDescriptionId
-        }
-        {...props}
-      >
-        {!hasDescription ? (
-          <DialogPrimitive.Description
-            id={defaultDescriptionId}
-            className='sr-only'
-          >
-            이 창에서 내용을 확인하고 필요한 작업을 진행할 수 있습니다.
-          </DialogPrimitive.Description>
-        ) : null}
-        {children}
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  );
-});
+>(({ className, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        'fixed left-1/2 top-1/2 z-50 w-[calc(100%-48px)] max-w-[390px] -translate-x-1/2 -translate-y-1/2',
+        'bg-[#111827] border border-white/[0.12] rounded-[20px] p-6',
+        'shadow-[0_20px_80px_rgba(0,0,0,0.55)]',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        className,
+      )}
+      {...props}
+    />
+  </DialogPortal>
+));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({

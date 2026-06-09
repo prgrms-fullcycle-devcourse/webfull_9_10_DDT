@@ -175,7 +175,6 @@ export function TotalResult() {
     : '-';
   const isLoggedInUser = me?.role === 'user';
   const closeTarget = searchParams.get('from') === 'mypage' ? '/mypage' : '/';
-  const contractDialogDescriptionId = 'contract-dialog-description';
 
   const togglePenaltyMember = (memberId: string) => {
     setExpandedPenaltyMemberIds((prev) =>
@@ -465,7 +464,6 @@ export function TotalResult() {
 
       <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
         <DialogContent
-          aria-describedby={contractDialogDescriptionId}
           className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'
         >
           <DialogClose asChild>
@@ -485,10 +483,7 @@ export function TotalResult() {
                 <DialogTitle className='truncate text-base font-medium text-white/85'>
                   {result?.roomTitle ?? params.code}의 계약서
                 </DialogTitle>
-                <DialogDescription
-                  id={contractDialogDescriptionId}
-                  className='sr-only'
-                >
+                <DialogDescription className='sr-only'>
                   완료된 집중 세션에서 사용한 계약서의 타이머, 벌칙 목록,
                   벌칙 강도 설정을 확인할 수 있습니다.
                 </DialogDescription>
