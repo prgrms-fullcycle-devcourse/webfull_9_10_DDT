@@ -1,5 +1,5 @@
 import { isMobileOrTablet } from '@/lib/device';
-import { TERMS_LOGIN_RETURN_TO_KEY } from '@/lib/authTerms';
+import { PENDING_TERMS_KEY, TERMS_LOGIN_RETURN_TO_KEY } from '@/lib/authTerms';
 
 const TERMS_POPUP_FEATURES =
   'width=390,height=730,resizable=no,status=no,toolbar=no,menubar=no,location=no';
@@ -13,6 +13,7 @@ const getCurrentPath = () => {
 export const startTermsAgreementLogin = (redirect: (path: string) => void) => {
   if (typeof window === 'undefined') return;
 
+  sessionStorage.removeItem(PENDING_TERMS_KEY);
   sessionStorage.setItem(TERMS_LOGIN_RETURN_TO_KEY, getCurrentPath());
 
   if (isMobileOrTablet()) {

@@ -11,15 +11,56 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   EMPTY_TERMS_AGREEMENT,
   PENDING_TERMS_KEY,
+  TERMS_OAUTH_STARTED_KEY,
   readPendingTerms,
   type TermsAgreement,
 } from '@/lib/authTerms';
 
+const resetAgreementAfterOAuthBack = () => {
+  if (typeof window === 'undefined') return false;
+
+  if (sessionStorage.getItem(TERMS_OAUTH_STARTED_KEY) !== 'true') {
+    return false;
+  }
+
+  sessionStorage.removeItem(TERMS_OAUTH_STARTED_KEY);
+  sessionStorage.removeItem(PENDING_TERMS_KEY);
+  return true;
+};
+
+const resetAgreementAfterReload = () => {
+  if (typeof window === 'undefined') return false;
+
+  const navigation = performance.getEntriesByType(
+    'navigation',
+  )[0] as PerformanceNavigationTiming | undefined;
+
+  if (navigation?.type !== 'reload') return false;
+
+  sessionStorage.removeItem(PENDING_TERMS_KEY);
+  return true;
+};
+
 export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
   const [agreement, setAgreement] = useState<TermsAgreement>(
-    () => readPendingTerms() ?? EMPTY_TERMS_AGREEMENT,
+    () =>
+      resetAgreementAfterOAuthBack() || resetAgreementAfterReload()
+        ? EMPTY_TERMS_AGREEMENT
+        : (readPendingTerms() ?? EMPTY_TERMS_AGREEMENT),
   );
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const handlePageShow = () => {
+      if (!resetAgreementAfterOAuthBack()) return;
+
+      setAgreement(EMPTY_TERMS_AGREEMENT);
+      setIsLoading(false);
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
 
   // 약관 전문 페이지로 이동했다 돌아와도 체크 상태가 유지되도록 저장한다.
   useEffect(() => {
@@ -50,6 +91,7 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
     sessionStorage.setItem(PENDING_TERMS_KEY, JSON.stringify(agreement));
+    sessionStorage.setItem(TERMS_OAUTH_STARTED_KEY, 'true');
     window.opener?.postMessage(
       { type: 'TERMS_AGREEMENT_READY', agreement },
       window.location.origin,

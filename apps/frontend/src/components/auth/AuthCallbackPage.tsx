@@ -13,6 +13,7 @@ import {
   readPendingTerms,
   PENDING_TERMS_KEY,
   TERMS_LOGIN_RETURN_TO_KEY,
+  TERMS_OAUTH_STARTED_KEY,
 } from '@/lib/authTerms';
 
 const getApiUrl = () =>
@@ -50,6 +51,7 @@ export const AuthCallbackPage = () => {
 
       sessionStorage.removeItem(PENDING_TERMS_KEY);
       sessionStorage.removeItem(TERMS_LOGIN_RETURN_TO_KEY);
+      sessionStorage.removeItem(TERMS_OAUTH_STARTED_KEY);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       router.replace(returnTo);
     };
