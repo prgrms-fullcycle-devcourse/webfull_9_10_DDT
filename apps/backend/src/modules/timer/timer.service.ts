@@ -230,7 +230,12 @@ export class TimerService implements OnModuleInit {
         const targetSocket = sockets.find((s) => s.data.userId === targetId);
         if (targetSocket) {
           targetSocket.emit('kicked');
-          setTimeout(() => targetSocket.disconnect(), KICK_DISCONNECT_DELAY_MS);
+          await new Promise<void>((resolve) =>
+            setTimeout(() => {
+              targetSocket.disconnect();
+              resolve();
+            }, KICK_DISCONNECT_DELAY_MS),
+          );
         }
 
         this.roomGateway.server
@@ -320,7 +325,7 @@ export class TimerService implements OnModuleInit {
 
     const responseData = { userId, gaveUpAt: now };
     this.roomGateway.server.to(roomCode).emit('member:gave-up', responseData);
-    
+
     const activeCount =
       await this.roomService.countActiveMembersInRoom(roomCode);
 

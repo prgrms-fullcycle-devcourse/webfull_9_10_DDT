@@ -174,6 +174,24 @@ const ContractForm = () => {
     }
   };
 
+  const handleForceStart = async () => {
+    if (!isHost) {
+      return;
+    }
+    const ok = await confirm({
+      title: `강제로 시작하시겠습니까?`,
+      description: '서명하지 않은 유저는 자동으로 강퇴됩니다.',
+      confirmText: '시작하기',
+      cancelText: '아니요',
+      variant: 'destructive',
+    });
+    if (!ok) {
+      return;
+    }
+
+    await handleForceStartFocus();
+  };
+
   if (!me) {
     return null;
   }
@@ -268,9 +286,7 @@ const ContractForm = () => {
               type='button'
               disabled={!isMeSigned}
               className='flex-1 py-5! rounded-sm! bg-destructive'
-              onClick={async () => {
-                await handleForceStartFocus();
-              }}
+              onClick={handleForceStart}
             >
               강제 시작
             </Button>

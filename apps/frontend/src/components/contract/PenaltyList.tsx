@@ -14,7 +14,13 @@ import { Input } from '../ui/input';
 import { cn } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
-import { ComponentPropsWithoutRef, useEffect, useRef, useState } from 'react';
+import {
+  ComponentPropsWithoutRef,
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 interface PenaltyListProps {
   yjs: Pick<
@@ -37,63 +43,60 @@ interface PenaltyInputProps extends Omit<
   onUpdate: (val: string) => void;
 }
 
-function PenaltyInput({
-  content,
-  onUpdate,
-  onFocus,
-  onBlur,
-  ...props
-}: PenaltyInputProps) {
-  const [draft, setDraft] = useState(content ?? '');
-  const isEditingRef = useRef(false);
-  const isComposingRef = useRef(false);
+const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
+  ({ content, onUpdate, onFocus, onBlur, ...props }, ref) => {
+    const [draft, setDraft] = useState(content ?? '');
+    const isEditingRef = useRef(false);
+    const isComposingRef = useRef(false);
 
-  // 편집 중이 아닐 때만 외부 Yjs 값 반영 (다른 유저 업데이트)
-  useEffect(() => {
-    if (!isEditingRef.current) {
-      setDraft(content ?? '');
-    }
-  }, [content]);
+    // 편집 중이 아닐 때만 외부 Yjs 값 반영 (다른 유저 업데이트)
+    useEffect(() => {
+      if (!isEditingRef.current) {
+        setDraft(content ?? '');
+      }
+    }, [content]);
 
-  return (
-    <Input
-      maxLength={50}
-      value={draft}
-      onFocus={(e) => {
-        isEditingRef.current = true;
-        onFocus?.(e);
-      }}
-      onCompositionStart={() => {
-        isComposingRef.current = true;
-      }}
-      onCompositionEnd={(e) => {
-        isComposingRef.current = false;
-        const val = (e.target as HTMLInputElement).value;
-        setDraft(val);
-        onUpdate(val);
-      }}
-      onChange={(e) => {
-        const val = e.target.value;
-        setDraft(val); // 로컬 상태만 업데이트 → cursor 유지
-        if (!isComposingRef.current) {
-          onUpdate(val); // 한글 조합 중 아닐 때만 Yjs 동기화
-        }
-      }}
-      onBlur={(e) => {
-        isEditingRef.current = false;
-        onUpdate(draft); // blur 시 최종 값 Yjs 동기화
-        onBlur?.(e);
-      }}
-      {...props}
-    />
-  );
-}
+    return (
+      <Input
+        ref={ref}
+        maxLength={50}
+        value={draft}
+        onFocus={(e) => {
+          isEditingRef.current = true;
+          onFocus?.(e);
+        }}
+        onCompositionStart={() => {
+          isComposingRef.current = true;
+        }}
+        onCompositionEnd={(e) => {
+          isComposingRef.current = false;
+          const val = (e.target as HTMLInputElement).value;
+          setDraft(val);
+          onUpdate(val);
+        }}
+        onChange={(e) => {
+          const val = e.target.value;
+          setDraft(val); // 로컬 상태만 업데이트 → cursor 유지
+          if (!isComposingRef.current) {
+            onUpdate(val); // 한글 조합 중 아닐 때만 Yjs 동기화
+          }
+        }}
+        onBlur={(e) => {
+          isEditingRef.current = false;
+          onUpdate(draft); // blur 시 최종 값 Yjs 동기화
+          onBlur?.(e);
+        }}
+        {...props}
+      />
+    );
+  },
+);
+PenaltyInput.displayName = 'PenaltyInput';
 
 export default function PenaltyList({ yjs }: PenaltyListProps) {
   const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
 
-  if (!me) return null;
   const {
     addPenalty,
     penalties,
@@ -103,6 +106,25 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
     handleFocus,
     handleBlur,
   } = yjs;
+
+  const lastInputRef = useRef<HTMLInputElement | null>(null);
+  const prevLengthRef = useRef(penalties.length);
+  const shouldFocusRef = useRef(false);
+
+  const handleAddPenalty = () => {
+    shouldFocusRef.current = true;
+    addPenalty('');
+  };
+
+  useEffect(() => {
+    if (penalties.length > prevLengthRef.current && shouldFocusRef.current) {
+      lastInputRef.current?.focus();
+      shouldFocusRef.current = false;
+    }
+    prevLengthRef.current = penalties.length;
+  }, [penalties.length]);
+
+  if (!me) return null;
 
   const myMember = members[me!.id];
   const canEdit = myMember?.canEdit ?? false;
@@ -120,7 +142,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
         <div className='space-y-4'>
           <div className='flex flex-col gap-2'>
             {penalties.map((p, i) => {
-              const penaltyKey = `penalty_${p.id}`; // 고유 필드 키 생성
+              const penaltyKey = `penalty_${p.id}`;
               return (
                 <div key={p.id} className='space-y-2'>
                   <OwnerIndicator
@@ -130,6 +152,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                   <div className='flex gap-2 items-center'>
                     <div className='w-full h-fit relative'>
                       <PenaltyInput
+                        ref={i === penalties.length - 1 ? lastInputRef : null}
                         content={p.content}
                         onUpdate={(val) => updatePenalty(i, val)}
                         className={cn(
@@ -172,7 +195,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                 variant='ghost'
                 disabled={!canEdit}
                 size='lg'
-                onClick={() => addPenalty('')}
+                onClick={handleAddPenalty}
                 className='w-full ring-1 ring-ring'
               >
                 <Plus className='w-4 h-4 mr-1' /> 벌칙 추가

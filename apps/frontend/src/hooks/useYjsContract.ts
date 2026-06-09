@@ -48,10 +48,26 @@ export function useYjsContract(
   const yjsFieldsRef = useRef<Y.Map<number> | null>(null);
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
+  const isHostRef = useRef(isHost);
+
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
 
   useEffect(() => {
     socketRef.current = socket;
   }, [socket]);
+
+  useEffect(() => {
+    if (!isHost || !yjsTiersRef.current || !docRef.current) return;
+    if (yjsTiersRef.current.length === 0) {
+      docRef.current.transact(() => {
+        yjsTiersRef.current!.push([
+          { tier: 1, minPct: 0, maxPct: null, count: 0 },
+        ]);
+      });
+    }
+  }, [isHost]);
 
   useEffect(() => {
     if (!roomCode || !enabled) {
@@ -114,7 +130,11 @@ export function useYjsContract(
       if (yjsPenaltiesRef.current) {
         setPenalties(yjsPenaltiesRef.current.toArray());
       }
-      if (yjsTiersRef.current && yjsTiersRef.current.length === 0 && isHost) {
+      if (
+        yjsTiersRef.current &&
+        yjsTiersRef.current.length === 0 &&
+        isHostRef.current
+      ) {
         doc.transact(() => {
           yjsTiersRef.current!.push([
             {
@@ -170,7 +190,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled, isHost]);
+  }, [roomCode, enabled]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {
