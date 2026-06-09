@@ -27,6 +27,7 @@ import {
 } from '../ui/accordion';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface LoadContractDialogProps {
   open: boolean;
@@ -64,7 +65,7 @@ export function LoadContractDialog({
   };
 
   const { data: list, isLoading } = useQuery({
-    queryKey: ['saved-rules'],
+    queryKey: queryKeys.rules.saved(),
     queryFn: async () => {
       const res = await getRuleApi().ruleControllerGetSavedRules();
       return res.data as unknown as SavedRule[];
@@ -121,7 +122,7 @@ export function LoadContractDialog({
 
     try {
       await getRuleApi().ruleControllerDeleteRuleTemplate(ruleId);
-      queryClient.invalidateQueries({ queryKey: ['saved-rules'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rules.saved() });
       if (selectedId === ruleId) {
         setSelectedId(null);
       }

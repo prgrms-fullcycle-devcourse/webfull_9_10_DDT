@@ -24,6 +24,7 @@ import type {
   ResultResponseDto,
   SpinRouletteResponseDto,
 } from '@/api/generated/models';
+import { queryKeys } from '@/lib/queryKeys';
 
 const PenaltyRoulette = dynamic(
   () => import('@/components/ui/custom-roulette'),
@@ -120,7 +121,7 @@ export function Roulette() {
     isError: isResultError,
     isLoading: isResultLoading,
   } = useQuery({
-    queryKey: ['result', params.code],
+    queryKey: queryKeys.result.detail(params.code),
     queryFn: async () => {
       const res = await getResultApi().resultControllerGetResult(params.code);
       return res.data as unknown as ResultResponseDto;
@@ -133,7 +134,7 @@ export function Roulette() {
     isError: isGiveUpResultError,
     isLoading: isGiveUpResultLoading,
   } = useQuery({
-    queryKey: ['give-up-roulette', params.code],
+    queryKey: queryKeys.result.giveUp(params.code),
     queryFn: async () => {
       const res = await getRouletteApi().rouletteControllerGetGiveUpResult(
         params.code,

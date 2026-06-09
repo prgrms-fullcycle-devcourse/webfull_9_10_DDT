@@ -7,6 +7,7 @@ import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/lib/queryKeys';
 
 export function SessionRestorer() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export function SessionRestorer() {
   const dismissedRoomsRef = useRef<Set<string>>(new Set());
   const isOnHomePage = !pathname.includes('/room/');
   const { data: activeRoom } = useQuery({
-    queryKey: ['activeRoom', isLoggedIn, isOnHomePage],
+    queryKey: queryKeys.room.active(isLoggedIn, isOnHomePage),
     queryFn: async () => {
       const res = await getRoomApi().roomControllerGetMyActiveRoom();
       const data = (
@@ -29,6 +30,7 @@ export function SessionRestorer() {
     },
     enabled: isLoggedIn && isOnHomePage,
     staleTime: 0,
+    gcTime: 0,
     retry: false,
   });
 

@@ -48,26 +48,15 @@ export function useYjsContract(
   const yjsFieldsRef = useRef<Y.Map<number> | null>(null);
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
-  const isHostRef = useRef(isHost);
 
-  useEffect(() => {
-    isHostRef.current = isHost;
-  }, [isHost]);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const wsUrl = apiUrl.replace(/^http/, 'ws');
+  const token = getToken() ?? '';
+  const serverUrl = `${wsUrl}/yjs?roomCode=${roomCode}&token=${token}`;
 
   useEffect(() => {
     socketRef.current = socket;
   }, [socket]);
-
-  useEffect(() => {
-    if (!isHost || !yjsTiersRef.current || !docRef.current) return;
-    if (yjsTiersRef.current.length === 0) {
-      docRef.current.transact(() => {
-        yjsTiersRef.current!.push([
-          { tier: 1, minPct: 0, maxPct: null, count: 0 },
-        ]);
-      });
-    }
-  }, [isHost]);
 
   useEffect(() => {
     if (!roomCode || !enabled) {
@@ -75,24 +64,33 @@ export function useYjsContract(
     }
 
     const doc = new Y.Doc();
-
     docRef.current = doc;
 
-    yjsFieldsRef.current = doc.getMap<number>('fields');
-    yjsTiersRef.current = doc.getArray<Tier>('tiers');
-    yjsPenaltiesRef.current = doc.getArray<Penalty>('penalties');
+    const yjsFields = yjsFieldsRef.current ?? doc.getMap<number>('fields');
+    const yjsTiers = yjsTiersRef.current ?? doc.getArray<Tier>('tiers');
+    const yjsPenalties =
+      yjsPenaltiesRef.current ?? doc.getArray<Penalty>('penalties');
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const wsUrl = apiUrl.replace(/^http/, 'ws');
-    const token = getToken() ?? '';
-    const serverUrl = `${wsUrl}/yjs?roomCode=${roomCode}&token=${token}`;
+    yjsFieldsRef.current = yjsFields;
+    yjsTiersRef.current = yjsTiers;
+    yjsPenaltiesRef.current = yjsPenalties;
 
     const provider = new WebsocketProvider(serverUrl, '', doc);
+    providerRef.current = provider;
     const awareness = provider.awareness;
+
+    const refreshAllStates = () => {
+      setFields({
+        focusMin: yjsFields.get('focusMin') ?? 1,
+        breakMin: yjsFields.get('breakMin') ?? 1,
+        rounds: yjsFields.get('rounds') ?? 1,
+      });
+      setTiers(yjsTiers.toArray());
+      setPenalties(yjsPenalties.toArray());
+    };
 
     const handleAwarenessChange = () => {
       const owners: Record<string, FocusedField> = {};
-
       (awareness.getStates() as Map<number, AwarenessState>).forEach(
         (state, clientId) => {
           if (clientId === awareness.clientID) return;
@@ -101,13 +99,9 @@ export function useYjsContract(
           }
         },
       );
-
       setFieldOwners(owners);
     };
-
     awareness.on('change', handleAwarenessChange);
-
-    providerRef.current = provider;
 
     provider.on('status', ({ status }: { status: string }) => {
       console.log('연결 상태:', status);
@@ -116,27 +110,10 @@ export function useYjsContract(
 
     provider.on('sync', (isSynced: boolean) => {
       if (!isSynced) return;
-
-      if (yjsFieldsRef.current) {
-        setFields({
-          focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
-          breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
-          rounds: yjsFieldsRef.current.get('rounds') ?? 1,
-        });
-      }
-      if (yjsTiersRef.current) {
-        setTiers(yjsTiersRef.current.toArray());
-      }
-      if (yjsPenaltiesRef.current) {
-        setPenalties(yjsPenaltiesRef.current.toArray());
-      }
-      if (
-        yjsTiersRef.current &&
-        yjsTiersRef.current.length === 0 &&
-        isHostRef.current
-      ) {
+      refreshAllStates();
+      if (yjsTiers.length === 0 && isHost) {
         doc.transact(() => {
-          yjsTiersRef.current!.push([
+          yjsTiers.push([
             {
               tier: 1,
               minPct: 0,
@@ -145,42 +122,44 @@ export function useYjsContract(
             },
           ]);
         });
+        setTiers(yjsTiers.toArray());
       }
     });
 
-    yjsFieldsRef.current.observe((event) => {
-      if (yjsFieldsRef.current) {
-        if (event.transaction.local) {
-          socketRef.current?.emit('contract:edited');
-        }
-        setFields({
-          focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
-          breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
-          rounds: yjsFieldsRef.current.get('rounds') ?? 1,
-        });
+    const observeFields = (event: Y.YMapEvent<number>) => {
+      if (event.transaction.local) {
+        socketRef.current?.emit('contract:edited');
       }
-    });
+      setFields({
+        focusMin: yjsFields.get('focusMin') ?? 1,
+        breakMin: yjsFields.get('breakMin') ?? 1,
+        rounds: yjsFields.get('rounds') ?? 1,
+      });
+    };
 
-    yjsTiersRef.current.observe((event) => {
-      if (yjsTiersRef.current) {
-        if (event.transaction.local) {
-          socketRef.current?.emit('contract:edited');
-        }
-        setTiers(yjsTiersRef.current.toArray());
+    const observeTiers = (event: Y.YArrayEvent<Tier>) => {
+      if (event.transaction.local) {
+        socketRef.current?.emit('contract:edited');
       }
-    });
+      setTiers(yjsTiers.toArray());
+    };
 
-    yjsPenaltiesRef.current.observe((event) => {
-      if (yjsPenaltiesRef.current) {
-        if (event.transaction.local) {
-          socketRef.current?.emit('contract:edited');
-        }
-        setPenalties(yjsPenaltiesRef.current.toArray());
+    const observePenalties = (event: Y.YArrayEvent<Penalty>) => {
+      if (event.transaction.local) {
+        socketRef.current?.emit('contract:edited');
       }
-    });
+      setPenalties(yjsPenalties.toArray());
+    };
+
+    yjsFields.observe(observeFields);
+    yjsTiers.observe(observeTiers);
+    yjsPenalties.observe(observePenalties);
 
     return () => {
       awareness.off('change', handleAwarenessChange);
+      yjsFields.unobserve(observeFields);
+      yjsTiers.unobserve(observeTiers);
+      yjsPenalties.unobserve(observePenalties);
       provider.destroy();
       doc.destroy();
       docRef.current = null;
@@ -190,7 +169,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled]);
+  }, [serverUrl, isHost]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {
@@ -282,8 +261,6 @@ export function useYjsContract(
       const rebuilt = list.map((t) => ({ ...t }));
       rebuilt[index].maxPct = maxPct;
 
-      // index 다음부터 끝까지 minPct는 이전 단계의 maxPct를 이어받고,
-      // maxPct가 minPct 이하로 역전되면 minPct+1로 밀어 올린다. 마지막은 100%(null).
       for (let j = index + 1; j < rebuilt.length; j++) {
         rebuilt[j].minPct = rebuilt[j - 1].maxPct ?? 0;
         if (j === rebuilt.length - 1) {
