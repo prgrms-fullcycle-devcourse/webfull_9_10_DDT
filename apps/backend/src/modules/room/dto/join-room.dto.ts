@@ -4,7 +4,6 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class JoinRoomDto {
   @ApiProperty({ example: '1234', description: '방 비밀번호' })
   @IsString()
-  @IsNotEmpty()
   password!: string;
 
   @ApiProperty({ example: '집중왕', description: '방에서 사용할 닉네임' })

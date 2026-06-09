@@ -21,7 +21,7 @@ import type {
 
   export const getResultApi = (axiosInstance: AxiosInstance = axios) => {
 /**
- * 세션 종료(result phase) 후 멤버별 이탈 시간·순위·벌칙 결과를 조회합니다. 룰렛 카운트다운은 rouletteEndsAt(절대 ISO) - serverTime으로 계산하세요. 벌칙 공개 실시간 동기화는 result:revealed 소켓 이벤트를 구독하세요(마지막 spin·exit·타임아웃 자동공개 3경로). 제한시간 경과 후 조회 시 서버가 미공개 벌칙을 자동 공개합니다.
+ * 세션 종료(result phase) 후 멤버별 이탈 시간·순위·벌칙 결과를 조회합니다. (로그인 불필요)
  * @summary 결과 화면 조회
  */
 const resultControllerGetResult = (

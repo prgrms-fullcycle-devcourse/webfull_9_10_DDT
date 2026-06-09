@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
@@ -32,8 +32,13 @@ import { getErrorMessage } from '@/lib/error';
 import { useAuth } from '@/hooks/useAuth';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 
-// 런타임에 값이 바뀌지 않는 클라이언트 전용 스냅샷 읽기용 no-op 구독자
-const noopSubscribe = () => () => {};
+interface RoomInfo {
+  title: string;
+  id: string;
+  memberCount: number;
+  phase: string;
+  isHost: boolean;
+}
 
 export const JoinRoom = () => {
   const router = useRouter();
@@ -68,26 +73,25 @@ export const JoinRoom = () => {
   const nickname = nicknameInput ?? defaultNickname;
   const selectedProfile = profileInput ?? defaultProfile;
 
-  // sessionStorage는 클라이언트 전용이라, SSR/하이드레이션 불일치 없이 읽기 위해
-  // useSyncExternalStore를 사용한다 (서버 스냅샷은 false → 하이드레이션 후 클라이언트 값 반영)
-  const isHost = useSyncExternalStore(
-    noopSubscribe,
-    () => sessionStorage.getItem(`isHost:${code}`) === 'true',
-    () => false,
-  );
-  const isHydrated = useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
+  const {
+    data: room,
+    isLoading: isRoomLoading,
+    isError: isRoomInvalid,
+  } = useQuery({
+    queryKey: ['room', code],
+    queryFn: async () => {
+      const res = await getRoomApi().roomControllerFindById(code);
+      console.log(res.data);
+      return res.data as RoomInfo;
+    },
+    enabled: !!code,
+    retry: false,
+  });
 
-  useEffect(() => {
-    refetchMe();
-  }, [refetchMe]);
+  const isHost = room?.isHost ?? false;
 
   const isValid =
     nickname.trim().length > 0 &&
-    isHydrated &&
     (isHost || (password.length >= 4 && password.length <= 20));
 
   const handleGoogleLogin = () => {
@@ -111,17 +115,6 @@ export const JoinRoom = () => {
     },
   });
 
-  // 입장 페이지 진입 시 방 존재/유효 여부 검증 (없는 방=404, 종료된 방=403 → isError)
-  const { isLoading: isRoomLoading, isError: isRoomInvalid } = useQuery({
-    queryKey: ['room', code],
-    queryFn: async () => {
-      const res = await getRoomApi().roomControllerFindById(code);
-      return res.data;
-    },
-    enabled: !!code,
-    retry: false,
-  });
-
   const handleGuestStart = async () => {
     try {
       const res = await getAuthApi().authControllerGuestLogin();
@@ -140,12 +133,8 @@ export const JoinRoom = () => {
   const handleSubmit = () => {
     if (!isValid) return;
 
-    const submitPassword = isHost
-      ? (sessionStorage.getItem(`hostPassword:${code}`) ?? '')
-      : password;
-
     joinMutation.mutate({
-      password: submitPassword,
+      password: isHost ? '' : password,
       nickname,
       profileImage: PROFILE_IMAGE_OPTIONS[selectedProfile].key,
     });
@@ -242,7 +231,7 @@ export const JoinRoom = () => {
           />
 
           {/* 비밀번호 */}
-          {!isHost && isHydrated && (
+          {!isHost && (
             <div className='flex flex-col gap-2'>
               <Label className='text-[15px] font-bold text-white/85'>
                 방 비밀번호

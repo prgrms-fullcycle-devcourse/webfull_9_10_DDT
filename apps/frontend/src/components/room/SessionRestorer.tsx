@@ -14,10 +14,10 @@ export function SessionRestorer() {
   const isLoggedIn = useAuth().isLoggedIn;
   const { confirm, confirmProps } = useConfirm();
 
-  const hasPromptedRef = useRef(false);
-
+  const dismissedRoomsRef = useRef<Set<string>>(new Set());
+  const isOnHomePage = !pathname.includes('/room/');
   const { data: activeRoom } = useQuery({
-    queryKey: ['activeRoom', isLoggedIn],
+    queryKey: ['activeRoom', isLoggedIn, isOnHomePage],
     queryFn: async () => {
       const res = await getRoomApi().roomControllerGetMyActiveRoom();
       const data = (
@@ -27,18 +27,17 @@ export function SessionRestorer() {
       ).data;
       return data || null;
     },
-    enabled: isLoggedIn && !pathname.includes('/room/'),
+    enabled: isLoggedIn && isOnHomePage,
+    staleTime: 0,
     retry: false,
   });
 
   useEffect(() => {
     if (
       activeRoom?.code &&
-      !hasPromptedRef.current &&
-      !pathname.includes('/room/')
+      !dismissedRoomsRef.current.has(activeRoom.code) &&
+      isOnHomePage
     ) {
-      hasPromptedRef.current = true;
-
       const promptRestore = async () => {
         const ok = await confirm({
           title: '진행 중인 집중 세션이 있습니다.',
@@ -54,11 +53,13 @@ export function SessionRestorer() {
             targetPath = `/room/${activeRoom.code}/semi-result`;
           }
           router.push(targetPath);
+        } else {
+          dismissedRoomsRef.current.add(activeRoom.code!);
         }
       };
       promptRestore();
     }
-  }, [activeRoom, pathname, confirm, router]);
+  }, [activeRoom, confirm, isOnHomePage, router]);
 
   return <ConfirmDialog {...confirmProps} />;
 }

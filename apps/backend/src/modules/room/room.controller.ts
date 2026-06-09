@@ -22,6 +22,7 @@ import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { EscapeService } from '../escape/escape.service';
+import { OptionalJwtGuard } from '../../common/guards/optional-jwt.guard';
 
 interface AuthenticatedRequest extends Request {
   user: { id: string; email: string; role: string };
@@ -121,6 +122,7 @@ export class RoomController {
           id: 'V1StGXR8',
           memberCount: 3,
           phase: 'lobby',
+          isHost: true,
         },
         error: null,
       },
@@ -128,9 +130,13 @@ export class RoomController {
   })
   @ApiResponse({ status: 403, description: '종료된 방입니다.' })
   @ApiResponse({ status: 404, description: '존재하지 않는 방입니다.' })
+  @UseGuards(OptionalJwtGuard)
   @Get(':roomCode')
-  async findById(@Param('roomCode') roomCode: string) {
-    return this.roomService.find(roomCode);
+  async findById(
+    @Param('roomCode') roomCode: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.roomService.find(roomCode, req.user?.id);
   }
 
   @ApiBearerAuth()

@@ -27,7 +27,9 @@ export function toBackendFormat(
     focusMin: fields.focusMin,
     breakMin: fields.breakMin,
     rounds: fields.rounds,
-    penalties: penalties.map((p) => p.content),
+    penalties: penalties
+      .filter((p) => p.content.trim() !== '')
+      .map((p) => p.content),
     tierConfig: { tiers },
   };
 }
