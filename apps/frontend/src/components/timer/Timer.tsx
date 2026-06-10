@@ -222,7 +222,17 @@ export default function Timer() {
 
   useEffect(() => {
     if (phaseRemainingSec > 0) return;
+    
+    // 타이머 종료 즉시 1회 확인
     void syncEndedSessionRoute();
+
+    // 백엔드의 방 상태 변경(timer -> result)이 미세하게 늦을 수 있으므로
+    // 성공해서 페이지를 이동할 때까지 2초마다 폴링으로 안전하게 재시도
+    const intervalId = setInterval(() => {
+      void syncEndedSessionRoute();
+    }, 2000);
+
+    return () => clearInterval(intervalId);
   }, [phaseRemainingSec, syncEndedSessionRoute]);
 
   useEffect(() => {
