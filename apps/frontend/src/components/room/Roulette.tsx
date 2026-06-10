@@ -468,14 +468,14 @@ export function Roulette() {
         <div className='flex w-full items-center justify-between text-foreground'>
           <span className='mx-auto text-lg font-medium'>벌칙 룰렛</span>
           <CloseButton
-            onClick={() =>
-              !isSpinning &&
-              !isCompleted &&
-              !isAutoDraw &&
-              setIsDialogOpen(true)
-            }
+            onClick={() => {
+              if (isCompleted) {
+                moveToFinishTarget();
+              } else {
+                setIsDialogOpen(true);
+              }
+            }}
             aria-label='룰렛 나가기'
-            disabled={isSpinning || isCompleted || isAutoDraw}
           ></CloseButton>
         </div>
       }
@@ -485,7 +485,7 @@ export function Roulette() {
           size='main'
           className='w-full rounded-[14px] font-bold'
           onClick={handleStartSpinning}
-          disabled={(cannotStart || isAutoDraw) && !isDrawDone}
+          disabled={isSpinning || ((cannotStart || isAutoDraw) && !isDrawDone)}
         >
           {(isGiveUpRoulette ? isGiveUpResultLoading : isResultLoading)
             ? '룰렛 준비 중...'
