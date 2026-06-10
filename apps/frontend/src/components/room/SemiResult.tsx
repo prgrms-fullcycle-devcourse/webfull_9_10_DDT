@@ -12,7 +12,6 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { getProfileImageSrc } from '@/lib/profileImage';
 import { useAuth } from '@/hooks/useAuth';
-import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 import { queryKeys } from '@/lib/queryKeys';
 
 type ResultMember = {
@@ -59,8 +58,6 @@ const formatSessionTime = (totalMs: number | null) => {
 };
 
 export function SemiResult() {
-  useBlockBrowserBack();
-
   const router = useRouter();
   const params = useParams<{ code: string }>();
   const { me } = useAuth();

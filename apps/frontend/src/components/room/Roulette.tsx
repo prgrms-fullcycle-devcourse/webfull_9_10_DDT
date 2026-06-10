@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
-import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 import { clearGuestAccessToken } from '@/lib/authToken';
 import type {
   GiveUpRouletteResponseDto,
@@ -101,8 +100,6 @@ const getUnrevealedPenaltyCount = (
   );
 
 export function Roulette() {
-  useBlockBrowserBack();
-
   const router = useRouter();
   const params = useParams<{ code: string }>();
   const queryClient = useQueryClient();
