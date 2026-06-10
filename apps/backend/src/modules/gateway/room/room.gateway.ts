@@ -121,13 +121,19 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const existingSocketId = roomState.members[client.data.userId]?.socketId;
 
     if (existingSocketId) {
-      const sockets = await this.server.in(roomCode).fetchSockets();
-      const duplicate = sockets.find((s) => s.id === existingSocketId);
+      this.server
+        .to(existingSocketId)
+        .emit('force-disconnect', { reason: 'duplicate-connection' });
 
-      if (duplicate) {
-        duplicate.emit('force-disconnect', { reason: 'duplicate-connection' });
-        duplicate.disconnect();
-      }
+      setTimeout(() => {
+        void this.server
+          .in(roomCode)
+          .fetchSockets()
+          .then((sockets) => {
+            const duplicate = sockets.find((s) => s.id === existingSocketId);
+            duplicate?.disconnect();
+          });
+      }, 100);
     }
 
     if (this.cleanupTimers.has(roomCode)) {

@@ -288,7 +288,7 @@ const ContractForm = () => {
           >
             나가기
           </Button>
-          {isHost && !allSigned && (
+          {isHost && !allSigned && memberCount !== 1 && (
             <Button
               type='button'
               disabled={!isMeSigned}
@@ -298,10 +298,10 @@ const ContractForm = () => {
               강제 시작
             </Button>
           )}
-          {isHost && allSigned && (
+          {isHost && (allSigned || memberCount === 1) && (
             <Button
               type='button'
-              disabled={startTimerMutation.isPending}
+              disabled={startTimerMutation.isPending || !isMeSigned}
               onClick={async () => {
                 await handleStartFocus();
               }}
