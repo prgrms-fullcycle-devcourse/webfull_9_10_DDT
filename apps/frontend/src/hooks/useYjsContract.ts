@@ -219,27 +219,28 @@ export function useYjsContract(
     if (!doc) return;
 
     const yjsTiers = doc.getArray<Tier>('tiers');
-    const isFirst = yjsTiers.length === 0;
-    const last = isFirst ? null : yjsTiers.get(yjsTiers.length - 1);
-
-    const newMinPct = isFirst ? 0 : (last!.maxPct ?? last!.minPct + 1);
 
     doc.transact(() => {
-      if (last) {
-        yjsTiers.delete(yjsTiers.length - 1, 1);
-        yjsTiers.insert(yjsTiers.length, [
-          {
-            ...last,
-            maxPct: newMinPct,
-          },
-        ]);
+      // 화면에는 기본 1단계(0~100)가 보이지만 문서에는 아직 없을 수 있다.
+      // 이 경우 먼저 기본 1단계를 실체화한 뒤 분할해야 항상 단계가 하나 늘어난다.
+      if (yjsTiers.length === 0) {
+        yjsTiers.push([{ tier: 1, minPct: 0, maxPct: null, count: 0 }]);
       }
+
+      const last = yjsTiers.get(yjsTiers.length - 1);
+      const newMinPct = last.maxPct ?? last.minPct + 1;
+
+      // 직전 마지막 단계의 종료%를 새 경계로 확정하고, 그 위에 새 단계를 쌓는다.
+      // 새로 추가되는 단계는 항상 2단계 이상이므로 벌칙 개수 기본값을 1로 둔다.
+      // (1단계 기본값 0은 위 실체화/시드 로직에서 그대로 유지된다.)
+      yjsTiers.delete(yjsTiers.length - 1, 1);
+      yjsTiers.insert(yjsTiers.length, [{ ...last, maxPct: newMinPct }]);
       yjsTiers.push([
         {
           tier: yjsTiers.length + 1,
           minPct: newMinPct,
           maxPct: null,
-          count: 0,
+          count: 1,
         },
       ]);
     });
@@ -252,8 +253,13 @@ export function useYjsContract(
     }
 
     const yjsTiers = doc.getArray<Tier>('tiers');
-    const current = yjsTiers.get(index);
     doc.transact(() => {
+      // 화면의 기본 1단계가 아직 문서에 없으면 먼저 실체화한다.
+      if (yjsTiers.length === 0 && index === 0) {
+        yjsTiers.push([{ tier: 1, minPct: 0, maxPct: null, count: 0 }]);
+      }
+      const current = yjsTiers.get(index);
+      if (!current) return;
       yjsTiers.delete(index, 1);
       yjsTiers.insert(index, [{ ...current, ...updated }]);
     });
