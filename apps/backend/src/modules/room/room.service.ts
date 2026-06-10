@@ -153,6 +153,17 @@ export class RoomService {
     if (!['lobby', 'contract'].includes(room.phase))
       throw new ForbiddenException('타이머 진행 중/종료된 방은 퇴장 불가.');
 
+    // 방장은 생성만 하고 입장하지 않았어도(멤버 레코드가 없어도) 방을 폭파할 수 있다.
+    if (room.hostId === userId) {
+      await this.deleteRoom(roomCode);
+      this.roomGateway.server
+        .to(roomCode)
+        .emit('room:closed', { reason: '방장이 퇴장했습니다.' });
+      this.roomGateway.server.in(roomCode).disconnectSockets();
+      return { isHost: true, targetId };
+    }
+
+    // 참여자는 멤버 레코드가 있어야 퇴장할 수 있다.
     const memberRecord = await this.getMemberRecord(
       roomCode,
       userId,
@@ -161,24 +172,16 @@ export class RoomService {
     if (!memberRecord)
       throw new NotFoundException('참여 정보를 찾을 수 없습니다.');
 
-    if (room.hostId === userId) {
-      await this.deleteRoom(roomCode);
-      this.roomGateway.server
-        .to(roomCode)
-        .emit('room:closed', { reason: '방장이 퇴장했습니다.' });
-      this.roomGateway.server.in(roomCode).disconnectSockets();
-    } else {
-      await this.roomRepository.deleteMemberById(memberRecord.id);
-      const state = await this.roomRepository.getState(roomCode);
-      if (state) {
-        delete state.members[targetId];
-        await this.saveRedisState(roomCode, state);
-      }
-      this.roomGateway.server
-        .to(roomCode)
-        .emit('member:left', { userId: targetId });
+    await this.roomRepository.deleteMemberById(memberRecord.id);
+    const state = await this.roomRepository.getState(roomCode);
+    if (state) {
+      delete state.members[targetId];
+      await this.saveRedisState(roomCode, state);
     }
-    return { isHost: room.hostId === userId, targetId };
+    this.roomGateway.server
+      .to(roomCode)
+      .emit('member:left', { userId: targetId });
+    return { isHost: false, targetId };
   }
 
   async find(code: string, userId?: string) {

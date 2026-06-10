@@ -53,6 +53,8 @@ const ContractForm = () => {
   }
 
   const isHost = me?.id === hostId;
+  const yjsEnabled =
+    !!me && (phase === null || phase === 'contract' || phase === 'lobby');
 
   const {
     fields,
@@ -71,10 +73,7 @@ const ContractForm = () => {
     updatePenalty,
     removePenalty,
     applyAll,
-  } = useYjsContract(room.code, 
-    !!me && (phase === 'contract' || phase === 'lobby'),
-    isHost
-  );
+  } = useYjsContract(room.code, yjsEnabled, isHost);
 
   const { confirm, confirmProps } = useConfirm();
 

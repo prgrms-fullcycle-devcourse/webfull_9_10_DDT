@@ -30,6 +30,7 @@ import {
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { useAuth } from '@/hooks/useAuth';
+import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
 
 type UserProfile = {
   userId: string;
@@ -63,6 +64,10 @@ export const MyPage = () => {
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const { logout } = useAuth();
+  const activeRoom = useActiveRoom();
+
+  // 진행 중인 방이 있으면 phase에 맞는 '방 복귀하기'로, 없으면 '새로운 방 만들기'(/room)로.
+  const roomButtonHref = activeRoom ? getActiveRoomPath(activeRoom) : '/room';
 
   useEffect(() => {
     // baseURL·토큰·응답 언래핑은 전역 axiosClient 인터셉터가 처리한다.
@@ -219,10 +224,10 @@ export const MyPage = () => {
       </section>
 
       <Link
-        href='/room'
+        href={roomButtonHref}
         className='mb-4 flex h-[51px] w-full items-center justify-center rounded-[14px] border border-[#914CFF] bg-[#242136] text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640] active:scale-[0.98]'
       >
-        새로운 방 만들기
+        {activeRoom ? '방 복귀하기' : '새로운 방 만들기'}
       </Link>
 
       <section className='mb-12 grid h-[140px] grid-cols-2 grid-rows-2 gap-2'>
