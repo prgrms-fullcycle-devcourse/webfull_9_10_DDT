@@ -6,7 +6,21 @@ export {};
 declare const self: ServiceWorkerGlobalScope;
 
 self.addEventListener('push', (event: PushEvent) => {
-  const data = event.data?.json() ?? {};
+  let data: any = {};
+
+  if (event.data) {
+    try {
+      // 1. 먼저 JSON 파싱을 시도합니다. (실제 백엔드에서 보낼 때)
+      data = event.data.json();
+    } catch (e) {
+      // 2. 파싱에 실패하면 (DevTools 테스트 등) 단순 텍스트로 취급합니다.
+      data = {
+        title: '감옥 알림 (테스트)',
+        body: event.data.text(),
+      };
+    }
+  }
+
   const title = data.title || '감옥 집중 시간 알림';
   const options = {
     body: data.body || '곧 집중 시간이 시작됩니다!',
