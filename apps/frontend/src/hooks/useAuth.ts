@@ -68,6 +68,7 @@ export function useAuth() {
     queryFn: fetchMe,
     retry: false,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: 'always',
   });
 
   const logout = useCallback(() => {

@@ -77,6 +77,8 @@ export function useYjsContract(
     const token = getToken() ?? '';
     const serverUrl = `${wsUrl}/yjs?roomCode=${roomCode}&token=${token}`;
 
+    if (!token) return;
+
     const provider = new WebsocketProvider(serverUrl, '', doc);
     const awareness = provider.awareness;
 

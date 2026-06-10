@@ -3,37 +3,42 @@
 import { useEffect } from 'react';
 
 let blockActive = false;
-let isForwarding = false;
 let guardPath = '';
-let forwardTimer: ReturnType<typeof setTimeout> | null = null;
+let savedNJTree: unknown = undefined;
 
-function handlePopState() {
+function buildGuardState() {
+  const state: Record<string, unknown> = { __NA: true, ddtGuard: true };
+  if (savedNJTree !== undefined) {
+    state.__PRIVATE_NEXTJS_INTERNALS_TREE = savedNJTree;
+  }
+  return state;
+}
+
+function pushGuard() {
+  if (!guardPath) return;
+  window.history.pushState(buildGuardState(), '', guardPath);
+}
+
+function handlePopState(event: PopStateEvent) {
   if (!blockActive) return;
 
-  if (isForwarding) {
-    isForwarding = false;
-    if (forwardTimer !== null) {
-      clearTimeout(forwardTimer);
-      forwardTimer = null;
-    }
-    window.history.pushState(null, '', guardPath);
+  const state = event.state as Record<string, unknown> | null;
+  if (state && state.ddtGuard) {
+    event.stopImmediatePropagation();
     return;
   }
 
-  isForwarding = true;
+  event.stopImmediatePropagation();
   window.history.go(1);
-
-  forwardTimer = setTimeout(() => {
-    if (isForwarding) {
-      isForwarding = false;
-      forwardTimer = null;
-      window.history.pushState(null, '', guardPath);
-    }
-  }, 200);
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('popstate', handlePopState);
+  const w = window as Window & { __ddt_blockBackListener?: typeof handlePopState };
+  if (w.__ddt_blockBackListener) {
+    window.removeEventListener('popstate', w.__ddt_blockBackListener, true);
+  }
+  w.__ddt_blockBackListener = handlePopState;
+  window.addEventListener('popstate', handlePopState, true);
 }
 
 export function useBlockBrowserBack() {
@@ -43,18 +48,14 @@ export function useBlockBrowserBack() {
       window.location.search +
       window.location.hash;
 
-    window.history.pushState(null, '', guardPath);
+    savedNJTree = window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE;
+
+    pushGuard();
+
     blockActive = true;
-    isForwarding = false;
 
     return () => {
       blockActive = false;
-      isForwarding = false;
-      guardPath = '';
-      if (forwardTimer !== null) {
-        clearTimeout(forwardTimer);
-        forwardTimer = null;
-      }
     };
   }, []);
 }

@@ -1,0 +1,14 @@
+diff --git a/dist/components/WheelCanvas/index.js b/dist/components/WheelCanvas/index.js
+index 7fd48d6caf754feb78944d4b3d296e818ee834f1..ae8181caac74122882c1f49639a5f490c3158ba1 100644
+--- a/dist/components/WheelCanvas/index.js
++++ b/dist/components/WheelCanvas/index.js
+@@ -85,7 +85,8 @@ var drawWheel = function (canvasRef, data, drawWheelProps) {
+                 var text = data[i].option;
+                 ctx.font = "".concat((style === null || style === void 0 ? void 0 : style.fontStyle) || fontStyle, " ").concat((style === null || style === void 0 ? void 0 : style.fontWeight) || fontWeight, " ").concat(((style === null || style === void 0 ? void 0 : style.fontSize) || fontSize) * 2, "px ").concat((style === null || style === void 0 ? void 0 : style.fontFamily) || fontFamily, ", Helvetica, Arial");
+                 ctx.fillStyle = (style && style.textColor);
+-                ctx.fillText(text || '', -ctx.measureText(text || '').width / 2, fontSize / 2.7);
++                ctx.textAlign = 'right';
++                ctx.fillText(text || '', 0, fontSize / 2.7);
+             }
+             ctx.restore();
+             startAngle = endAngle;

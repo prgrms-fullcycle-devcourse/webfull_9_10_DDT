@@ -17,12 +17,54 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
+import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
+import { cn } from '@/lib/utils';
+
+// 방 정원(입장 가능 최대 인원). 백엔드 join 제한과 동일하게 유지한다.
+const MAX_ROOM_MEMBERS = 10;
+
+// phase별 방 상태 명칭. (활성 방은 lobby/contract/timer만 내려온다)
+const PHASE_LABEL: Record<string, string> = {
+  lobby: '입장 전',
+  contract: '계약서 작성 중',
+  timer: '집중 중',
+};
+
+function StatBox({
+  label,
+  value,
+  truncate,
+}: {
+  label: string;
+  value: string;
+  truncate?: boolean;
+}) {
+  return (
+    <div className='rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-center backdrop-blur-sm'>
+      <p className='text-[11px] text-white/55'>{label}</p>
+      <p
+        className={cn(
+          'mt-1 text-sm font-semibold text-white',
+          truncate && 'truncate',
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export const MainPage = () => {
   const router = useRouter();
   const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
+  const activeRoom = useActiveRoom();
+
+  const handleRestore = () => {
+    if (!activeRoom) return;
+    router.push(getActiveRoomPath(activeRoom));
+  };
 
   const handleOpenTerms = () => {
     startTermsAgreementLogin(router.push);
@@ -126,24 +168,54 @@ export const MainPage = () => {
   
         <div className='flex-1' />
 
-  
-        <div className='flex w-full flex-col gap-3'>
-          <Button
-            variant='outline'
-            size='main'
-            onClick={() => setShowCodeDialog(true)}
-            className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
-          >
-            방 코드로 입장하기
-          </Button>
-          <Button
-            size='main'
-            onClick={handleCreateRoom}
-            className='rounded-[14px] font-bold'
-          >
-            방만들기
-          </Button>
-        </div>
+        {activeRoom ? (
+          <div className='flex w-full flex-col gap-3'>
+            <div className='grid grid-cols-2 gap-2'>
+              <StatBox
+                label='참여 중 방 이름'
+                value={activeRoom.title}
+                truncate
+              />
+              <StatBox
+                label='참여 중 멤버 수'
+                value={`${activeRoom.memberCount} / ${MAX_ROOM_MEMBERS}`}
+              />
+              <StatBox
+                label='방 상태'
+                value={PHASE_LABEL[activeRoom.phase] ?? activeRoom.phase}
+              />
+              <StatBox
+                label='방장 여부'
+                value={activeRoom.isHost ? '방장' : '참여자'}
+              />
+            </div>
+            <Button
+              size='main'
+              onClick={handleRestore}
+              className='rounded-[14px] font-bold'
+            >
+              방 복귀하기
+            </Button>
+          </div>
+        ) : (
+          <div className='flex w-full flex-col gap-3'>
+            <Button
+              variant='outline'
+              size='main'
+              onClick={() => setShowCodeDialog(true)}
+              className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
+            >
+              방 코드로 입장하기
+            </Button>
+            <Button
+              size='main'
+              onClick={handleCreateRoom}
+              className='rounded-[14px] font-bold'
+            >
+              방만들기
+            </Button>
+          </div>
+        )}
       </div>
 
 
