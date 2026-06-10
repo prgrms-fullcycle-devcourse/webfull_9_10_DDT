@@ -1,6 +1,7 @@
 'use client';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
+import { isMobileOrTablet } from '@/lib/device';
 
 export default function GoogleLoginButton() {
   const { refetchMe } = useAuth();
@@ -22,11 +23,15 @@ export default function GoogleLoginButton() {
 
   const handleGoogleLogin = () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    window.open(
-      `${apiUrl}/auth/google`,
-      'Google Login',
-      'width=500,height=600,left=200,top=200',
-    );
+    if (isMobileOrTablet()) {
+      window.location.href = `${apiUrl}/auth/google`;
+    } else {
+      window.open(
+        `${apiUrl}/auth/google`,
+        'Google Login',
+        'width=500,height=600,left=200,top=200',
+      );
+    }
   };
 
   return (
