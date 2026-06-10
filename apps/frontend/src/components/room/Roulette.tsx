@@ -506,6 +506,23 @@ export function Roulette() {
     moveToFinishTarget,
   ]);
 
+  // 중도포기 룰렛: 패널티풀이 비어있으면 메인으로 이동
+  useEffect(() => {
+    if (!isGiveUpRoulette) return;
+    if (isGiveUpResultLoading || !giveUpResult) return;
+    if (!hasRouletteItems && !isSpinning && history.length === 0) {
+      moveToFinishTarget(true);
+    }
+  }, [
+    isGiveUpRoulette,
+    isGiveUpResultLoading,
+    giveUpResult,
+    hasRouletteItems,
+    isSpinning,
+    history.length,
+    moveToFinishTarget,
+  ]);
+
   const handleExit = () => {
     if (isGiveUpRoulette) {
       moveToFinishTarget();
