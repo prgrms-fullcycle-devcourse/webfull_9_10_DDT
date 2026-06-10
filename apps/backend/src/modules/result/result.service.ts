@@ -24,7 +24,7 @@ type RoomWithDetails = NonNullable<
 >;
 
 // 결과/룰렛 체류 제한 시간. 화면상 10분으로 임시 지정
-const ROULETTE_TIMEOUT_MS = 10 * 60 * 1000;
+export const ROULETTE_TIMEOUT_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class ResultService {
