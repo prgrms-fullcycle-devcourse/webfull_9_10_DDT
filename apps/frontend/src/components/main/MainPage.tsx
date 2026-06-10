@@ -51,7 +51,7 @@ export const MainPage = () => {
 
   return (
     <div className='relative min-h-dvh w-full overflow-hidden text-white'>
-      {/* 배경 이미지 */}
+
       <Image
         src='/images/mainBackground.webp'
         alt=''
@@ -60,10 +60,10 @@ export const MainPage = () => {
         sizes='(max-width: 390px) 100vw, 390px'
         className='object-cover'
       />
-      {/* 하단 가독성용 그라데이션 */}
+
       <div className='absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80' />
 
-      {/* 우측 상단 로그인 / 마이페이지 */}
+
       <div className='absolute right-0 top-0 z-20 p-4'>
         {isLoading ? (
           <div
@@ -100,7 +100,7 @@ export const MainPage = () => {
         )}
       </div>
 
-      {/* 본문 */}
+
       <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image
           src='/images/logo.webp'
@@ -123,10 +123,10 @@ export const MainPage = () => {
           계약하고 집중하고 벌칙으로 완성한다
         </span>
 
-        {/* 남은 공간 */}
+  
         <div className='flex-1' />
 
-        {/* 하단 버튼 */}
+  
         <div className='flex w-full flex-col gap-3'>
           <Button
             variant='outline'
@@ -146,7 +146,7 @@ export const MainPage = () => {
         </div>
       </div>
 
-      {/* 코드 입력 다이얼로그 */}
+
       <Dialog open={showCodeDialog} onOpenChange={setShowCodeDialog}>
         <DialogContent>
           <DialogHeader>
