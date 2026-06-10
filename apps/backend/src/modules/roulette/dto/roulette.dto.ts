@@ -120,4 +120,19 @@ export class GiveUpRouletteResponseDto {
       '확정 벌칙 목록(룰렛 정지 위치 + 하단 결과 표기용). forfeit 전체 공개.',
   })
   penalties!: GiveUpPenaltyDto[];
+
+  @ApiProperty({
+    example: '2026-06-05T10:40:00.000Z',
+    type: String,
+    nullable: true,
+    description: '룰렛 제한 시간 만료 시각(ISO). gaveUpAt + 10분.',
+  })
+  rouletteEndsAt!: Date;
+
+  @ApiProperty({
+    example: '2026-06-05T10:30:05.000Z',
+    type: String,
+    description: '응답 생성 시각(ISO). 클라이언트 시간 보정용 서버 타임스탬프.',
+  })
+  serverTime!: Date;
 }
