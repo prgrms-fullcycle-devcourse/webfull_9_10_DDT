@@ -264,6 +264,7 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                     <Button
                       variant='ghost'
                       size='icon'
+                      aria-label={`${tier.tier}단계 벌칙 강도 삭제`}
                       className='flex-1'
                       type='button'
                       onClick={() => removeTier(i)}

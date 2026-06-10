@@ -31,6 +31,7 @@ export default function MemberSignList() {
 
   const isHost = me.id === hostId;
   const myMember = members[me.id];
+  const myNickname = myMember?.nickname ?? me.nickname ?? '내';
   const myProfileImage = myMember?.profileImage ?? me.profileImage;
   const isMeSigned = myMember?.isSigned ?? false;
   const memberList = Object.entries(members);
@@ -74,7 +75,7 @@ export default function MemberSignList() {
                   src={
                     getProfileImageSrc(myProfileImage) ?? '/avatars/bear.png'
                   }
-                  alt={me.id}
+                  alt={`${myNickname} 프로필 이미지`}
                   width={40}
                   height={40}
                   className={cn(
@@ -182,7 +183,11 @@ export default function MemberSignList() {
                         />
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant='ghost' size='icon'>
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              aria-label={`${m.nickname} 멤버 옵션`}
+                            >
                               <EllipsisVertical />
                             </Button>
                           </DropdownMenuTrigger>

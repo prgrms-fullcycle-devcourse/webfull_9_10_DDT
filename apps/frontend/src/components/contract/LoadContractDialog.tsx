@@ -205,6 +205,7 @@ export function LoadContractDialog({
                           type='button'
                           variant='ghost'
                           size='icon'
+                          aria-label={`${item.title} 삭제`}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(item.ruleId, item.title);

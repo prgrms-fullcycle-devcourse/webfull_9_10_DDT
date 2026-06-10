@@ -474,11 +474,40 @@ export function TotalResult() {
         </div>
       </MobileLayout>
 
-      <Dialog
-        open={isContractDialogOpen}
-        onOpenChange={setIsContractDialogOpen}
-      >
-        <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'>
+      <div className='fixed bottom-0 left-1/2 z-50 w-full max-w-[390px] -translate-x-1/2 border-t border-white/10 bg-[#0F111A] px-[18px] pb-5 pt-3'>
+        <div className='flex flex-col gap-2.5'>
+          <Button
+            type='button'
+            onClick={() => setIsContractDialogOpen(true)}
+            className='h-[54px] w-full rounded-[14px] bg-primary text-sm font-bold text-primary-foreground'
+          >
+            계약서 보기
+          </Button>
+          <div className='grid grid-cols-2 gap-2.5'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={handleShare}
+              className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-sm font-bold text-white/85'
+            >
+              공유하기
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => router.push(isLoggedInUser ? '/mypage' : '/')}
+              className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-sm font-bold text-white/85'
+            >
+              {isLoggedInUser ? '마이페이지' : '홈 화면으로 이동'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={isContractDialogOpen} onOpenChange={setIsContractDialogOpen}>
+        <DialogContent
+          className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'
+        >
           <DialogClose asChild>
             <Button
               type='button'
@@ -496,8 +525,9 @@ export function TotalResult() {
                 <DialogTitle className='truncate text-base font-medium text-white/85'>
                   {result?.roomTitle ?? params.code}의 계약서
                 </DialogTitle>
-                <DialogDescription className="sr-only">
-                  진행했던 방의 계약서 상세 내용입니다.
+                <DialogDescription className='sr-only'>
+                  완료된 집중 세션에서 사용한 계약서의 타이머, 벌칙 목록,
+                  벌칙 강도 설정을 확인할 수 있습니다.
                 </DialogDescription>
               </div>
             </div>
