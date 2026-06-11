@@ -61,12 +61,14 @@ export class EscapeService {
       });
 
       // 💡 푸시 알림 발송 (이탈이 시작되는 순간 본인에게만 전송)
-      this.pushService.sendToUser(
-        roomCode,
-        identifier,
-        '🚨 화면 이탈 감지!',
-        '집중 화면을 벗어났습니다. 이탈 시간이 누적되고 있어요!'
-      ).catch((e) => console.error('이탈 푸시 에러:', e));
+      this.pushService
+        .sendToUser(
+          roomCode,
+          identifier,
+          '🚨 화면 이탈 감지!',
+          '집중 화면을 벗어났습니다. 이탈 시간이 누적되고 있어요!',
+        )
+        .catch((e) => console.error('이탈 푸시 에러:', e));
     }
   }
 
@@ -80,7 +82,7 @@ export class EscapeService {
     });
 
     if (!member || member.gaveUpAt) return;
-    
+
     const activeEscape = await this.prisma.escapeLog.findFirst({
       where: { roomMemberId: member.id, returnedAt: null },
     });
@@ -120,10 +122,10 @@ export class EscapeService {
         start: log.escapedAt.getTime(),
         end: log.returnedAt ? log.returnedAt.getTime() : now,
       }));
-      
+
       const merged = mergeIntervals(intervals);
       let totalEscapeMs = 0;
-      
+
       for (const { start, end } of merged) {
         totalEscapeMs += getEffectiveFocusEscapeMs(
           start,
