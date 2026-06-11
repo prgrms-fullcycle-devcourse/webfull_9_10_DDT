@@ -190,6 +190,13 @@ export function SocketProvider({
       useRoomStore.getState().upsertMember(userId, { gaveUpAt });
     });
 
+    s.on('break:warning', () => {
+      toast.info('휴식이 1분 남았어요! ⏰', {
+        description: '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
+        duration: 2000,
+      });
+    });
+
     socketRef.current = s;
     setSocket(s);
 

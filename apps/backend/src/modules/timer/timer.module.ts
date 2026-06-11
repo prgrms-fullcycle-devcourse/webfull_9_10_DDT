@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TimerService } from './timer.service';
 import { TimerController } from './timer.controller';
 import { GatewayModule } from '../gateway/gateway.module';
@@ -12,11 +12,11 @@ import { TimerRepository } from './timer.repository';
 import { PushNotificationService } from './push-notification.service';
 @Module({
   imports: [
-    GatewayModule,
-    RoomModule,
+    forwardRef(() => GatewayModule),
+    forwardRef(() => RoomModule),
     PenaltyModule,
     BullModule.registerQueue({ name: SESSION_QUEUE }),
-    EscapeModule,
+    forwardRef(() => EscapeModule),
   ],
   controllers: [TimerController],
   providers: [
@@ -25,6 +25,6 @@ import { PushNotificationService } from './push-notification.service';
     TimerRepository,
     PushNotificationService,
   ],
-  exports: [TimerService],
+  exports: [TimerService, PushNotificationService],
 })
 export class TimerModule {}

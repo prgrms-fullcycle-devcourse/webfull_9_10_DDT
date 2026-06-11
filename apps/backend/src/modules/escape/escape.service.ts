@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { PushNotificationService } from '../timer/push-notification.service';
 import {
   getEffectiveFocusEscapeMs,
   mergeIntervals,
@@ -11,6 +12,9 @@ export class EscapeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    // 💡 PushNotificationService 주입 (순환 참조 방지)
+    @Inject(forwardRef(() => PushNotificationService))
+    private readonly pushService: PushNotificationService,
   ) {}
 
   async updateHeartbeat(roomCode: string, identifier: string) {
@@ -22,7 +26,7 @@ export class EscapeService {
     );
   }
 
-  // 💡 소켓이 정상적으로 끊어졌을 때 Heartbeat 키를 삭제하는 로직 추가
+  // 💡 소켓이 정상적으로 끊어졌을 때 Heartbeat 키를 삭제하는 로직
   async clearHeartbeat(roomCode: string, identifier: string) {
     await this.redis.instance.del(`heartbeat:${roomCode}:${identifier}`);
   }
@@ -47,6 +51,7 @@ export class EscapeService {
       where: { roomMemberId: member.id, returnedAt: null },
     });
 
+    // 활성화된 이탈 기록이 없을 때만 새로 생성
     if (!activeEscape) {
       await this.prisma.escapeLog.create({
         data: {
@@ -54,6 +59,14 @@ export class EscapeService {
           escapedAt: new Date(),
         },
       });
+
+      // 💡 푸시 알림 발송 (이탈이 시작되는 순간 본인에게만 전송)
+      this.pushService.sendToUser(
+        roomCode,
+        identifier,
+        '🚨 화면 이탈 감지!',
+        '집중 화면을 벗어났습니다. 이탈 시간이 누적되고 있어요!'
+      ).catch((e) => console.error('이탈 푸시 에러:', e));
     }
   }
 
@@ -67,6 +80,7 @@ export class EscapeService {
     });
 
     if (!member || member.gaveUpAt) return;
+    
     const activeEscape = await this.prisma.escapeLog.findFirst({
       where: { roomMemberId: member.id, returnedAt: null },
     });
@@ -106,8 +120,10 @@ export class EscapeService {
         start: log.escapedAt.getTime(),
         end: log.returnedAt ? log.returnedAt.getTime() : now,
       }));
+      
       const merged = mergeIntervals(intervals);
       let totalEscapeMs = 0;
+      
       for (const { start, end } of merged) {
         totalEscapeMs += getEffectiveFocusEscapeMs(
           start,

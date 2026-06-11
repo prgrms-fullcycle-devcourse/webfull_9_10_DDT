@@ -348,6 +348,7 @@ export class TimerService implements OnModuleInit {
       '휴식이 1분 남았어요! ⏰',
       '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
     );
+    this.roomGateway.server.to(roomCode).emit('break:warning');
   }
 
   // ── private 헬퍼 ─────────────────────────────────────────────

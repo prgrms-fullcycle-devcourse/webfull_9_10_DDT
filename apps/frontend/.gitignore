@@ -42,11 +42,3 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
-
-# PWA files
-public/sw.js
-public/sw.js.map
-**/public/workbox-*.js
-**/public/workbox-*.js.map
-**/public/swe-worker-*.js
-**/public/swe-worker-*.js.map
