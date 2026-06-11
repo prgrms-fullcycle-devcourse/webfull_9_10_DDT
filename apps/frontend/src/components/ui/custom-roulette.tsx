@@ -1,7 +1,19 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Wheel } from 'react-custom-roulette';
+
+// SSR(서버 렌더)에서 useLayoutEffect 경고를 피하기 위한 동형(isomorphic) 처리
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 interface RouletteData {
   option: string;
@@ -13,13 +25,10 @@ interface PenaltyRouletteProps {
   targetIndex: number;
   onStopSpinning: () => void;
   items?: string[];
-  // 휠 회전 시간(react-custom-roulette 상대값, 낮을수록 빠름). 기본 0.8
   spinDuration?: number;
-  // 직접/자동 스핀 없이 '결과 바로보기'로 완료된 경우 프리뷰 기본 문구를 완료 문구로 대체
   isDrawDone?: boolean;
 }
 
-// 벌칙 개수 구간별 휠 라벨 최대 글자 수 (개수가 많을수록 짧게 잘라 휠에 맞춤)
 const LABEL_MAX_LENGTH_TIERS = [
   { minCount: 49, maxLen: 1 },
   { minCount: 48, maxLen: 2 },
@@ -43,14 +52,11 @@ const getCssVariable = (name: string) => {
 };
 
 // ── 동적 프리뷰 ──────────────────────────────────────────────
-// react-custom-roulette 내부 3단계 타이밍(ms) — 휠 회전 속도 곡선과 일치시키기 위함
-const START_SPINNING_TIME = 2600; // 가속(ease-in)
-const CONTINUE_SPINNING_TIME = 750; // 등속(linear)
-const STOP_SPINNING_TIME = 8000; // 감속 착지(ease-out)
-// Phase 3에서 프리뷰가 훑고 지나갈 가상 바퀴 수 (휠의 ~1440° 대응)
+const START_SPINNING_TIME = 2600;
+const CONTINUE_SPINNING_TIME = 750;
+const STOP_SPINNING_TIME = 8000;
 const PREVIEW_FULL_LOOPS = 4;
 
-// CSS cubic-bezier(x1,y1,x2,y2) 평가기 (시간비 x → 이징값 y). 휠 키프레임과 동일 곡선 재현
 const cubicBezier = (x1: number, y1: number, x2: number, y2: number) => {
   const cx = 3 * x1;
   const bx = 3 * (x2 - x1) - cx;
@@ -89,7 +95,6 @@ const cubicBezier = (x1: number, y1: number, x2: number, y2: number) => {
   };
 };
 
-// 휠 키프레임과 동일한 이징 (styles.js 기준)
 const EASE_START = cubicBezier(0.71, -0.29, 0.96, 0.9);
 const EASE_STOP = cubicBezier(0, 0, 0.35, 1.02);
 
@@ -129,11 +134,10 @@ const RoulettePreview = React.memo(function RoulettePreview({
     pendingTargetRef.current = target;
     const offset = (target - startIndex + count) % count;
     const d = Math.max(0.01, spinDuration);
-    const t1 = START_SPINNING_TIME * d; // 가속 종료 시점
-    const t2 = CONTINUE_SPINNING_TIME * d; // 등속 구간 길이
-    const t3 = STOP_SPINNING_TIME * d; // 감속 구간 길이
+    const t1 = START_SPINNING_TIME * d;
+    const t2 = CONTINUE_SPINNING_TIME * d;
+    const t3 = STOP_SPINNING_TIME * d;
     const total = t1 + t2 + t3;
-    // Phase1: +1바퀴, Phase2: +1바퀴, Phase3: 가상 바퀴 + 목표 보정
     const phase3Ticks = PREVIEW_FULL_LOOPS * count + offset;
 
     let startTime: number | null = null;
@@ -183,37 +187,171 @@ const RoulettePreview = React.memo(function RoulettePreview({
   // 스핀 시작 이후 고정 노출할 마지막 당첨 벌칙명
   const pinnedLabel = hasItems ? (items[activeIndex] ?? items[0]) : '';
 
-  /* 대기상태(최초 진입~첫 스핀 이전) 전체 벌칙 가로 티커 — 추후 사용 위해 보존
-  const tickerItems = [...items, ...items];
-  const marqueeDuration = Math.max(8, items.length * 2.2);
-  const waitingTicker = (
-    <div
-      className='flex w-max shrink-0 whitespace-nowrap motion-reduce:[animation:none]'
-      style={{ animation: `marqueeScroll ${marqueeDuration}s linear infinite` }}
-    >
-      {tickerItems.map((item, index) => (
-        <span
-          key={`${item}-${index}`}
-          className='mx-3 text-sm text-muted-foreground'
-        >
-          {item}
-        </span>
-      ))}
-    </div>
-  );
-  */
-
   return (
     <div className='mb-5 flex h-10 w-full min-w-0 items-center overflow-hidden rounded-[14px] border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] px-3'>
       {!hasSpun ? (
         <p className='w-full text-center text-xs text-muted-foreground'>
-          {isDrawDone ? '벌칙 뽑기 완료' : '결과 대기 중…'}
+          {isDrawDone ? '벌칙 뽑기 완료' : '뽑기 대기 중…'}
         </p>
       ) : (
         <p className='w-full truncate text-center text-base font-bold text-foreground'>
           {pinnedLabel}
         </p>
       )}
+    </div>
+  );
+});
+
+// ── 장식용 점 링 ─────────────────────────────────────────────
+const DOT_RING_RADIUS = 45;
+const LIB_INITIAL_OFFSET_DEG = 43;
+const WHEEL_WRAPPER_DEG = -43;
+
+interface RimDotsProps {
+  count: number;
+  isSpinning: boolean;
+  wheelWrapperRef: React.RefObject<HTMLDivElement | null>;
+}
+
+// 회전 휠 엘리먼트(=캔버스의 부모)의 현재 회전각(deg, -180~180)을 transform 행렬에서 추출
+const readWheelAngle = (wrapper: HTMLDivElement | null): number | null => {
+  const wheelEl = wrapper?.querySelector('canvas')?.parentElement;
+  if (!wheelEl) return null;
+
+  const transform = getComputedStyle(wheelEl).transform;
+  if (!transform || transform === 'none') return null;
+
+  const matched = transform.match(/matrix\(([^)]+)\)/);
+  if (!matched) return null;
+
+  const [a, b] = matched[1].split(',').map(Number);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+
+  return (Math.atan2(b, a) * 180) / Math.PI;
+};
+
+const RimDots = React.memo(function RimDots({
+  count,
+  isSpinning,
+  wheelWrapperRef,
+}: RimDotsProps) {
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const rotationRef = useRef(0);
+  const prevRawRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const applyWheelDelta = useCallback(() => {
+    const raw = readWheelAngle(wheelWrapperRef.current);
+    if (raw === null) return;
+
+    // 첫 측정값은 기준점으로만 사용(변위 0)
+    if (prevRawRef.current === null) {
+      prevRawRef.current = raw;
+      return;
+    }
+
+    // (-180,180] 경계를 넘는 순간을 연속 회전으로 언랩
+    let delta = raw - prevRawRef.current;
+    if (delta > 180) delta -= 360;
+    else if (delta < -180) delta += 360;
+
+    prevRawRef.current = raw;
+    rotationRef.current += delta;
+
+    if (ringRef.current) {
+      ringRef.current.style.transform = `rotate(${rotationRef.current}deg)`;
+    }
+  }, [wheelWrapperRef]);
+
+  // 정지 시: 휠이 실제 멈춘 자리의 칸 경계에 점을 정확히 스냅.
+  const snapToBoundary = useCallback(() => {
+    const theta = readWheelAngle(wheelWrapperRef.current);
+    if (theta === null) return;
+
+    const n = Math.max(2, count);
+    const seg = 360 / n;
+    const target = theta + LIB_INITIAL_OFFSET_DEG + 180 / n;
+    let diff = (((target - rotationRef.current) % seg) + seg) % seg;
+    if (diff > seg / 2) diff -= seg;
+
+    rotationRef.current += diff;
+    if (ringRef.current) {
+      ringRef.current.style.transform = `rotate(${rotationRef.current}deg)`;
+    }
+  }, [count, wheelWrapperRef]);
+
+  useEffect(() => {
+    if (!isSpinning) {
+      let frames = 0;
+      let prevAngle: number | null = null;
+      const settle = () => {
+        const cur = readWheelAngle(wheelWrapperRef.current);
+        if (
+          cur !== null &&
+          prevAngle !== null &&
+          Math.abs(cur - prevAngle) < 0.05
+        ) {
+          snapToBoundary();
+          return;
+        }
+        prevAngle = cur;
+        if (frames++ < 20) {
+          rafRef.current = requestAnimationFrame(settle);
+        } else {
+          snapToBoundary(); // 안전장치: 끝내 안정 신호가 없으면 마지막 값으로 스냅
+        }
+      };
+      rafRef.current = requestAnimationFrame(settle);
+
+      return () => {
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      };
+    }
+
+    // 스핀 시작: 기준 각도 재설정 후 매 프레임 휠을 추적
+    prevRawRef.current = readWheelAngle(wheelWrapperRef.current);
+
+    const tick = () => {
+      applyWheelDelta();
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [isSpinning, applyWheelDelta, snapToBoundary, wheelWrapperRef]);
+
+  const dots = useMemo(() => {
+    const n = Math.max(2, count);
+    const seg = (2 * Math.PI) / n;
+    const baseRad =
+      ((WHEEL_WRAPPER_DEG - LIB_INITIAL_OFFSET_DEG) * Math.PI) / 180 -
+      Math.PI / n;
+    return Array.from({ length: n }, (_, i) => {
+      const angle = i * seg + baseRad;
+      return {
+        left: 50 + DOT_RING_RADIUS * Math.cos(angle),
+        top: 50 + DOT_RING_RADIUS * Math.sin(angle),
+      };
+    });
+  }, [count]);
+
+  return (
+    <div ref={ringRef} className='pointer-events-none absolute inset-0 z-10'>
+      {dots.map((dot, index) => (
+        <span
+          key={index}
+          className='absolute h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_4px_rgba(0,0,0,0.4)]'
+          style={{ left: `${dot.left}%`, top: `${dot.top}%` }}
+        />
+      ))}
     </div>
   );
 });
@@ -226,6 +364,44 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
   spinDuration = 0.3,
   isDrawDone = false,
 }: PenaltyRouletteProps) {
+  const wheelWrapperRef = useRef<HTMLDivElement>(null);
+
+  const lastSpinTransformRef = useRef<string | null>(null);
+  const getRotationContainer = useCallback(
+    () =>
+      (wheelWrapperRef.current?.querySelector('canvas')?.parentElement ??
+        null) as HTMLElement | null,
+    [],
+  );
+
+  useEffect(() => {
+    if (!mustStartSpinning) return;
+
+    let rafId = requestAnimationFrame(function capture() {
+      const rc = getRotationContainer();
+      const t = rc && getComputedStyle(rc).transform;
+      if (t && t !== 'none') lastSpinTransformRef.current = t;
+      rafId = requestAnimationFrame(capture);
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [mustStartSpinning, getRotationContainer]);
+
+  // 정지 직후(화면에 그려지기 전): 스핀이 멈춘 '바로 그 위치'(마지막 캡처값)로 고정한다.
+  useIsomorphicLayoutEffect(() => {
+    if (mustStartSpinning) return;
+
+    const rc = getRotationContainer();
+    const pinned = lastSpinTransformRef.current;
+    if (!rc || !pinned) return;
+
+    rc.style.transform = pinned;
+
+    return () => {
+      rc.style.transform = '';
+    };
+  }, [mustStartSpinning, getRotationContainer]);
+
   const displayItems = useMemo(
     () => (items.length > 0 ? items : ['준비중']),
     [items],
@@ -266,26 +442,60 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
         spinDuration={spinDuration}
         isDrawDone={isDrawDone}
       />
-      <div className='relative flex aspect-square w-full rotate-[-43deg] items-center justify-center overflow-hidden rounded-full contain-layout [&>div:first-child]:!h-full [&>div:first-child]:!max-h-full [&>div:first-child]:!max-w-full [&>div:first-child]:!overflow-hidden [&>div:first-child]:!w-full [&_canvas]:!h-full [&_canvas]:!w-full'>
-        <Wheel
-          mustStartSpinning={mustStartSpinning}
-          prizeNumber={safeTargetIndex}
-          data={rouletteData}
-          onStopSpinning={onStopSpinning}
-          spinDuration={spinDuration}
-          outerBorderColor={rouletteTheme.border}
-          outerBorderWidth={4}
-          innerRadius={20}
-          innerBorderColor={rouletteTheme.border}
-          innerBorderWidth={2}
-          radiusLineColor={rouletteTheme.border}
-          radiusLineWidth={1}
-          fontSize={18}
-          textDistance={65}
-          fontFamily={rouletteTheme.font}
+      <div className='relative aspect-square w-full'>
+        <div
+          className='pointer-events-none absolute left-1/2 top-[-2px] z-30 h-0 w-0 -translate-x-1/2'
+          style={{
+            borderLeft: '13px solid transparent',
+            borderRight: '13px solid transparent',
+            borderTop: '20px solid var(--roulette-pointer)',
+            filter: 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35))',
+          }}
         />
-        <div className='pointer-events-none absolute left-1/2 top-1/2 z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 rotate-43 items-center justify-center rounded-full border border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)] text-[10px] font-bold text-foreground shadow-md'>
-          감옥
+
+        {/* 바깥 검정 림 + 그림자 */}
+        <div className='absolute inset-0 rounded-full bg-[var(--roulette-wheel-center)] p-[10px] shadow-[0_10px_30px_rgba(0,0,0,0.45)]'>
+          <div
+            ref={wheelWrapperRef}
+            className='relative flex aspect-square w-full rotate-[-43deg] items-center justify-center overflow-hidden rounded-full contain-layout [&>div:first-child]:!h-full [&>div:first-child]:!max-h-full [&>div:first-child]:!max-w-full [&>div:first-child]:!overflow-hidden [&>div:first-child]:!w-full [&_canvas]:!h-full [&_canvas]:!w-full'
+          >
+            <Wheel
+              mustStartSpinning={mustStartSpinning}
+              prizeNumber={safeTargetIndex}
+              data={rouletteData}
+              onStopSpinning={onStopSpinning}
+              spinDuration={spinDuration}
+              outerBorderColor={rouletteTheme.border}
+              outerBorderWidth={8}
+              innerRadius={20}
+              innerBorderColor={rouletteTheme.border}
+              innerBorderWidth={2}
+              radiusLineColor={rouletteTheme.border}
+              radiusLineWidth={1}
+              fontSize={18}
+              textDistance={65}
+              fontFamily={rouletteTheme.font}
+              startingOptionIndex={0}
+              pointerProps={{ style: { display: 'none' } }}
+            />
+          </div>
+
+          {/* 장식 점 링 */}
+          <RimDots
+            count={displayItems.length}
+            isSpinning={mustStartSpinning}
+            wheelWrapperRef={wheelWrapperRef}
+          />
+
+          <div className='pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)] shadow-md'>
+            <Image
+              src='/icons/icon-192x192.png'
+              alt='앱 아이콘'
+              width={44}
+              height={44}
+              className='h-full w-full rounded-full object-cover'
+            />
+          </div>
         </div>
       </div>
     </div>

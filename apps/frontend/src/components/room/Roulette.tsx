@@ -103,6 +103,7 @@ const getUnrevealedPenaltyCount = (
 
 // 총 뽑을 횟수가 이 값 이상이면 '결과 바로보기'(룰렛 스킵) 노출
 const SKIP_THRESHOLD = 5;
+const SPOTLIGHT_DURATION_MS = 2400;
 
 // axios 에러 응답의 message(string | string[])를 단일 문자열로 정규화
 const getAxiosMessage = (err: unknown): string | undefined => {
@@ -135,11 +136,12 @@ export function Roulette() {
   const [currentSpinResult, setCurrentSpinResult] =
     useState<SpinRouletteResponseDto | null>(null);
   const [spinErrorMessage, setSpinErrorMessage] = useState('');
-  // 스킵 노출 자격 래치: totalChances가 한 번이라도 SKIP_THRESHOLD 이상이면 true로 고정
+
+  const [spotlightLabel, setSpotlightLabel] = useState<string | null>(null);
   const [skipEverQualified, setSkipEverQualified] = useState(false);
   const hasShownNoPenaltyToastRef = useRef(false);
-  // 스킵 시작 래치: 진행 중인 자동추첨 스핀의 뒷처리(재스핀·409 이탈)를 무효화하기 위함
   const skipInitiatedRef = useRef(false);
+  const manualSpinRef = useRef(false);
   const isGiveUpRoulette = searchParams.get('from') === 'giveup';
   const finishTarget = isGiveUpRoulette
     ? '/'
@@ -271,8 +273,6 @@ export function Roulette() {
     },
   });
 
-  // 룰렛 스킵('결과 바로보기'): exit으로 미공개 벌칙을 일괄 공개(+방 전체 브로드캐스트)한 뒤,
-  // 이동 없이 현재 룰렛 화면을 완료 상태로 전환(수동/자동추첨 동일). 결과 페이지 이동은 사용자가 직접.
   const skipMutation = useMutation({
     mutationFn: async () => {
       const res = await getRouletteApi().rouletteControllerExitRoulette(
@@ -293,15 +293,13 @@ export function Roulette() {
       setHistory(revealed);
       setCurrentSpinResult(null);
       setIsSpinning(false);
-      setCurrentIndex(totalChances); // remainingChances=0 → 자동추첨 종료·완료 상태
-      // 일괄 자동공개 안내 → 0.5초 뒤 '선택된 벌칙' 섹션으로 스크롤(기존 effect가 처리)
+      setCurrentIndex(totalChances);
       toast.success('벌칙 결과를 모두 자동으로 뽑았어요');
     },
     onError: (err) => {
       const message = getAxiosMessage(err);
 
       // 타임아웃 자동공개 등으로 이미 완료된 드문 경합 → 결과 페이지로 폴백 이동
-      // exit API는 400만 던지므로 400만 검사(409는 'spin' 전용 신호)
       if (
         axios.isAxiosError(err) &&
         err.response?.status === 400 &&
@@ -419,8 +417,6 @@ export function Roulette() {
     skipEverQualified &&
     remainingChances > 1;
 
-  // 실제 클릭 가능 여부. 남은 1회 이하는 위 노출 조건에서 이미 걸러짐.
-  // 자동추첨 중엔 isSpinning이 빠르게 토글되므로 스핀 상태와 무관하게 허용(스킵이 루프를 멈춤).
   const isManualSkippable =
     !isAutoDraw && !isCompleted && !isSpinning && !spinMutation.isPending;
   const canSkipNow =
@@ -454,65 +450,71 @@ export function Roulette() {
     (!isGiveUpRoulette && !myResult) ||
     hasInvalidTarget;
 
-  const handleStartSpinning = useCallback(async () => {
-    if (isCompleted) {
-      moveToFinishTarget();
-      return;
-    }
-
-    // 스킵 진행 중이면 새 스핀 시작 금지(자동추첨 루프가 끼어드는 것 차단)
-    if (skipInitiatedRef.current) return;
-
-    if (cannotStart) return;
-
-    try {
-      setSpinErrorMessage('');
-      const spinResult = isGiveUpRoulette
-        ? giveUpSpinResults[pickedSpins]
-        : await spinMutation.mutateAsync(nextSpinIndex);
-      // 대기 중 스킵이 시작됐으면 이 스핀 결과는 폐기(완료 처리로 대체)
-      if (skipInitiatedRef.current) return;
-      if (!spinResult) {
-        setSpinErrorMessage('룰렛 결과를 찾을 수 없습니다.');
-        return;
-      }
-      const spinTargetIndex = rouletteItems.findIndex(
-        (item) =>
-          item.id === spinResult.penaltyItemId ||
-          item.label === spinResult.penaltyContent,
-      );
-
-      if (spinTargetIndex < 0) {
-        setSpinErrorMessage('서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.');
-        return;
-      }
-
-      setCurrentSpinResult(spinResult);
-      setIsSpinning(true);
-    } catch (err) {
-      // 스킵 진행 중 끼어든 스핀이 409(이미 공개)로 떨어져도 이탈시키지 않음(스킵이 완료 처리)
-      if (skipInitiatedRef.current) return;
-
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
+  const handleStartSpinning = useCallback(
+    async (auto = false) => {
+      if (isCompleted) {
         moveToFinishTarget();
         return;
       }
 
-      setSpinErrorMessage(
-        err instanceof Error ? err.message : '룰렛 실행에 실패했습니다.',
-      );
-    }
-  }, [
-    isCompleted,
-    moveToFinishTarget,
-    cannotStart,
-    isGiveUpRoulette,
-    giveUpSpinResults,
-    pickedSpins,
-    spinMutation,
-    nextSpinIndex,
-    rouletteItems,
-  ]);
+      // 스킵 진행 중이면 새 스핀 시작 금지(자동추첨 루프가 끼어드는 것 차단)
+      if (skipInitiatedRef.current) return;
+
+      if (cannotStart) return;
+
+      try {
+        setSpinErrorMessage('');
+        const spinResult = isGiveUpRoulette
+          ? giveUpSpinResults[pickedSpins]
+          : await spinMutation.mutateAsync(nextSpinIndex);
+        // 대기 중 스킵이 시작됐으면 이 스핀 결과는 폐기(완료 처리로 대체)
+        if (skipInitiatedRef.current) return;
+        if (!spinResult) {
+          setSpinErrorMessage('룰렛 결과를 찾을 수 없습니다.');
+          return;
+        }
+        const spinTargetIndex = rouletteItems.findIndex(
+          (item) =>
+            item.id === spinResult.penaltyItemId ||
+            item.label === spinResult.penaltyContent,
+        );
+
+        if (spinTargetIndex < 0) {
+          setSpinErrorMessage(
+            '서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.',
+          );
+          return;
+        }
+
+        manualSpinRef.current = !auto;
+        setCurrentSpinResult(spinResult);
+        setIsSpinning(true);
+      } catch (err) {
+        // 스킵 진행 중 끼어든 스핀이 409(이미 공개)로 떨어져도 이탈시키지 않음(스킵이 완료 처리)
+        if (skipInitiatedRef.current) return;
+
+        if (axios.isAxiosError(err) && err.response?.status === 409) {
+          moveToFinishTarget();
+          return;
+        }
+
+        setSpinErrorMessage(
+          err instanceof Error ? err.message : '룰렛 실행에 실패했습니다.',
+        );
+      }
+    },
+    [
+      isCompleted,
+      moveToFinishTarget,
+      cannotStart,
+      isGiveUpRoulette,
+      giveUpSpinResults,
+      pickedSpins,
+      spinMutation,
+      nextSpinIndex,
+      rouletteItems,
+    ],
+  );
 
   const handleStopSpinning = useCallback(() => {
     // 스킵이 시작된 뒤 뒤늦게 도착한 '바퀴 정지' 신호는 결과 집계를 건너뛴다.
@@ -524,50 +526,74 @@ export function Roulette() {
     }
     if (currentSpinResult) {
       setHistory((prev) => [...prev, currentSpinResult.penaltyContent]);
+      // 수동 실행으로 멈춘 경우에만 '취조실 조명' 연출 발동
+      if (manualSpinRef.current) {
+        setSpotlightLabel(currentSpinResult.penaltyContent);
+      }
     }
+    manualSpinRef.current = false;
     setCurrentIndex((prev) => prev + 1);
     setIsSpinning(false);
     setCurrentSpinResult(null);
   }, [currentSpinResult]);
 
+  // 연출 자동 종료: 노출 후 SPOTLIGHT_DURATION_MS 뒤 사라짐(언마운트 시 타이머 정리)
+  useEffect(() => {
+    if (!spotlightLabel) return;
+
+    const timerId = window.setTimeout(
+      () => setSpotlightLabel(null),
+      SPOTLIGHT_DURATION_MS,
+    );
+
+    return () => window.clearTimeout(timerId);
+  }, [spotlightLabel]);
+
   const selectedPenaltyRef = useRef<HTMLDivElement | null>(null);
 
-  // 룰렛이 완전히 멈춘 뒤(전부 완료) 선택된 벌칙 섹션으로 1회 스크롤 이동
-  // 결과 인지 시간 확보를 위해 0.5초 뒤 이동
+  // 룰렛이 완전히 멈춘 뒤(전부 완료) 선택된 벌칙 섹션으로 1회 스크롤 이동.
   useEffect(() => {
-    if (!isSpinning && isAllCompleted && history.length > 0) {
+    if (
+      !isSpinning &&
+      isAllCompleted &&
+      history.length > 0 &&
+      !spotlightLabel
+    ) {
       const timerId = window.setTimeout(() => {
-        selectedPenaltyRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
+        const el = selectedPenaltyRef.current;
+        if (!el) return;
+
+        const headerHeight =
+          document.querySelector('header')?.getBoundingClientRect().height ??
+          58;
+        const absoluteTop =
+          el.getBoundingClientRect().top + window.scrollY - headerHeight - 12;
+
+        window.scrollTo({ top: Math.max(0, absoluteTop), behavior: 'smooth' });
       }, 500);
 
       return () => window.clearTimeout(timerId);
     }
-  }, [isSpinning, isAllCompleted, history.length]);
+  }, [isSpinning, isAllCompleted, history.length, spotlightLabel]);
 
-  // 자동추첨 시작 시 안내 토스트 1회
-  const autoDrawToastShownRef = useRef(false);
+  const autoDrawStartedRef = useRef(false);
   useEffect(() => {
     if (!isAutoDraw) {
-      autoDrawToastShownRef.current = false;
+      autoDrawStartedRef.current = false;
       return;
     }
-    if (autoDrawToastShownRef.current) return;
-    autoDrawToastShownRef.current = true;
+    if (autoDrawStartedRef.current) return;
+    autoDrawStartedRef.current = true;
     toast.error('시간이 초과되었습니다');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [isAutoDraw]);
 
-  // 자동추첨 진행: 휠이 멈춰있으면 다음 틱에 다음 스핀 트리거 (완료 시 정지)
-  // setTimeout으로 비동기 트리거 — effect 본문 동기 setState 회피 + 회차 간 간격 부여
   useEffect(() => {
     if (!isAutoDraw || isAllCompleted) return;
     if (isSpinning || spinMutation.isPending || skipMutation.isPending) return;
-    // 나가기 다이얼로그/이탈 처리 중엔 자동추첨 일시정지(모달 뒤 진행·중복 이동 방지). 취소 시 재개.
     if (isDialogOpen || exitMutation.isPending) return;
     const id = setTimeout(() => {
-      void handleStartSpinning();
+      void handleStartSpinning(true); // 자동추첨: 연출 미발동
     }, 150);
     return () => clearTimeout(id);
   }, [
@@ -684,7 +710,7 @@ export function Roulette() {
             variant='default'
             size='main'
             className='flex-3 rounded-[14px] font-bold'
-            onClick={handleStartSpinning}
+            onClick={() => handleStartSpinning()}
             disabled={
               isSpinning || ((cannotStart || isAutoDraw) && !isDrawDone)
             }
@@ -813,6 +839,49 @@ export function Roulette() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 취조실 조명: 수동 룰렛 완료 시 본문을 어둡게 깔고, 위에서 내려오는 원뿔형 빛줄기로 결과 강조.
+          z-40 = 헤더/하단 버튼 고정영역(z-50)보다 아래 → 그 둘은 가리지 않고 본문만 덮는다. */}
+      {spotlightLabel ? (
+        <div
+          aria-hidden
+          className='pointer-events-none fixed inset-0 z-40'
+          style={{ animation: 'spotlightIn 0.2s ease-out both' }}
+        >
+          {/* 1) 어두운 배경 오버레이 (전체 화면) */}
+          <div
+            className='absolute inset-0'
+            style={{ background: 'rgba(0, 0, 0, 0.85)' }}
+          />
+
+          {/* 2) 원뿔형 빛줄기: 상단 중앙(좁음) → 하단(넓음) 사다리꼴, 위→아래로 밝기 감소 */}
+          <div
+            className='absolute inset-0'
+            style={{
+              clipPath: 'polygon(42% 0, 58% 0, 100% 100%, 0 100%)',
+              background:
+                'linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.12) 50%, transparent 85%)',
+            }}
+          />
+
+          {/* 3) 결과 텍스트: 빛을 받는 최상단 레이어 + 흰색 후광 */}
+          <div className='absolute inset-0 z-10 flex flex-col items-center justify-center px-10 text-center'>
+            {/* 반투명 검은 박스: 밝은 빛줄기 위에서도 텍스트 대비가 충분하도록 감싼다 */}
+            <div className='flex flex-col items-center rounded-[14px] mb-2 bg-black/60 px-4 py-2 text-xs font-semibold  text-white/70'>
+              벌칙 확정
+            </div>
+            <span
+              className='text-2xl font-extrabold text-white'
+              style={{
+                textShadow:
+                  '0 0 12px rgba(255,255,255,0.7), 0 0 32px rgba(255,255,255,0.4)',
+              }}
+            >
+              {spotlightLabel}
+            </span>
+          </div>
+        </div>
+      ) : null}
     </MobileLayout>
   );
 }
