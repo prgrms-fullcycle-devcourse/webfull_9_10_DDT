@@ -1,7 +1,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import { PushNotificationService } from '../timer/push-notification.service';
+import { TimerService } from '../timer/timer.service';
 import {
   getEffectiveFocusEscapeMs,
   mergeIntervals,
@@ -12,9 +12,8 @@ export class EscapeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    // 💡 PushNotificationService 주입 (순환 참조 방지)
-    @Inject(forwardRef(() => PushNotificationService))
-    private readonly pushService: PushNotificationService,
+    @Inject(forwardRef(() => TimerService))
+    private readonly timerService: TimerService,
   ) {}
 
   async updateHeartbeat(roomCode: string, identifier: string) {
@@ -61,7 +60,7 @@ export class EscapeService {
       });
 
       // 💡 푸시 알림 발송 (이탈이 시작되는 순간 본인에게만 전송)
-      this.pushService
+      this.timerService
         .sendToUser(
           roomCode,
           identifier,
