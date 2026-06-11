@@ -28,6 +28,7 @@ import {
 import { EscapeService } from '../escape/escape.service';
 import { TimerRepository } from './timer.repository';
 import { PushNotificationService } from './push-notification.service';
+import { OnEvent } from '@nestjs/event-emitter';
 
 // 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
 const KICK_MAX_RETRIES = 2;
@@ -502,5 +503,10 @@ export class TimerService implements OnModuleInit {
     this.roomGateway.server
       .to(roomCode)
       .emit('escape:summary', { members: summary });
+  }
+
+  @OnEvent('room.closed')
+  async handleRoomClosed(payload: { roomCode: string }) {
+    await this.cancelSessionJobs(payload.roomCode);
   }
 }

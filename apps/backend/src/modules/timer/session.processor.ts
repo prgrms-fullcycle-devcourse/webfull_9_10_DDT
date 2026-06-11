@@ -4,12 +4,16 @@ import { Job } from 'bullmq';
 import * as Sentry from '@sentry/nestjs';
 import { SESSION_QUEUE, SessionJob } from './timer.queue';
 import { TimerService } from './timer.service';
+import { TimerRepository } from './timer.repository';
 
 @Processor(SESSION_QUEUE, { concurrency: 20 })
 export class SessionProcessor extends WorkerHost {
   private readonly logger = new Logger(SessionProcessor.name);
 
-  constructor(private readonly timerService: TimerService) {
+  constructor(
+    private readonly timerService: TimerService,
+    private readonly timerRepository: TimerRepository,
+  ) {
     super();
   }
 
@@ -18,6 +22,14 @@ export class SessionProcessor extends WorkerHost {
     this.logger.log(
       `[BullMQ] 잡 실행 시작 (kind=${data.kind}, room=${data.roomCode})`,
     );
+
+    const room = await this.timerRepository.findRoomPhase(data.roomCode);
+    if (!room || ['closed', 'result'].includes(room.phase)) {
+      this.logger.log(
+        `[BullMQ] 잡 스킵 - 방 종료됨 (kind=${data.kind}, room=${data.roomCode}, phase=${room?.phase ?? 'not-found'})`,
+      );
+      return;
+    }
     try {
       if (data.kind === 'end') {
         await this.timerService.endSession(data.roomCode);

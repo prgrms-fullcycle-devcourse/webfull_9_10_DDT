@@ -13,6 +13,7 @@ import { PrismaModule } from './common/prisma.module';
 import { ResultModule } from './modules/result/result.module';
 import { RouletteModule } from './modules/roulette/roulette.module';
 import { RuleModule } from './modules/rule/rule.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { BullModule } from '@nestjs/bullmq';
 import IORedis from 'ioredis';
@@ -38,6 +39,7 @@ import { HealthModule } from './modules/health/health.module';
     ResultModule,
     RouletteModule,
     HealthModule,
+    EventEmitterModule.forRoot(),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
