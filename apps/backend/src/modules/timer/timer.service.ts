@@ -17,6 +17,7 @@ import { PenaltyService } from '../penalty/penalty.service';
 import { YjsGateway } from '../gateway/yjs/yjs.gateway';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import * as webpush from 'web-push';
 import type { PushSubscription } from 'web-push';
 import {
   SESSION_QUEUE,
@@ -27,14 +28,17 @@ import {
 } from './timer.queue';
 import { EscapeService } from '../escape/escape.service';
 import { TimerRepository } from './timer.repository';
-import { PushNotificationService } from './push-notification.service';
+import { SnsService } from '../sns/sns.service';
+import { RedisService } from '../../common/redis/redis.service';
+import { ConfigService } from '@nestjs/config';
 
 // 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
 const KICK_MAX_RETRIES = 2;
 // 강퇴 대상 소켓 disconnect 지연(ms) — kicked 이벤트 수신 여유 확보.
 const KICK_DISCONNECT_DELAY_MS = 100;
-
 const MAX_ROUNDS_FALLBACK = 30;
+const PUSH_SUB_TTL_SEC = 60 * 60 * 24 * 7;
+const PUSH_COOLDOWN_SEC = 10;
 
 type SessionTemplate = {
   focusMin: number;
@@ -52,6 +56,11 @@ type UnsignedSummary = {
   memberIds: string[];
 };
 
+interface SavedPushSub {
+  platform: 'web' | 'android' | 'ios';
+  data: string | PushSubscription;
+}
+
 function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
   if (!rawState) return { hostUnsigned: false, memberIds: [] };
   const state = JSON.parse(rawState) as { members?: RoomStateMembers };
@@ -67,9 +76,10 @@ function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
 @Injectable()
 export class TimerService implements OnModuleInit {
   private readonly logger = new Logger(TimerService.name);
+  private pushEnabled = false;
+
   constructor(
     private readonly timerRepository: TimerRepository,
-    private readonly pushService: PushNotificationService,
     private readonly roomGateway: RoomGateway,
     private readonly roomService: RoomService,
     private readonly penaltyService: PenaltyService,
@@ -77,16 +87,141 @@ export class TimerService implements OnModuleInit {
     @InjectQueue(SESSION_QUEUE)
     private readonly sessionQueue: Queue<SessionJob>,
     private readonly escapeService: EscapeService,
-  ) {}
+    private readonly snsService: SnsService,
+    private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
+  ) {
+    // Web Push (VAPID) 초기화
+    const pubKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
+    const privKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
+    const subject = this.configService.get<string>('VAPID_SUBJECT');
+
+    if (pubKey && privKey && subject) {
+      webpush.setVapidDetails(subject, pubKey, privKey);
+      this.pushEnabled = true;
+      this.logger.log('Web Push (VAPID) 설정 완료');
+    }
+  }
+
+  async sendToUser(
+    roomCode: string,
+    userId: string,
+    title: string,
+    body: string,
+  ): Promise<void> {
+    const cooldownKey = `push_cooldown:${roomCode}:${userId}`;
+    const isCooldown = await this.redisService.instance.get(cooldownKey);
+    if (isCooldown) {
+      this.logger.log(`[Push] 쿨타임 적용 중 - 알림 생략 (user=${userId})`);
+      return;
+    }
+
+    const subRaw = await this.redisService.instance.get(`push_sub:${roomCode}:${userId}`);
+    if (!subRaw) return;
+
+    const subData = JSON.parse(subRaw) as SavedPushSub;
+
+    try {
+      if (subData.platform === 'web' && this.pushEnabled) {
+        await webpush.sendNotification(
+          subData.data as PushSubscription,
+          JSON.stringify({ title, body })
+        );
+      } else if (subData.platform === 'android' && typeof subData.data === 'string') {
+        await this.snsService.sendPushNotification(subData.data, title, body);
+        this.logger.log(`[Push] Android 개별 푸시 발송 성공 (user=${userId})`);
+      }
+
+      await this.redisService.instance.set(cooldownKey, '1', 'EX', 10); // 10초 쿨타임
+    } catch (err: any) {
+      const statusCode = err?.statusCode || 'Unknown';
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`개별 푸시 전송 실패 (${userId}) [Status: ${statusCode}]: ${msg}`);
+
+      if (statusCode === 404 || statusCode === 410) {
+        await this.redisService.instance.del(`push_sub:${roomCode}:${userId}`);
+      }
+    }
+  }
 
   async savePushSubscription(
     roomCode: string,
     userId: string,
-    subscription: PushSubscription,
+    data: string | PushSubscription,
+    platform: string,
   ) {
-    this.logger.log(`[Push] 구독 저장 (room=${roomCode}, user=${userId})`);
-    await this.pushService.saveSubscription(roomCode, userId, subscription);
+    this.logger.log(
+      `[Push] 구독 저장 (room=${roomCode}, user=${userId}, platform=${platform})`,
+    );
+
+    let endpointArn: string | null = null;
+
+    if (platform === 'android' && typeof data === 'string') {
+      endpointArn = await this.snsService.registerAndroidEndpoint(data);
+    }
+
+    const payload = JSON.stringify({
+      platform,
+      data: platform === 'android' ? endpointArn : data,
+    });
+
+    await this.redisService.instance.set(
+      `push_sub:${roomCode}:${userId}`,
+      payload,
+      'EX',
+      PUSH_SUB_TTL_SEC,
+    );
   }
+
+  private async sendPushToRoom(roomCode: string, title: string, body: string) {
+    const rawState = await this.redisService.instance.get(
+      `room:state:${roomCode}`,
+    );
+    if (!rawState) return;
+
+    const state = JSON.parse(rawState) as { members?: Record<string, unknown> };
+    if (!state.members) return;
+
+    const userIds = Object.keys(state.members);
+    const webPayload = JSON.stringify({ title, body });
+
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const subRaw = await this.redisService.instance.get(
+          `push_sub:${roomCode}:${userId}`,
+        );
+        if (!subRaw) return;
+
+        const subData = JSON.parse(subRaw) as SavedPushSub;
+
+        try {
+          if (subData.platform === 'web' && this.pushEnabled) {
+            await webpush.sendNotification(
+              subData.data as PushSubscription,
+              webPayload,
+            );
+          } else if (
+            subData.platform === 'android' &&
+            typeof subData.data === 'string'
+          ) {
+            await this.snsService.sendPushNotification(
+              subData.data,
+              title,
+              body,
+            );
+            this.logger.log(`[Push] Android 푸시 발송 성공 (user=${userId})`);
+          }
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            `푸시 전송 실패 (user=${userId}, platform=${subData.platform}): ${errorMessage}`,
+          );
+        }
+      }),
+    );
+  }
+
+  // ── 2️⃣ 세션 및 비즈니스 로직 ───────────────────────────────
 
   private async verifyHost(roomCode: string, userId: string) {
     const room = await this.timerRepository.findRoomForVerify(roomCode);
@@ -188,14 +323,12 @@ export class TimerService implements OnModuleInit {
         kickedMemberIds.push(targetId);
       }
 
-      // 1차 게이트: 강퇴 실패 멤버가 있으면 세션 시작 차단 (fail-closed)
       if (failedMemberIds.length > 0) {
         throw new InternalServerErrorException(
           '일부 멤버 강퇴에 실패했습니다. 다시 시도해주세요.',
         );
       }
 
-      // 2차 게이트: phase 전환 직전 최신 state 재검사 (동시 unsign 재발생 차단)
       const freshState = await this.timerRepository.getRoomStateRaw(roomCode);
       const fresh = extractUnsignedSummary(freshState);
       if (fresh.hostUnsigned || fresh.memberIds.length > 0) {
@@ -233,9 +366,7 @@ export class TimerService implements OnModuleInit {
     const now = new Date();
 
     await this.timerRepository.giveUpTransaction(member.id, now);
-
     await this.safeCalculateForGiveUp(roomCode, member.id);
-
     await this.timerRepository.saveGiveUpState(
       roomCode,
       userId,
@@ -339,10 +470,10 @@ export class TimerService implements OnModuleInit {
     }
   }
 
-  // ── Processor 호출용 public 메서드 ───────────────────────────
 
   async sendBreakWarning(roomCode: string): Promise<void> {
-    await this.pushService.sendToRoom(
+    // 💡 새로운 통합 알림 메서드 사용
+    await this.sendPushToRoom(
       roomCode,
       '휴식이 1분 남았어요! ⏰',
       '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
@@ -350,13 +481,11 @@ export class TimerService implements OnModuleInit {
     this.roomGateway.server.to(roomCode).emit('break:warning');
   }
 
-  // ── private 헬퍼 ─────────────────────────────────────────────
-
   private async loadSignState(roomCode: string): Promise<UnsignedSummary> {
     const rawState = await this.timerRepository.getRoomStateRaw(roomCode);
     if (!rawState) {
       throw new ConflictException(
-        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
+        '방 상태를 확인할 수 확인 없습니다. 잠시 후 다시 시도해주세요.',
       );
     }
     const summary = extractUnsignedSummary(rawState);
