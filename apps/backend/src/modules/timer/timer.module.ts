@@ -9,7 +9,7 @@ import { SESSION_QUEUE } from './timer.queue';
 import { SessionProcessor } from './session.processor';
 import { EscapeModule } from '../escape/escape.module';
 import { TimerRepository } from './timer.repository';
-import { PushNotificationService } from './push-notification.service';
+
 @Module({
   imports: [
     forwardRef(() => GatewayModule),
@@ -19,12 +19,7 @@ import { PushNotificationService } from './push-notification.service';
     EscapeModule,
   ],
   controllers: [TimerController],
-  providers: [
-    TimerService,
-    SessionProcessor,
-    TimerRepository,
-    PushNotificationService,
-  ],
-  exports: [TimerService, PushNotificationService],
+  providers: [TimerService, SessionProcessor, TimerRepository],
+  exports: [TimerService],
 })
 export class TimerModule {}

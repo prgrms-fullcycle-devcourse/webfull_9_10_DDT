@@ -5,6 +5,7 @@ import type { PushSubscription } from 'web-push';
 import { TimerRepository } from './timer.repository';
 import { RedisService } from '../../common/redis/redis.service';
 import { OnEvent } from '@nestjs/event-emitter';
+import { SnsService } from '../sns/sns.service';
 
 const PUSH_SUB_TTL_SEC = 11 * 60 * 60;
 const PUSH_COOLDOWN_SEC = 10;
@@ -34,6 +35,7 @@ export class PushNotificationService {
     private readonly timerRepository: TimerRepository,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly snsService: SnsService,
   ) {
     const subject = this.configService.get<string>('VAPID_SUBJECT');
     const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
@@ -50,13 +52,27 @@ export class PushNotificationService {
   async saveSubscription(
     roomCode: string,
     userId: string,
-    subscription: PushSubscription,
+    data: string | PushSubscription,
+    platform: string,
   ): Promise<void> {
-    this.logger.log(`[Push] 구독 저장 (room=${roomCode}, user=${userId})`);
+    this.logger.log(
+      `[Push] 구독 저장 (room=${roomCode}, user=${userId}, platform=${platform})`,
+    );
+
+    let endpointArn: string | null = null;
+    if (platform === 'android' && typeof data === 'string') {
+      endpointArn = await this.snsService.registerAndroidEndpoint(data);
+    }
+
+    const payload = JSON.stringify({
+      platform,
+      data: platform === 'android' ? endpointArn : data,
+    });
+
     await this.timerRepository.savePushSubscription(
       roomCode,
       userId,
-      JSON.stringify(subscription),
+      payload,
       PUSH_SUB_TTL_SEC,
     );
   }

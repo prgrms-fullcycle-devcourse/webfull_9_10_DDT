@@ -12,7 +12,7 @@ export class EscapeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventEmitter: EventEmitter2, // ✅ 이벤트 이미터 주입
   ) {}
 
   async updateHeartbeat(roomCode: string, identifier: string) {
@@ -24,7 +24,6 @@ export class EscapeService {
     );
   }
 
-  // 💡 소켓이 정상적으로 끊어졌을 때 Heartbeat 키를 삭제하는 로직
   async clearHeartbeat(roomCode: string, identifier: string) {
     await this.redis.instance.del(`heartbeat:${roomCode}:${identifier}`);
   }
@@ -49,15 +48,12 @@ export class EscapeService {
       where: { roomMemberId: member.id, returnedAt: null },
     });
 
-    // 활성화된 이탈 기록이 없을 때만 새로 생성
     if (!activeEscape) {
       await this.prisma.escapeLog.create({
-        data: {
-          roomMemberId: member.id,
-          escapedAt: new Date(),
-        },
+        data: { roomMemberId: member.id, escapedAt: new Date() },
       });
 
+      // ✅ 직접 호출 대신 이벤트 발행 (순환 참조 원천 차단)
       this.eventEmitter.emit('escape.started', {
         roomCode,
         userId: identifier,
@@ -83,13 +79,9 @@ export class EscapeService {
     if (activeEscape) {
       const now = new Date();
       const durationMs = now.getTime() - activeEscape.escapedAt.getTime();
-
       await this.prisma.escapeLog.update({
         where: { id: activeEscape.id },
-        data: {
-          returnedAt: now,
-          durationMs,
-        },
+        data: { returnedAt: now, durationMs },
       });
     }
   }
