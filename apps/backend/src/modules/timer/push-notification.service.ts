@@ -76,4 +76,29 @@ export class PushNotificationService {
       }),
     );
   }
+
+  async sendToUser(
+    roomCode: string,
+    userId: string,
+    title: string,
+    body: string,
+  ): Promise<void> {
+    if (!this.pushEnabled) return;
+
+    const subRaw = await this.timerRepository.getPushSubscription(
+      roomCode,
+      userId,
+    );
+    this.logger.log(`[Push] 개별 구독 조회 (user=${userId}, found=${!!subRaw})`);
+    if (!subRaw) return;
+
+    try {
+      const subscription = JSON.parse(subRaw) as PushSubscription;
+      const payload = JSON.stringify({ title, body });
+      await webpush.sendNotification(subscription, payload);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`개별 푸시 전송 실패 (${userId}): ${msg}`);
+    }
+  }
 }
