@@ -222,7 +222,14 @@ export default function Timer() {
 
   useEffect(() => {
     if (phaseRemainingSec > 0) return;
+    
     void syncEndedSessionRoute();
+
+    const intervalId = setInterval(() => {
+      void syncEndedSessionRoute();
+    }, 2000);
+
+    return () => clearInterval(intervalId);
   }, [phaseRemainingSec, syncEndedSessionRoute]);
 
   useEffect(() => {
