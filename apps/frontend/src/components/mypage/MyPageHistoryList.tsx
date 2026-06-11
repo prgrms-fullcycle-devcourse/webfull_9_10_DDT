@@ -39,8 +39,12 @@ export const MyPageHistoryList = ({
   chevronDirection = 'right',
   from,
 }: MyPageHistoryListProps) => {
-  const shouldShowError = !!errorMessage && (!errorOnlyWhenEmpty || history.length === 0);
-  const chevronClassName = chevronDirection === 'left' ? 'ml-3 rotate-180 text-[#8A8896]' : 'ml-3 shrink-0 text-[#8A8896]';
+  const shouldShowError =
+    !!errorMessage && (!errorOnlyWhenEmpty || history.length === 0);
+  const chevronClassName =
+    chevronDirection === 'left'
+      ? 'ml-3 rotate-180 text-[#8A8896]'
+      : 'ml-3 shrink-0 text-[#8A8896]';
 
   const handleClick = () => {
     if (from) {
@@ -78,13 +82,19 @@ export const MyPageHistoryList = ({
                 {item.roomTitle}
               </p>
               <p className='text-[12px] font-medium text-[#A5A3AF]'>
-                참여 {item.memberCount}명
-                <span className={`ml-2 ${getPenaltyTextColor(item.totalEscapeMs)}`}>
+                참여 {item.memberCount}명 <span className='text-[10px]'>|</span>
+                <span
+                  className={`ml-2 ${getPenaltyTextColor(item.totalEscapeMs)}`}
+                >
                   내 이탈 {formatDuration(item.totalEscapeMs)}
                 </span>
               </p>
             </div>
-            <ChevronRight className={chevronClassName} size={17} strokeWidth={1.8} />
+            <ChevronRight
+              className={chevronClassName}
+              size={17}
+              strokeWidth={1.8}
+            />
           </Link>
         ))
       )}

@@ -1,0 +1,24 @@
+{
+  "name": "감옥 - 디지털 디톡스 타이머",
+  "short_name": "감옥",
+  "description": "남들이 딴짓할 때, 우리는 서로를 가두고 집중합니다.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
