@@ -51,8 +51,7 @@ export const JoinRoom = () => {
   const isMember = isLoggedIn && me?.role === 'user';
   const defaultNickname = isMember ? (me?.nickname ?? '') : '';
 
-  // 게스트(비로그인) 입장 시 초기 프로필은 랜덤 부여한다.
-  // useState 초기화로 1회만 뽑아 재렌더마다 바뀌지 않게 한다.
+  // 게스트는 초기 프로필을 랜덤으로 1회만 부여한다. (재렌더마다 바뀌지 않게 useState 초기화)
   const [guestRandomProfile] = useState(getRandomProfileIndex);
 
   const defaultProfile = (() => {
@@ -88,7 +87,7 @@ export const JoinRoom = () => {
     retry: false,
   });
 
-  // 내 활성 방으로 "이 방이 곧 내가 참여 중인 방인지" 판단한다. (timer 멤버는 재접속 허용)
+  // 내 활성 방 code가 이 방과 같으면 = 참여 중인 멤버 (timer 재접속 허용 판단용)
   const { data: myActiveRoom, isFetched: isMyActiveFetched } = useQuery({
     queryKey: queryKeys.room.active(isLoggedIn, true),
     queryFn: async () => {
@@ -110,17 +109,14 @@ export const JoinRoom = () => {
     nickname.trim().length > 0 &&
     (isHost || (password.length >= 4 && password.length <= 20));
 
-  // 진행 중(timer)/종료(result) 방 진입 처리. (백엔드 join 에러 메시지에 맞춤)
-  // - timer: 참여 중인 멤버는 타이머로, 비멤버는 경고 후 메인으로
-  // - result: 멤버 구분 불가(getMyActiveRoom 제외) → 모두 경고 후 메인으로
+  // 진입 시 방 상태별 처리. 메시지는 백엔드 join 에러 문구에 맞춘다.
   const enteredHandledRef = useRef(false);
   useEffect(() => {
     if (enteredHandledRef.current) {
       return;
     }
 
-    // closed / 존재하지 않는 방: find가 404를 던진다 → 종료 안내 후 메인으로.
-    // (백엔드가 closed와 없는 방을 같은 404로 던져 프론트에서 구분 불가 → 둘을 아우르는 문구 사용)
+    // closed·없는 방은 find가 같은 404를 던져 구분 불가 → 통합 문구로 안내.
     if (isRoomInvalid) {
       enteredHandledRef.current = true;
       toast.error('존재하지 않거나 종료된 방이에요.');
@@ -132,6 +128,7 @@ export const JoinRoom = () => {
       return;
     }
 
+    // result: 멤버 구분 불가(getMyActiveRoom이 제외) → 모두 차단.
     if (room.phase === 'result') {
       enteredHandledRef.current = true;
       toast.error('종료된 방입니다.');
@@ -139,8 +136,9 @@ export const JoinRoom = () => {
       return;
     }
 
+    // timer: 참여 중인 멤버는 타이머로, 비멤버는 차단.
     if (room.phase === 'timer') {
-      // 로그인 유저는 활성 방 조회가 끝나야 멤버 여부를 알 수 있어 대기한다.
+      // 멤버 여부 판단을 위해 활성 방 조회 완료까지 대기.
       if (isLoggedIn && !isMyActiveFetched) {
         return;
       }
@@ -208,7 +206,7 @@ export const JoinRoom = () => {
     });
   };
 
-  // 로딩 중이거나 timer/result/closed·없는 방(위 effect가 리다이렉트 처리)이면 폼 대신 공통 로딩 UI를 보여준다.
+  // 로딩 중 또는 위 effect가 리다이렉트로 처리하는 방이면 폼 대신 로딩 UI를 보여준다.
   if (
     isRoomLoading ||
     isRoomInvalid ||
