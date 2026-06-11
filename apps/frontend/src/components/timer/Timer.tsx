@@ -195,7 +195,13 @@ export default function Timer() {
   const emitEscapeStart = useCallback(() => {
     const now = Date.now();
     if (now - lastEscapeStartRef.current < 300) return;
+
+    lastEscapeStartRef.current = now;
     socket?.emit('escape:start');
+
+    toast.error('화면을 이탈했습니다! 이탈 시간이 누적됩니다.', {
+      duration: 3000,
+    });
   }, [socket]);
 
   const syncEndedSessionRoute = useCallback(async () => {
@@ -252,9 +258,6 @@ export default function Timer() {
       if (document.hidden) {
         if (isFocusRef.current) {
           emitEscapeStart();
-          toast.error('화면을 이탈했습니다! 벌칙 시간이 누적됩니다.', {
-            duration: 3000,
-          });
         }
       } else {
         socket.emit('escape:end');

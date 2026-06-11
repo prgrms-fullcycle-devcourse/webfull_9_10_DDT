@@ -3,8 +3,10 @@ import * as webpush from 'web-push';
 import { ConfigService } from '@nestjs/config';
 import type { PushSubscription } from 'web-push';
 import { TimerRepository } from './timer.repository';
+import { RedisService } from '../../common/redis/redis.service';
 
 const PUSH_SUB_TTL_SEC = 11 * 60 * 60;
+const PUSH_COOLDOWN_SEC = 10;
 
 @Injectable()
 export class PushNotificationService {
@@ -14,6 +16,7 @@ export class PushNotificationService {
   constructor(
     private readonly timerRepository: TimerRepository,
     private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
   ) {
     const subject = this.configService.get<string>('VAPID_SUBJECT');
     const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
@@ -75,5 +78,50 @@ export class PushNotificationService {
           });
       }),
     );
+  }
+
+  async sendToUser(
+    roomCode: string,
+    userId: string,
+    title: string,
+    body: string,
+  ): Promise<void> {
+    if (!this.pushEnabled) return;
+
+    const cooldownKey = `push_cooldown:${roomCode}:${userId}`;
+    const isCooldown = await this.redisService.instance.get(cooldownKey);
+    if (isCooldown) {
+      this.logger.log(`[Push] 쿨타임 적용 중 - 알림 생략 (user=${userId})`);
+      return;
+    }
+
+    const subRaw = await this.timerRepository.getPushSubscription(
+      roomCode,
+      userId,
+    );
+    this.logger.log(`[Push] 개별 구독 조회 (user=${userId}, found=${!!subRaw})`);
+    if (!subRaw) return;
+
+    try {
+      const subscription = JSON.parse(subRaw) as PushSubscription;
+      const payload = JSON.stringify({ title, body });
+      
+      await webpush.sendNotification(subscription, payload);
+      
+      await this.redisService.instance.set(cooldownKey, '1', 'EX', PUSH_COOLDOWN_SEC);
+      
+    } catch (err: any) {
+      const statusCode = err?.statusCode || 'Unknown';
+      const responseBody = err?.body || '';
+      const msg = err instanceof Error ? err.message : String(err);
+      
+      this.logger.warn(
+        `개별 푸시 전송 실패 (${userId}) [Status: ${statusCode}]: ${responseBody} - ${msg}`
+      );
+
+      if (statusCode === 404 || statusCode === 410) {
+        await this.redisService.instance.del(`push_sub:${roomCode}:${userId}`);
+      }
+    }
   }
 }
