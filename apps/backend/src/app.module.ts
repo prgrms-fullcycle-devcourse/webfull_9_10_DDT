@@ -13,7 +13,9 @@ import { PrismaModule } from './common/prisma.module';
 import { ResultModule } from './modules/result/result.module';
 import { RouletteModule } from './modules/roulette/roulette.module';
 import { RuleModule } from './modules/rule/rule.module';
-import { SnsModule } from './modules/sns/sns.module';
+import { SnsModule } from './modules/sns/sns.module'; // ✅ 우리가 만든 SNS
+import { EventEmitterModule } from '@nestjs/event-emitter'; // ✅ 팀원이 만든 이벤트
+
 import { BullModule } from '@nestjs/bullmq';
 import IORedis from 'ioredis';
 
@@ -38,7 +40,8 @@ import { HealthModule } from './modules/health/health.module';
     ResultModule,
     RouletteModule,
     HealthModule,
-    SnsModule,
+    SnsModule, // ✅ 추가 완료
+    EventEmitterModule.forRoot(), // ✅ 추가 완료
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

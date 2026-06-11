@@ -14,6 +14,7 @@ import * as bcrypt from 'bcrypt';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { Room } from '@prisma/client';
 import { RoomRepository, RoomState } from './room.repository';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 type PartialRoom = Pick<Room, 'code' | 'passwordHash' | 'phase' | 'hostId'> & {
   _count: { roomMembers: number };
@@ -37,6 +38,7 @@ export class RoomService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => RoomGateway))
     private readonly roomGateway: RoomGateway,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   public async saveRedisState(roomCode: string, state: RoomState) {
@@ -342,6 +344,7 @@ export class RoomService {
       this.roomRepository.deleteState(roomCode),
       this.updatePhase(roomCode, 'closed'),
     ]);
+    this.eventEmitter.emit('room.closed', { roomCode });
   }
   async updatePhase(roomCode: string, phase: string) {
     await this.roomRepository.updatePhase(roomCode, phase);

@@ -16,7 +16,7 @@ import { TimerRepository } from './timer.repository';
     forwardRef(() => RoomModule),
     PenaltyModule,
     BullModule.registerQueue({ name: SESSION_QUEUE }),
-    forwardRef(() => EscapeModule),
+    EscapeModule,
   ],
   controllers: [TimerController],
   providers: [TimerService, SessionProcessor, TimerRepository],

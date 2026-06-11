@@ -38,8 +38,16 @@ export default function MemberSignList() {
   const signedCount = memberList.filter(([, m]) => m.isSigned).length;
   const memberCount = memberList.length;
 
-  const handleSignToggle = () => {
-    socket?.emit('member:sign', { signed: !isMeSigned });
+  const handleSignToggle = async () => {
+    const newSigned = !isMeSigned;
+    if (
+      newSigned &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
+      await Notification.requestPermission();
+    }
+    socket?.emit('member:sign', { signed: newSigned });
   };
 
   const handleKickMember = async (targetId: string) => {

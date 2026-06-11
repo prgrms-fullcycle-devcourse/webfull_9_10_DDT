@@ -1,47 +1,35 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
-import { TimerService } from '../timer/timer.service';
 import {
   getEffectiveFocusEscapeMs,
   mergeIntervals,
 } from '../penalty/penalty.util';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class EscapeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    @Inject(forwardRef(() => TimerService))
-    private readonly timerService: TimerService,
+    private readonly eventEmitter: EventEmitter2, // ✅ 이벤트 이미터 주입
   ) {}
 
   async updateHeartbeat(roomCode: string, identifier: string) {
-    await this.redis.instance.set(
-      `heartbeat:${roomCode}:${identifier}`,
-      Date.now().toString(),
-      'EX',
-      15,
-    );
+    await this.redis.instance.set(`heartbeat:${roomCode}:${identifier}`, Date.now().toString(), 'EX', 15);
   }
 
-  // 💡 소켓이 정상적으로 끊어졌을 때 Heartbeat 키를 삭제하는 로직
   async clearHeartbeat(roomCode: string, identifier: string) {
     await this.redis.instance.del(`heartbeat:${roomCode}:${identifier}`);
   }
 
   async logEscapeStart(roomCode: string, identifier: string) {
-    const room = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-    });
+    const room = await this.prisma.room.findUnique({ where: { code: roomCode } });
     if (!room || room.phase !== 'timer') return;
 
     const isGuest = identifier.startsWith('guest_');
     const member = await this.prisma.roomMember.findFirst({
-      where: {
-        roomCode,
-        ...(isGuest ? { guestToken: identifier } : { userId: identifier }),
-      },
+      where: { roomCode, ...(isGuest ? { guestToken: identifier } : { userId: identifier }) },
     });
 
     if (!member || member.gaveUpAt) return;
@@ -50,34 +38,23 @@ export class EscapeService {
       where: { roomMemberId: member.id, returnedAt: null },
     });
 
-    // 활성화된 이탈 기록이 없을 때만 새로 생성
     if (!activeEscape) {
       await this.prisma.escapeLog.create({
-        data: {
-          roomMemberId: member.id,
-          escapedAt: new Date(),
-        },
+        data: { roomMemberId: member.id, escapedAt: new Date() },
       });
 
-      // 💡 푸시 알림 발송 (이탈이 시작되는 순간 본인에게만 전송)
-      this.timerService
-        .sendToUser(
-          roomCode,
-          identifier,
-          '🚨 화면 이탈 감지!',
-          '집중 화면을 벗어났습니다. 이탈 시간이 누적되고 있어요!',
-        )
-        .catch((e) => console.error('이탈 푸시 에러:', e));
+      // ✅ 직접 호출 대신 이벤트 발행 (순환 참조 원천 차단)
+      this.eventEmitter.emit('escape.started', {
+        roomCode,
+        userId: identifier,
+      });
     }
   }
 
   async logEscapeEnd(roomCode: string, identifier: string) {
     const isGuest = identifier.startsWith('guest_');
     const member = await this.prisma.roomMember.findFirst({
-      where: {
-        roomCode,
-        ...(isGuest ? { guestToken: identifier } : { userId: identifier }),
-      },
+      where: { roomCode, ...(isGuest ? { guestToken: identifier } : { userId: identifier }) },
     });
 
     if (!member || member.gaveUpAt) return;
@@ -89,13 +66,9 @@ export class EscapeService {
     if (activeEscape) {
       const now = new Date();
       const durationMs = now.getTime() - activeEscape.escapedAt.getTime();
-
       await this.prisma.escapeLog.update({
         where: { id: activeEscape.id },
-        data: {
-          returnedAt: now,
-          durationMs,
-        },
+        data: { returnedAt: now, durationMs },
       });
     }
   }
@@ -105,9 +78,7 @@ export class EscapeService {
       where: { code: roomCode },
       include: {
         template: true,
-        roomMembers: {
-          include: { escapeLogs: { where: { deletedAt: null } } },
-        },
+        roomMembers: { include: { escapeLogs: { where: { deletedAt: null } } } },
       },
     });
     if (!room?.template || !room.startedAt) return [];
@@ -126,14 +97,7 @@ export class EscapeService {
       let totalEscapeMs = 0;
 
       for (const { start, end } of merged) {
-        totalEscapeMs += getEffectiveFocusEscapeMs(
-          start,
-          end,
-          sessionStartMs,
-          focusMin,
-          breakMin,
-          rounds,
-        );
+        totalEscapeMs += getEffectiveFocusEscapeMs(start, end, sessionStartMs, focusMin, breakMin, rounds);
       }
       return { identifier: member.userId ?? member.guestToken, totalEscapeMs };
     });

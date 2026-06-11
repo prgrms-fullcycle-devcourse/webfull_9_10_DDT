@@ -13,6 +13,7 @@ import { Label } from '../ui/label';
 import { UseContractYjsReturn } from '@/types/yjs';
 import { useRoomStore } from '@/store/useRoomStore';
 import { cn } from '@/lib/utils';
+import { CONTRACT_INPUT_FOCUS } from './inputStyles';
 import OwnerIndicator from './OwnerIndicator';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
@@ -85,7 +86,11 @@ function TimerNumberInput({
       max={max}
       step={1}
       value={draft}
-      className={cn(isOwned && 'outline-2 outline-offset-1', className)}
+      className={cn(
+        CONTRACT_INPUT_FOCUS,
+        isOwned && 'outline-2 outline-offset-1',
+        className,
+      )}
       style={{ outlineColor: ownerColor }}
       disabled={disabled}
       onFocus={() => {

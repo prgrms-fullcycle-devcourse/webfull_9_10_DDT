@@ -12,6 +12,7 @@ import { UseContractYjsReturn } from '@/types/yjs';
 import OwnerIndicator from './OwnerIndicator';
 import { Input } from '../ui/input';
 import { cn } from '@/lib/utils';
+import { CONTRACT_INPUT_FOCUS } from './inputStyles';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -163,6 +164,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                         content={p.content}
                         onUpdate={(val) => updatePenalty(i, val)}
                         className={cn(
+                          CONTRACT_INPUT_FOCUS,
                           fieldOwners[penaltyKey] &&
                             'outline-2 outline-offset-1',
                           'bg-background! h-12 z-0',

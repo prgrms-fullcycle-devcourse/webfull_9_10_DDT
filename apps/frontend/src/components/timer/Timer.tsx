@@ -99,8 +99,7 @@ export default function Timer() {
     async function subscribeToPush() {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       try {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') return;
+        if (Notification.permission !== 'granted') return;
 
         const registration = await navigator.serviceWorker.ready;
         let subscription = await registration.pushManager.getSubscription();
@@ -228,7 +227,7 @@ export default function Timer() {
 
   useEffect(() => {
     if (phaseRemainingSec > 0) return;
-    
+
     void syncEndedSessionRoute();
 
     const intervalId = setInterval(() => {
@@ -382,13 +381,15 @@ export default function Timer() {
         )}
 
         {!isFocus && (
-          <div className='text-center mt-10 w-full max-w-sm'>
-            <p className='text-xs text-muted-foreground mb-1'>총 이탈 시간</p>
-            <p className='text-2xl font-bold tracking-wider mb-4'>
-              {myEscapeMs > 0 ? formatDuration(myEscapeMs) : '0초'}
-            </p>
+          <div className='flex justify-center flex-col gap-2 text-center mt-10 w-full max-w-sm text-destructive'>
+            <div className='flex flex-col items-center justify-center bg-muted/20  rounded-[14px] px-4 py-3'>
+              <p className='text-xs mb-1'>총 이탈 시간</p>
+              <p className='text-2xl font-bold tracking-wider '>
+                {myEscapeMs > 0 ? formatDuration(myEscapeMs) : '0초'}
+              </p>
+            </div>
 
-            <div className='flex items-center justify-center gap-2 bg-muted/20 border border-border rounded-xl px-4 py-3 text-xs text-primary'>
+            <div className='flex items-center justify-center gap-2 bg-muted/20  rounded-[14px] px-4 py-3 text-xs text-[#FACC15]'>
               <svg
                 className='w-4 h-4 shrink-0'
                 fill='none'

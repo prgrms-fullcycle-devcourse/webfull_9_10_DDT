@@ -95,7 +95,7 @@ export class UsersService {
 
     const activeRoom = await this.prisma.room.findFirst({
       where: {
-        phase: { notIn: ['done', 'closed'] },
+        phase: { notIn: ['result', 'closed'] },
         OR: [{ hostId: userId }, { roomMembers: { some: { userId } } }],
       },
       select: { code: true },

@@ -90,7 +90,6 @@ export class RuleService {
     };
   }
 
-  // 2. 내 저장된 계약서 조회
   async getSavedRules(userId: string) {
     const rules = await this.prisma.ruleTemplate.findMany({
       where: { userId, isSaved: true },
@@ -201,7 +200,7 @@ export class RuleService {
     const activeRoom = await this.prisma.room.findFirst({
       where: {
         templateId: ruleId,
-        phase: { notIn: ['done', 'closed', 'abandoned'] },
+        phase: { notIn: ['closed', 'result'] },
       },
     });
     if (activeRoom)
