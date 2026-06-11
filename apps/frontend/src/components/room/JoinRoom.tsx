@@ -198,8 +198,9 @@ export const JoinRoom = () => {
         }
         bottomButton={
           <Button
+            type='submit'
+            form='join-room-form'
             disabled={!isValid || joinMutation.isPending}
-            onClick={handleSubmit}
             size='cta'
             className='disabled:bg-secondary disabled:text-muted-foreground'
           >
@@ -207,7 +208,14 @@ export const JoinRoom = () => {
           </Button>
         }
       >
-        <div className='flex flex-col gap-6 pt-2'>
+        <form
+          id='join-room-form'
+          className='flex flex-col gap-6 pt-2'
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
           {/* 닉네임 */}
           <div className='flex flex-col gap-2'>
             <Label className='text-[15px] font-bold text-white/85'>
@@ -260,7 +268,7 @@ export const JoinRoom = () => {
               </span>
             </div>
           )}
-        </div>
+        </form>
       </MobileLayout>
     </>
   );

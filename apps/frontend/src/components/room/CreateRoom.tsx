@@ -289,8 +289,9 @@ export const CreateRoom = () => {
             </Button>
           ) : (
             <Button
+              type='submit'
+              form='create-room-form'
               disabled={!isValid || createRoomMutation.isPending}
-              onClick={handleSubmit}
               size='cta'
               className='disabled:bg-secondary disabled:text-muted-foreground'
             >
@@ -322,7 +323,14 @@ export const CreateRoom = () => {
               </div>
             </div>
 
-            <div className='flex flex-col gap-5'>
+            <form
+              id='create-room-form'
+              className='flex flex-col gap-5'
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSubmit();
+              }}
+            >
               <div className='flex flex-col gap-2'>
                 <Label className='text-[15px] font-bold text-white/85'>
                   방 이름
@@ -366,7 +374,7 @@ export const CreateRoom = () => {
                   · 비밀번호는 4~12자이어야 합니다.
                 </span>
               </div>
-            </div>
+            </form>
           </>
         )}
       </MobileLayout>
