@@ -9,6 +9,7 @@ import { SESSION_QUEUE } from './timer.queue';
 import { SessionProcessor } from './session.processor';
 import { EscapeModule } from '../escape/escape.module';
 import { TimerRepository } from './timer.repository';
+import { PushNotificationService } from './push-notification.service'; // 💡 다시 임포트!
 
 @Module({
   imports: [
@@ -16,10 +17,18 @@ import { TimerRepository } from './timer.repository';
     forwardRef(() => RoomModule),
     PenaltyModule,
     BullModule.registerQueue({ name: SESSION_QUEUE }),
-    EscapeModule,
+    forwardRef(() => EscapeModule),
   ],
   controllers: [TimerController],
-  providers: [TimerService, SessionProcessor, TimerRepository],
-  exports: [TimerService],
+  providers: [
+    TimerService,
+    SessionProcessor,
+    TimerRepository,
+    PushNotificationService,
+  ],
+  exports: [
+    TimerService, 
+    PushNotificationService,
+  ],
 })
 export class TimerModule {}
