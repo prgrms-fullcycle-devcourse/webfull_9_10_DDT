@@ -94,7 +94,7 @@ export class AuthService {
 
   generateGuestToken(): GuestTokenResult {
     const guestId = `guest_${uuidv4()}`;
-    const payload = { sub: guestId, role: 'guest' };
+    const payload = { sub: guestId, role: 'guest', jti: uuidv4() };
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '12h' }),
@@ -137,7 +137,8 @@ export class AuthService {
         !decoded ||
         typeof decoded !== 'object' ||
         !('exp' in decoded) ||
-        typeof (decoded as Record<string, unknown>).exp !== 'number'
+        typeof (decoded as Record<string, unknown>).exp !== 'number' ||
+        typeof (decoded as Record<string, unknown>).jti !== 'string'
       ) {
         throw new UnauthorizedException();
       }
