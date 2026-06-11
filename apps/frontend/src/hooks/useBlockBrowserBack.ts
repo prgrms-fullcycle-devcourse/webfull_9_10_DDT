@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 let blockActive = false;
 let guardPath = '';
 let savedNJTree: unknown = undefined;
+let redirectTarget: string | null = null;
 
 function buildGuardState() {
   const state: Record<string, unknown> = { __NA: true, ddtGuard: true };
@@ -16,6 +17,8 @@ function buildGuardState() {
 
 function pushGuard() {
   if (!guardPath) return;
+  const currentState = window.history.state as Record<string, unknown> | null;
+  if (currentState?.ddtGuard) return;
   window.history.pushState(buildGuardState(), '', guardPath);
 }
 
@@ -29,6 +32,12 @@ function handlePopState(event: PopStateEvent) {
   }
 
   event.stopImmediatePropagation();
+
+  if (redirectTarget) {
+    window.location.replace(redirectTarget);
+    return;
+  }
+
   window.history.go(1);
 }
 
@@ -41,7 +50,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('popstate', handlePopState, true);
 }
 
-export function useBlockBrowserBack() {
+export function useBlockBrowserBack(options?: { redirectTo?: string }) {
   useEffect(() => {
     guardPath =
       window.location.pathname +
@@ -49,6 +58,7 @@ export function useBlockBrowserBack() {
       window.location.hash;
 
     savedNJTree = window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE;
+    redirectTarget = options?.redirectTo ?? null;
 
     pushGuard();
 
@@ -56,6 +66,7 @@ export function useBlockBrowserBack() {
 
     return () => {
       blockActive = false;
+      redirectTarget = null;
     };
-  }, []);
+  }, [options?.redirectTo]);
 }

@@ -279,6 +279,7 @@ export const MyPage = () => {
           emptyMessage='최근 참여 기록이 없습니다.'
           errorOnlyWhenEmpty
           chevronDirection='right'
+          from='mypage'
         />
       </section>
 

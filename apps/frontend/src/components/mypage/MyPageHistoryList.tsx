@@ -15,7 +15,6 @@ export type HistoryItem = {
 };
 
 const getPenaltyTextColor = (milliseconds: number) => {
-  // 표시(formatDuration)가 초 단위로 내림하므로, 1초 미만은 '0초'와 동일하게 초록 처리
   return milliseconds < 1000 ? 'text-success' : 'text-destructive';
 };
 
@@ -27,6 +26,7 @@ interface MyPageHistoryListProps {
   loadingMessage?: string;
   errorOnlyWhenEmpty?: boolean;
   chevronDirection?: 'left' | 'right';
+  from?: string;
 }
 
 export const MyPageHistoryList = ({
@@ -37,6 +37,7 @@ export const MyPageHistoryList = ({
   loadingMessage = '불러오는 중...',
   errorOnlyWhenEmpty = false,
   chevronDirection = 'right',
+  from,
 }: MyPageHistoryListProps) => {
   const shouldShowError =
     !!errorMessage && (!errorOnlyWhenEmpty || history.length === 0);
@@ -44,6 +45,12 @@ export const MyPageHistoryList = ({
     chevronDirection === 'left'
       ? 'ml-3 rotate-180 text-[#8A8896]'
       : 'ml-3 shrink-0 text-[#8A8896]';
+
+  const handleClick = () => {
+    if (from) {
+      sessionStorage.setItem('totalResultFrom', from);
+    }
+  };
 
   return (
     <div className='space-y-3'>
@@ -63,7 +70,8 @@ export const MyPageHistoryList = ({
         history.map((item) => (
           <Link
             key={item.roomCode}
-            href={`/room/${item.roomCode}/total-result?from=mypage`}
+            href={`/room/${item.roomCode}/total-result`}
+            onClick={handleClick}
             className='flex min-h-[95px] items-center justify-between rounded-md bg-[#1D1C31] px-3.5 py-4 transition hover:bg-[#24223A] active:scale-[0.98]'
           >
             <div className='min-w-0'>

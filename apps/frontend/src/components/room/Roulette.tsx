@@ -154,17 +154,11 @@ export function Roulette() {
   }, [queryClient]);
 
   const moveToFinishTarget = useCallback(
-    (replace = false) => {
+    () => {
       if (finishTarget === '/') {
         clearGuestSession();
       }
-
-      if (replace) {
-        router.replace(finishTarget);
-        return;
-      }
-
-      router.push(finishTarget);
+      router.replace(finishTarget);
     },
     [clearGuestSession, finishTarget, router],
   );
@@ -305,7 +299,7 @@ export function Roulette() {
         err.response?.status === 400 &&
         message?.includes('이미 완료')
       ) {
-        moveToFinishTarget(true);
+        moveToFinishTarget();
         return;
       }
 
@@ -614,7 +608,7 @@ export function Roulette() {
     const shouldSkip =
       (isExpired && remainingChances <= 0) || !hasRouletteItems;
     if (shouldSkip && !isSpinning && history.length === 0) {
-      moveToFinishTarget(true);
+      moveToFinishTarget();
     }
   }, [
     isGiveUpRoulette,
@@ -640,7 +634,7 @@ export function Roulette() {
     if (giveUpExpiredToastShownRef.current) return;
     giveUpExpiredToastShownRef.current = true;
     toast.error('시간이 초과되어 벌칙이 자동으로 결정됩니다.');
-    moveToFinishTarget(true);
+    moveToFinishTarget();
   }, [
     isGiveUpRoulette,
     isGiveUpResultLoading,
@@ -654,7 +648,7 @@ export function Roulette() {
     if (!isGiveUpRoulette) return;
     if (isGiveUpResultLoading || !giveUpResult) return;
     if (!hasRouletteItems && !isSpinning && history.length === 0) {
-      moveToFinishTarget(true);
+      moveToFinishTarget();
     }
   }, [
     isGiveUpRoulette,
