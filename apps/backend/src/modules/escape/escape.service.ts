@@ -65,7 +65,7 @@ export class EscapeService {
         roomCode,
         identifier,
         '🚨 화면 이탈 감지!',
-        '집중 화면을 벗어났습니다. 벌칙 시간이 누적되고 있어요!'
+        '집중 화면을 벗어났습니다. 이탈 시간이 누적되고 있어요!'
       ).catch((e) => console.error('이탈 푸시 에러:', e));
     }
   }
