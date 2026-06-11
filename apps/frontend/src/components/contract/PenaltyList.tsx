@@ -167,7 +167,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                           CONTRACT_INPUT_FOCUS,
                           fieldOwners[penaltyKey] &&
                             'outline-2 outline-offset-1',
-                          'bg-background! h-12 z-0',
+                          'bg-background! h-12 z-0 pr-4.5',
                         )}
                         style={{
                           outlineColor: fieldOwners[penaltyKey]?.color,

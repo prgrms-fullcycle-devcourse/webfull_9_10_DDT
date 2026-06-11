@@ -217,7 +217,8 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
               disabled={
                 !canEdit ||
                 (!!fieldOwners['breakMin'] &&
-                  fieldOwners['breakMin'].userId !== me.id)
+                  fieldOwners['breakMin'].userId !== me.id) ||
+                rounds <= 1
               }
               onFocus={() => handleFocus('breakMin', me.id, myNickname)}
               onBlur={handleBlur}

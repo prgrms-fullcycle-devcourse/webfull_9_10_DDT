@@ -54,6 +54,8 @@ export default function Timer() {
   const isFocusRef = useRef(true);
   const isCheckingRoomPhaseRef = useRef(false);
 
+  const isEscapingRef = useRef(false);
+
   useEffect(() => {
     const myMember = me ? members[me.id] : undefined;
     if (myMember?.gaveUpAt) {
@@ -196,6 +198,7 @@ export default function Timer() {
     if (now - lastEscapeStartRef.current < 300) return;
 
     lastEscapeStartRef.current = now;
+    isEscapingRef.current = true;
     socket?.emit('escape:start');
 
     toast.error('화면을 이탈했습니다! 이탈 시간이 누적됩니다.', {
@@ -241,7 +244,7 @@ export default function Timer() {
     if (!socket || !sessionInfo) return;
 
     if (document.hidden) {
-      if (isFocus) {
+      if (isFocus && !isEscapingRef.current) {
         emitEscapeStart();
       } else {
         socket.emit('escape:end');
@@ -259,6 +262,7 @@ export default function Timer() {
           emitEscapeStart();
         }
       } else {
+        isEscapingRef.current = false;
         socket.emit('escape:end');
         void syncEndedSessionRoute();
       }
