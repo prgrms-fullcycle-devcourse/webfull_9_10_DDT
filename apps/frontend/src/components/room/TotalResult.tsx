@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { jwtDecode } from 'jwt-decode';
 import { ChevronDown, ThumbsUp, Trophy, X } from 'lucide-react';
@@ -24,6 +24,7 @@ import { getToken } from '@/lib/getToken';
 import { getProfileImageSrc } from '@/lib/profileImage';
 import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
+import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 
 type ResultPenaltyItem = {
   content: string;
@@ -126,9 +127,15 @@ const getPenaltyContents = (member: ResultMember) =>
   );
 
 export function TotalResult() {
+  const [closeTarget] = useState(() => {
+    const from = sessionStorage.getItem('totalResultFrom');
+    if (from === 'mypage-history') return '/mypage/history';
+    if (from === 'mypage') return '/mypage';
+    return '/';
+  });
+  useBlockBrowserBack({ redirectTo: closeTarget });
   const router = useRouter();
   const params = useParams<{ code: string }>();
-  const searchParams = useSearchParams();
   const { me } = useAuth();
   const isSharingRef = useRef(false);
   const [isContractDialogOpen, setIsContractDialogOpen] = useState(false);
@@ -164,6 +171,7 @@ export function TotalResult() {
     if (isGuestToken()) clearAccessTokenCookie();
   }, [result]);
 
+
   const rankedMembers = [...(result?.members ?? [])].sort(
     (a, b) => a.rank - b.rank || b.totalEscapeMs - a.totalEscapeMs,
   );
@@ -177,8 +185,6 @@ export function TotalResult() {
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
     : '-';
   const isLoggedInUser = me?.role === 'user';
-  const closeTarget = searchParams.get('from') === 'mypage' ? '/mypage' : '/';
-
   const togglePenaltyMember = (memberId: string) => {
     setExpandedPenaltyMemberIds((prev) =>
       prev.includes(memberId)
@@ -218,7 +224,10 @@ export function TotalResult() {
   const HeaderComponent = (
     <>
       <HeaderTitle align='center'>통합 결과</HeaderTitle>
-      <CloseButton onClick={() => router.push(closeTarget)} />
+      <CloseButton onClick={() => {
+        sessionStorage.removeItem('totalResultFrom');
+        router.push(closeTarget);
+      }} />
     </>
   );
 
@@ -376,8 +385,10 @@ export function TotalResult() {
                 <div className='overflow-hidden rounded-[14px] bg-[#181828]'>
                   {penaltyMembers.length > 0 ? (
                     penaltyMembers.map((member) => {
-                      const isMe =
-                        me?.role === 'user' && member.userId === me.id;
+                      const isMe = me
+                        ? (me.role === 'user' && member.userId === me.id) ||
+                          (me.role === 'guest' && member.guestToken === me.id)
+                        : false;
                       const unknownPenaltyCount =
                         getUnknownPenaltyCount(member);
                       const isRoulettePending = unknownPenaltyCount > 0;

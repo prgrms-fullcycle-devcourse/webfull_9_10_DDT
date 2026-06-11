@@ -196,7 +196,10 @@ export function SemiResult() {
 
                 <div className='overflow-hidden rounded-2xl border border-slate-800/70 bg-[#151926]'>
                   {rankedMembers.map((member) => {
-                    const isMe = me?.role === 'user' && member.userId === me.id;
+                    const isMe = me
+                      ? (me.role === 'user' && member.userId === me.id) ||
+                        (me.role === 'guest' && member.guestToken === me.id)
+                      : false;
                     const profileImageSrc = getProfileImageSrc(
                       member.profileImage,
                     );
