@@ -11,17 +11,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
-import { PrismaService } from '../../common/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
 import { RoomService } from '../room/room.service';
 import { PenaltyService } from '../penalty/penalty.service';
 import { YjsGateway } from '../gateway/yjs/yjs.gateway';
-import * as webpush from 'web-push';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
 import type { PushSubscription } from 'web-push';
 import {
   SESSION_QUEUE,
@@ -31,13 +26,14 @@ import {
   breakStartJobId,
 } from './timer.queue';
 import { EscapeService } from '../escape/escape.service';
+import { TimerRepository } from './timer.repository';
+import { PushNotificationService } from './push-notification.service';
 
 // 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
 const KICK_MAX_RETRIES = 2;
 // 강퇴 대상 소켓 disconnect 지연(ms) — kicked 이벤트 수신 여유 확보.
 const KICK_DISCONNECT_DELAY_MS = 100;
 
-const PUSH_SUB_TTL_SEC = 11 * 60 * 60;
 const MAX_ROUNDS_FALLBACK = 30;
 
 type SessionTemplate = {
@@ -71,30 +67,17 @@ function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
 @Injectable()
 export class TimerService implements OnModuleInit {
   private readonly logger = new Logger(TimerService.name);
-  private pushEnabled = false;
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly timerRepository: TimerRepository,
+    private readonly pushService: PushNotificationService,
     private readonly roomGateway: RoomGateway,
     private readonly roomService: RoomService,
     private readonly penaltyService: PenaltyService,
     private readonly yjsGateway: YjsGateway,
     @InjectQueue(SESSION_QUEUE)
     private readonly sessionQueue: Queue<SessionJob>,
-    private readonly configService: ConfigService,
     private readonly escapeService: EscapeService,
-  ) {
-    const subject = this.configService.get<string>('VAPID_SUBJECT');
-    const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
-    const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-
-    if (subject && publicKey && privateKey) {
-      webpush.setVapidDetails(subject, publicKey, privateKey);
-      this.pushEnabled = true;
-    } else {
-      this.logger.warn('VAPID 설정 누락 - 푸시 알림이 비활성화됩니다.');
-    }
-  }
+  ) {}
 
   async savePushSubscription(
     roomCode: string,
@@ -102,50 +85,11 @@ export class TimerService implements OnModuleInit {
     subscription: PushSubscription,
   ) {
     this.logger.log(`[Push] 구독 저장 (room=${roomCode}, user=${userId})`);
-    await this.redis.instance.set(
-      `push_sub:${roomCode}:${userId}`,
-      JSON.stringify(subscription),
-      'EX',
-      PUSH_SUB_TTL_SEC,
-    );
-  }
-
-  private async sendPushToRoom(roomCode: string, title: string, body: string) {
-    if (!this.pushEnabled) {
-      return;
-    }
-    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
-    if (!rawState) return;
-
-    const state = JSON.parse(rawState) as { members?: Record<string, unknown> };
-    if (!state.members) return;
-
-    const userIds = Object.keys(state.members);
-
-    const payload = JSON.stringify({ title, body });
-
-    await Promise.all(
-      userIds.map(async (userId) => {
-        const subRaw = await this.redis.instance.get(
-          `push_sub:${roomCode}:${userId}`,
-        );
-        this.logger.log(`[Push] 구독 조회 (user=${userId}, found=${!!subRaw})`);
-        if (!subRaw) return;
-        const subscription = JSON.parse(subRaw) as PushSubscription;
-        await webpush
-          .sendNotification(subscription, payload)
-          .catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
-          });
-      }),
-    );
+    await this.pushService.saveSubscription(roomCode, userId, subscription);
   }
 
   private async verifyHost(roomCode: string, userId: string) {
-    const room = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-    });
+    const room = await this.timerRepository.findRoomForVerify(roomCode);
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (room.hostId !== userId)
       throw new ForbiddenException('방장 권한이 필요합니다.');
@@ -252,9 +196,7 @@ export class TimerService implements OnModuleInit {
       }
 
       // 2차 게이트: phase 전환 직전 최신 state 재검사 (동시 unsign 재발생 차단)
-      const freshState = await this.redis.instance.get(
-        `room:state:${roomCode}`,
-      );
+      const freshState = await this.timerRepository.getRoomStateRaw(roomCode);
       const fresh = extractUnsignedSummary(freshState);
       if (fresh.hostUnsigned || fresh.memberIds.length > 0) {
         Sentry.captureException(
@@ -275,13 +217,11 @@ export class TimerService implements OnModuleInit {
 
   async giveUp(roomCode: string, userId: string) {
     const isGuest = userId.startsWith('guest_');
-    const member = await this.prisma.roomMember.findFirst({
-      where: {
-        roomCode,
-        ...(isGuest ? { guestToken: userId } : { userId }),
-      },
-      include: { room: true },
-    });
+    const member = await this.timerRepository.findMemberForGiveUp(
+      roomCode,
+      userId,
+      isGuest,
+    );
 
     if (!member)
       throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
@@ -292,32 +232,15 @@ export class TimerService implements OnModuleInit {
 
     const now = new Date();
 
-    await this.prisma.$transaction(async (tx) => {
-      await this.closeOpenEscapeLogs(tx, member.id, now);
-
-      await tx.roomMember.update({
-        where: { id: member.id },
-        data: { gaveUpAt: now },
-      });
-    });
+    await this.timerRepository.giveUpTransaction(member.id, now);
 
     await this.safeCalculateForGiveUp(roomCode, member.id);
 
-    const raw = await this.redis.instance.get(`room:state:${roomCode}`);
-    if (raw) {
-      const state = JSON.parse(raw) as {
-        members: Record<string, { gaveUpAt?: string | null }>;
-      };
-      if (state.members[userId]) {
-        state.members[userId].gaveUpAt = now.toISOString();
-        await this.redis.instance.set(
-          `room:state:${roomCode}`,
-          JSON.stringify(state),
-          'EX',
-          86400,
-        );
-      }
-    }
+    await this.timerRepository.saveGiveUpState(
+      roomCode,
+      userId,
+      now.toISOString(),
+    );
 
     const sockets = await this.roomGateway.server.in(roomCode).fetchSockets();
     const userSocket = sockets.find((s) => s.data.userId === userId);
@@ -337,19 +260,13 @@ export class TimerService implements OnModuleInit {
   }
 
   async endSession(roomCode: string): Promise<void> {
-    const room = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-      select: { phase: true },
-    });
+    const room = await this.timerRepository.findRoomPhase(roomCode);
 
     if (!room || room.phase === 'result' || room.phase === 'closed') {
       return;
     }
     const now = new Date();
-    await this.prisma.room.update({
-      where: { code: roomCode },
-      data: { phase: 'result', endedAt: now },
-    });
+    await this.timerRepository.updateRoomSessionEnd(roomCode, now);
 
     await this.roomService.updateRedisPhase(roomCode, 'result');
     try {
@@ -366,17 +283,8 @@ export class TimerService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const running = await this.prisma.room
-      .findMany({
-        where: { phase: 'timer' },
-        select: {
-          code: true,
-          startedAt: true,
-          template: {
-            select: { focusMin: true, breakMin: true, rounds: true },
-          },
-        },
-      })
+    const running = await this.timerRepository
+      .findTimerRooms()
       .catch((err: unknown) => {
         Sentry.captureException(err);
         this.logger.error('세션 복구 스윕 실패', err as Error);
@@ -434,7 +342,7 @@ export class TimerService implements OnModuleInit {
   // ── Processor 호출용 public 메서드 ───────────────────────────
 
   async sendBreakWarning(roomCode: string): Promise<void> {
-    await this.sendPushToRoom(
+    await this.pushService.sendToRoom(
       roomCode,
       '휴식이 1분 남았어요! ⏰',
       '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
@@ -444,7 +352,7 @@ export class TimerService implements OnModuleInit {
   // ── private 헬퍼 ─────────────────────────────────────────────
 
   private async loadSignState(roomCode: string): Promise<UnsignedSummary> {
-    const rawState = await this.redis.instance.get(`room:state:${roomCode}`);
+    const rawState = await this.timerRepository.getRoomStateRaw(roomCode);
     if (!rawState) {
       throw new ConflictException(
         '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
@@ -460,10 +368,7 @@ export class TimerService implements OnModuleInit {
   }
 
   private async loadRoomTemplate(roomCode: string) {
-    const room = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-      include: { template: true },
-    });
+    const room = await this.timerRepository.findRoomWithTemplate(roomCode);
     if (!room?.template) throw new NotFoundException('계약서가 없습니다.');
     return room.template;
   }
@@ -475,10 +380,7 @@ export class TimerService implements OnModuleInit {
   ) {
     const now = new Date();
     try {
-      await this.prisma.room.update({
-        where: { code: roomCode },
-        data: { phase: 'timer', startedAt: now },
-      });
+      await this.timerRepository.updateRoomSessionStart(roomCode, now);
     } catch (err) {
       Sentry.captureException(err);
       throw new InternalServerErrorException(
@@ -502,28 +404,6 @@ export class TimerService implements OnModuleInit {
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
 
     return responseData;
-  }
-
-  private async closeOpenEscapeLogs(
-    tx: Prisma.TransactionClient,
-    roomMemberId: string,
-    closedAt: Date,
-  ): Promise<void> {
-    const openLogs = await tx.escapeLog.findMany({
-      where: { roomMemberId, returnedAt: null, deletedAt: null },
-      select: { id: true, escapedAt: true },
-    });
-    await Promise.all(
-      openLogs.map((log) =>
-        tx.escapeLog.update({
-          where: { id: log.id },
-          data: {
-            returnedAt: closedAt,
-            durationMs: closedAt.getTime() - log.escapedAt.getTime(),
-          },
-        }),
-      ),
-    );
   }
 
   private async safeCalculateForGiveUp(
@@ -597,10 +477,7 @@ export class TimerService implements OnModuleInit {
   }
 
   async cancelSessionJobs(roomCode: string): Promise<void> {
-    const room = await this.prisma.room.findUnique({
-      where: { code: roomCode },
-      select: { template: { select: { rounds: true } } },
-    });
+    const room = await this.timerRepository.findRoomRounds(roomCode);
     const rounds = room?.template?.rounds ?? MAX_ROUNDS_FALLBACK;
     const ids = [
       endJobId(roomCode),

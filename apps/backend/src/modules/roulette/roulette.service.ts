@@ -9,6 +9,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
 import { PenaltyService } from '../penalty/penalty.service';
+import { ROULETTE_TIMEOUT_MS } from '../result/result.service';
 
 @Injectable()
 export class RouletteService {
@@ -199,6 +200,10 @@ export class RouletteService {
       totalEscapeMs: member.result?.totalEscapeMs ?? 0,
       penaltyPool,
       penalties,
+      rouletteEndsAt: member.room.endedAt
+        ? new Date(member.room.endedAt.getTime() + ROULETTE_TIMEOUT_MS)
+        : null,
+      serverTime: new Date(),
     };
   }
 

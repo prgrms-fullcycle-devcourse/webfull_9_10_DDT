@@ -66,6 +66,12 @@ export function SessionRestorer() {
       isOnHomePage
     ) {
       const promptRestore = async () => {
+        const kickedCode = sessionStorage.getItem('duplicate-kicked');
+        if (kickedCode === activeRoom.code) {
+          sessionStorage.removeItem('duplicate-kicked');
+          dismissedRoomsRef.current.add(activeRoom.code);
+          return;
+        }
         const ok = await confirm({
           title: '진행 중인 집중 세션이 있습니다.',
           description: `[${activeRoom.title}] 방으로 복귀하시겠습니까?`,

@@ -185,6 +185,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                         <Button
                           variant='ghost'
                           size='icon'
+                          aria-label={`${i + 1}번째 벌칙 삭제`}
                           onClick={() => removePenalty(i)}
                           className='w-10 h-10 bg-none absolute top-1 right-1 hover:bg-none!'
                         >

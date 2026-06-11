@@ -8,6 +8,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { SESSION_QUEUE } from './timer.queue';
 import { SessionProcessor } from './session.processor';
 import { EscapeModule } from '../escape/escape.module';
+import { TimerRepository } from './timer.repository';
+import { PushNotificationService } from './push-notification.service';
 @Module({
   imports: [
     GatewayModule,
@@ -17,7 +19,12 @@ import { EscapeModule } from '../escape/escape.module';
     EscapeModule,
   ],
   controllers: [TimerController],
-  providers: [TimerService, SessionProcessor],
+  providers: [
+    TimerService,
+    SessionProcessor,
+    TimerRepository,
+    PushNotificationService,
+  ],
   exports: [TimerService],
 })
 export class TimerModule {}

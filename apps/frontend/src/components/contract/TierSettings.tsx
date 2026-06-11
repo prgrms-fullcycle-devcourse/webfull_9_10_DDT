@@ -11,7 +11,7 @@ import {
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { useRoomStore } from '@/store/useRoomStore';
-import { UseContractYjsReturn } from '@/types/yjs';
+import { Tier, UseContractYjsReturn } from '@/types/yjs';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -28,6 +28,10 @@ interface TierSettingsProps {
     | 'handleBlur'
   >;
 }
+
+// 단계가 아직 시드되지 않았을 때(비호스트가 동기화 전 진입 등) 모두에게 보여줄 기본 단계.
+// yjs 문서에는 쓰지 않고 화면 표시용으로만 사용한다. (동시 시드로 인한 단계 중복 방지)
+const DEFAULT_TIER: Tier = { tier: 1, minPct: 0, maxPct: null, count: 0 };
 
 // 자연수만 허용: 소수점(.), 부호(+/-), 지수(e/E) 키 입력을 차단한다.
 function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>): void {
@@ -182,6 +186,10 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
   const canEdit = myMember?.canEdit ?? false;
   const myNickname = myMember?.nickname ?? me.nickname;
 
+  // 단계가 비어있으면 모두에게 기본 0~100 단계를 보여준다(표시 전용).
+  const isFallback = tiers.length === 0;
+  const displayTiers = isFallback ? [DEFAULT_TIER] : tiers;
+
   const canAddTier = (() => {
     if (!canEdit) {
       return false;
@@ -203,11 +211,11 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
       <Separator />
       <CardContent>
         <div className='space-y-2'>
-          {tiers.map((tier, i) => {
+          {displayTiers.map((tier, i) => {
             const tierKey = `tier_${i}`;
             const tierOwner = fieldOwners[tierKey];
             const isLockedByOther = !!tierOwner && tierOwner.userId !== me.id;
-            const isLastTier = i === tiers.length - 1;
+            const isLastTier = i === displayTiers.length - 1;
 
             return (
               <div key={`tier-${i}`} className='flex flex-col gap-1'>
@@ -264,6 +272,7 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                     <Button
                       variant='ghost'
                       size='icon'
+                      aria-label={`${tier.tier}단계 벌칙 강도 삭제`}
                       className='flex-1'
                       type='button'
                       onClick={() => removeTier(i)}

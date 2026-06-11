@@ -2,3 +2,5 @@ packages:
   - "apps/*"
   - "packages/*"
   - "shared"
+patchedDependencies:
+  react-custom-roulette@1.4.1: patches/react-custom-roulette@1.4.1.patch

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Users, Lightbulb } from 'lucide-react';
@@ -11,19 +11,14 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
 import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { useConfirm } from '@/hooks/useConfirm';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { useMutation } from '@tanstack/react-query';
 import { getErrorMessage } from '@/lib/error';
 import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
+import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 
 type Step = 'form' | 'complete';
@@ -128,7 +123,8 @@ export const CreateRoom = () => {
   const [password, setPassword] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showExitDialog, setShowExitDialog] = useState(false);
+  const { confirm, confirmProps } = useConfirm();
+  const activeRoom = useActiveRoom();
 
   const isValid =
     roomName.trim().length > 0 && password.length >= 4 && password.length <= 12;
@@ -148,6 +144,55 @@ export const CreateRoom = () => {
       toast.error(getErrorMessage(err, '방 생성 실패'));
     },
   });
+
+  // 방장이 입장하지 않고 나가면 방을 폭파(삭제)한다. leaveRoom은 방장이면 deleteRoom을 호출한다.
+  const destroyRoomMutation = useMutation({
+    mutationFn: async (code: string) => {
+      await getRoomApi().roomControllerLeaveRoom(code);
+    },
+    onSuccess: () => {
+      sessionStorage.removeItem(`isHost:${roomCode}`);
+      sessionStorage.removeItem(`hostPassword:${roomCode}`);
+      onBack();
+    },
+    onError: (err) => {
+      // 이미 삭제됐거나 실패해도 사용자는 나가려는 의도이므로 화면은 빠져나간다.
+      toast.error(getErrorMessage(err, '방 폭파에 실패했습니다.'));
+      onBack();
+    },
+  });
+
+  // 방 만들기 화면 진입 시 이미 진행 중인 방이 있으면 복귀/홈으로 유도 모달을 띄운다.
+  // (참여 중인 방이 있으면 새 방 생성 화면에 머무를 수 없게 함)
+  const activeRoomPromptedRef = useRef(false);
+  useEffect(() => {
+    if (!activeRoom || activeRoomPromptedRef.current) {
+      return;
+    }
+    activeRoomPromptedRef.current = true;
+    void (async () => {
+      const ok = await confirm({
+        title: '이미 진행 중인 방이 있습니다',
+        description: `[${activeRoom.title}] 방으로 복귀하시겠습니까?`,
+        confirmText: '방 복귀하기',
+        cancelText: '홈으로',
+      });
+      router.push(ok ? getActiveRoomPath(activeRoom) : '/');
+    })();
+  }, [activeRoom, confirm, router]);
+
+  // 생성완료 화면에서 나가기(X) → 폭파 확인 다이얼로그 → 확인 시 방 폭파
+  const handleExit = async () => {
+    const ok = await confirm({
+      title: '지금 나가면 방이 폭파됩니다',
+      description: '정말 폭파하시겠습니까?',
+      confirmText: '방 폭파하기',
+      cancelText: '취소',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    destroyRoomMutation.mutate(roomCode);
+  };
 
   // 로그인 팝업에서 OAUTH_SUCCESS를 받으면 회원 정보 갱신 → 게스트 화면 해제
   useEffect(() => {
@@ -228,7 +273,7 @@ export const CreateRoom = () => {
         header={
           <>
             {step === 'complete' ? (
-              <CloseButton onClick={() => setShowExitDialog(true)} />
+              <CloseButton onClick={handleExit} />
             ) : (
               <BackButton onClick={onBack} />
             )}
@@ -326,37 +371,8 @@ export const CreateRoom = () => {
         )}
       </MobileLayout>
 
-      {/* 나가기 확인 다이얼로그 */}
-      <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              지금 나가면 초대 링크를
-              <br />
-              다시 확인할 수 없어요
-            </DialogTitle>
-            <DialogDescription>정말 나가시겠습니까?</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant='secondary'
-              className='flex-1 h-12 rounded-lg'
-              onClick={() => setShowExitDialog(false)}
-            >
-              취소
-            </Button>
-            <Button
-              className='flex-1 h-12 rounded-lg font-bold'
-              onClick={() => {
-                setShowExitDialog(false);
-                onBack?.();
-              }}
-            >
-              나가기
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* 나가기(방 폭파) 확인 다이얼로그 */}
+      <ConfirmDialog {...confirmProps} />
     </>
   );
 };

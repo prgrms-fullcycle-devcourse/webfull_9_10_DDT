@@ -12,6 +12,7 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { getProfileImageSrc } from '@/lib/profileImage';
 import { useAuth } from '@/hooks/useAuth';
+import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 import { queryKeys } from '@/lib/queryKeys';
 
 type ResultMember = {
@@ -58,6 +59,8 @@ const formatSessionTime = (totalMs: number | null) => {
 };
 
 export function SemiResult() {
+  useBlockBrowserBack();
+
   const router = useRouter();
   const params = useParams<{ code: string }>();
   const { me } = useAuth();
@@ -73,9 +76,6 @@ export function SemiResult() {
     },
   });
 
-  // 룰렛 스킵 판정은 이탈(allClear)이 아니라 벌칙 대상자 유무 기준.
-  // ⚠️ !!result 로딩가드 필수: 없으면 result===undefined일 때
-  //    (undefined ?? 0)===0 이 true가 되어 데이터 도착 전 total-result로 조기 리다이렉트됨.
   const isNoDisruption = !!result && (result.penaltyMemberCount ?? 0) === 0;
   const rankedMembers = [...(result?.members ?? [])].sort(
     (a, b) => a.rank - b.rank || b.totalEscapeMs - a.totalEscapeMs,

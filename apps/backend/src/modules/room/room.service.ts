@@ -8,37 +8,16 @@ import {
   Inject,
 } from '@nestjs/common';
 import { CreateRoomDto } from './dto/create-room.dto';
-import { PrismaService } from '../../common/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
 import { ConfigService } from '@nestjs/config';
-import { nanoid } from 'nanoid';
 import * as bcrypt from 'bcrypt';
 import { JoinRoomDto } from './dto/join-room.dto';
-import { Prisma, Room } from '@prisma/client';
+import { Room } from '@prisma/client';
+import { RoomRepository, RoomState } from './room.repository';
 
 type PartialRoom = Pick<Room, 'code' | 'passwordHash' | 'phase' | 'hostId'> & {
   _count: { roomMembers: number };
 };
-
-interface RoomMember {
-  nickname: string;
-  isLoggedIn: boolean;
-  isHost: boolean;
-  connected: boolean;
-  profileImage: string;
-  socketId?: string;
-  isSigned?: boolean;
-  canEdit?: boolean;
-  gaveUpAt?: string | null;
-}
-
-interface RoomState {
-  roomCode: string;
-  hostId: string;
-  phase: string;
-  members: Record<string, RoomMember>;
-}
 
 interface SignedStatus {
   allSigned: boolean;
@@ -51,31 +30,17 @@ export interface CreateRoomResult {
   url: string;
 }
 
-const ROOM_STATE_TTL = 86400;
-
 @Injectable()
 export class RoomService {
   constructor(
-    private readonly prismaService: PrismaService,
-    private readonly redisService: RedisService,
+    private readonly roomRepository: RoomRepository,
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => RoomGateway))
     private readonly roomGateway: RoomGateway,
   ) {}
-  private static readonly MAX_CODE_RETRIES = 5;
-
-  public async getRedisState(roomCode: string): Promise<RoomState | null> {
-    const raw = await this.redisService.instance.get(`room:state:${roomCode}`);
-    return raw ? (JSON.parse(raw) as RoomState) : null;
-  }
 
   public async saveRedisState(roomCode: string, state: RoomState) {
-    await this.redisService.instance.set(
-      `room:state:${roomCode}`,
-      JSON.stringify(state),
-      'EX',
-      ROOM_STATE_TTL,
-    );
+    await this.roomRepository.saveState(roomCode, state);
   }
 
   private async getMemberRecord(
@@ -83,31 +48,14 @@ export class RoomService {
     userId: string | null,
     guestToken: string | null,
   ) {
-    const isGuest = !userId && !!guestToken;
-    return this.prismaService.roomMember.findFirst({
-      where: {
-        roomCode,
-        ...(isGuest ? { guestToken: guestToken } : { userId: userId! }),
-      },
-    });
+    return this.roomRepository.findMember(roomCode, userId, guestToken);
   }
 
   async create(
     createRoomDto: CreateRoomDto,
     hostId: string,
   ): Promise<CreateRoomResult> {
-    const existing = await this.prismaService.room.findFirst({
-      where: {
-        hostId,
-        phase: { notIn: ['closed', 'result'] },
-      },
-      include: {
-        roomMembers: {
-          where: { userId: hostId },
-          select: { gaveUpAt: true },
-        },
-      },
-    });
+    const existing = await this.roomRepository.findActiveRoomByHost(hostId);
 
     if (existing) {
       const hostMember = existing.roomMembers[0];
@@ -120,7 +68,7 @@ export class RoomService {
 
     const passwordHash = await bcrypt.hash(createRoomDto.password, 10);
 
-    const room = await this.createRoomWithUniqueCode({
+    const room = await this.roomRepository.createWithUniqueCode({
       title: createRoomDto.title,
       hostId,
       passwordHash,
@@ -147,32 +95,20 @@ export class RoomService {
     guestToken: string | null,
   ) {
     if (userId) {
-      const alreadyInTimerRoom = await this.prismaService.roomMember.findFirst({
-        where: { userId, gaveUpAt: null, room: { phase: 'timer' } },
-      });
+      const alreadyInTimerRoom =
+        await this.roomRepository.findMemberInTimerRoom(userId);
       if (alreadyInTimerRoom)
         throw new ConflictException('이미 다른 방에서 집중(timer) 중입니다.');
     }
 
-    const room = await this.prismaService.room.findUnique({
-      where: { code },
-      select: {
-        code: true,
-        passwordHash: true,
-        phase: true,
-        hostId: true,
-        _count: { select: { roomMembers: true } },
-      },
-    });
+    const room = await this.roomRepository.findByCode(code);
 
     if (!room) throw new NotFoundException('존재하지 않는 방입니다.');
     if (room.phase === 'closed' || room.phase === 'result')
       throw new ForbiddenException('종료된 방입니다.');
 
     const targetId = userId ?? guestToken!;
-    const isBanned = await this.redisService.instance.get(
-      `room:ban:${room.code}:${targetId}`,
-    );
+    const isBanned = await this.roomRepository.isBanned(code, targetId);
     if (isBanned) throw new ForbiddenException('강퇴된 방입니다.');
 
     const returningMember = await this.getMemberRecord(
@@ -212,13 +148,22 @@ export class RoomService {
     const targetId = userId ?? guestToken;
     if (!targetId) throw new UnauthorizedException('인증 정보가 없습니다.');
 
-    const room = await this.prismaService.room.findUnique({
-      where: { code: roomCode },
-    });
+    const room = await this.roomRepository.findByCode(roomCode);
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (!['lobby', 'contract'].includes(room.phase))
       throw new ForbiddenException('타이머 진행 중/종료된 방은 퇴장 불가.');
 
+    // 방장은 생성만 하고 입장하지 않았어도(멤버 레코드가 없어도) 방을 폭파할 수 있다.
+    if (room.hostId === userId) {
+      await this.deleteRoom(roomCode);
+      this.roomGateway.server
+        .to(roomCode)
+        .emit('room:closed', { reason: '방장이 퇴장했습니다.' });
+      this.roomGateway.server.in(roomCode).disconnectSockets();
+      return { isHost: true, targetId };
+    }
+
+    // 참여자는 멤버 레코드가 있어야 퇴장할 수 있다.
     const memberRecord = await this.getMemberRecord(
       roomCode,
       userId,
@@ -227,39 +172,20 @@ export class RoomService {
     if (!memberRecord)
       throw new NotFoundException('참여 정보를 찾을 수 없습니다.');
 
-    if (room.hostId === userId) {
-      await this.deleteRoom(roomCode);
-      this.roomGateway.server
-        .to(roomCode)
-        .emit('room:closed', { reason: '방장이 퇴장했습니다.' });
-      this.roomGateway.server.in(roomCode).disconnectSockets();
-    } else {
-      await this.prismaService.roomMember.delete({
-        where: { id: memberRecord.id },
-      });
-      const state = await this.getRedisState(roomCode);
-      if (state) {
-        delete state.members[targetId];
-        await this.saveRedisState(roomCode, state);
-      }
-      this.roomGateway.server
-        .to(roomCode)
-        .emit('member:left', { userId: targetId });
+    await this.roomRepository.deleteMemberById(memberRecord.id);
+    const state = await this.roomRepository.getState(roomCode);
+    if (state) {
+      delete state.members[targetId];
+      await this.saveRedisState(roomCode, state);
     }
-    return { isHost: room.hostId === userId, targetId };
+    this.roomGateway.server
+      .to(roomCode)
+      .emit('member:left', { userId: targetId });
+    return { isHost: false, targetId };
   }
 
   async find(code: string, userId?: string) {
-    const room = await this.prismaService.room.findUnique({
-      where: { code },
-      select: {
-        code: true,
-        title: true,
-        phase: true,
-        hostId: true,
-        _count: { select: { roomMembers: true } },
-      },
-    });
+    const room = await this.roomRepository.findByCodeWithTitle(code);
     if (!room || room.phase === 'closed')
       throw new NotFoundException('방을 찾을 수 없습니다.');
     return {
@@ -271,13 +197,13 @@ export class RoomService {
     };
   }
 
-  public async getRoomState(roomCode: string): Promise<RoomState | null> {
-    return await this.getRedisState(roomCode);
+  public getRoomState(roomCode: string): Promise<RoomState | null> {
+    return this.roomRepository.getState(roomCode);
   }
   public async transitionToContract(
     roomCode: string,
   ): Promise<RoomState | null> {
-    const state = await this.getRedisState(roomCode);
+    const state = await this.roomRepository.getState(roomCode);
     if (!state || state.phase !== 'lobby') return null;
     state.phase = 'contract';
     await this.saveRedisState(roomCode, state);
@@ -285,7 +211,7 @@ export class RoomService {
     return state;
   }
   public async countConnectedMembers(roomCode: string): Promise<number> {
-    const state = await this.getRedisState(roomCode);
+    const state = await this.roomRepository.getState(roomCode);
     return state
       ? Object.values(state.members).filter((m) => m.connected).length
       : 0;
@@ -297,7 +223,7 @@ export class RoomService {
     connected: boolean,
     socketId?: string,
   ) {
-    const state = await this.getRedisState(roomCode);
+    const state = await this.roomRepository.getState(roomCode);
     if (state?.members[userId]) {
       state.members[userId].connected = connected;
       state.members[userId].socketId = connected ? socketId : undefined;
@@ -306,24 +232,13 @@ export class RoomService {
   }
 
   async kickMember(roomCode: string, targetId: string) {
-    const isGuest = targetId.startsWith('guest_');
-    await this.prismaService.roomMember.deleteMany({
-      where: {
-        roomCode,
-        ...(isGuest ? { guestToken: targetId } : { userId: targetId }),
-      },
-    });
-    const state = await this.getRedisState(roomCode);
+    await this.roomRepository.deleteMember(roomCode, targetId);
+    const state = await this.roomRepository.getState(roomCode);
     if (state) {
       delete state.members[targetId];
       await this.saveRedisState(roomCode, state);
     }
-    await this.redisService.instance.set(
-      `room:ban:${roomCode}:${targetId}`,
-      '1',
-      'EX',
-      ROOM_STATE_TTL,
-    );
+    await this.roomRepository.setBan(roomCode, targetId);
   }
 
   async setSigned(
@@ -331,7 +246,7 @@ export class RoomService {
     userId: string,
     signed: boolean,
   ): Promise<SignedStatus | undefined> {
-    const state = await this.getRedisState(roomCode);
+    const state = await this.roomRepository.getState(roomCode);
     if (
       !state ||
       !state.members[userId] ||
@@ -349,7 +264,7 @@ export class RoomService {
   }
 
   async resetAllSigns(roomCode: string) {
-    const state = await this.getRedisState(roomCode);
+    const state = await this.roomRepository.getState(roomCode);
     if (
       !state ||
       !['contract', 'lobby'].includes(state.phase) ||
@@ -367,7 +282,7 @@ export class RoomService {
     targetId: string,
     canEdit: boolean,
   ) {
-    const state = await this.getRedisState(id);
+    const state = await this.roomRepository.getState(id);
     if (state?.hostId === userId && state.members[targetId]) {
       state.members[targetId].canEdit = canEdit;
       await this.saveRedisState(id, state);
@@ -377,7 +292,7 @@ export class RoomService {
   }
 
   async setAllEdit(id: string, userId: string, canEdit: boolean) {
-    const state = await this.getRedisState(id);
+    const state = await this.roomRepository.getState(id);
     if (state?.hostId === userId) {
       Object.values(state.members).forEach((m) => {
         if (!m.isHost) m.canEdit = canEdit;
@@ -397,31 +312,18 @@ export class RoomService {
   ) {
     const isHost = userId === room.hostId;
     if (userId) {
-      await this.prismaService.roomMember.upsert({
-        where: { roomCode_userId: { roomCode: room.code, userId } },
-        update: { nickname: dto.nickname, profileImage: dto.profileImage },
-        create: {
-          roomCode: room.code,
-          userId,
-          nickname: dto.nickname,
-          isHost,
-          isLoggedIn: true,
-          profileImage: dto.profileImage,
-        },
+      await this.roomRepository.upsertUserMember(room.code, userId, {
+        nickname: dto.nickname,
+        profileImage: dto.profileImage,
+        isHost,
       });
     } else if (!isReturning) {
-      await this.prismaService.roomMember.create({
-        data: {
-          roomCode: room.code,
-          guestToken: guestToken!,
-          nickname: dto.nickname,
-          isHost: false,
-          isLoggedIn: false,
-          profileImage: dto.profileImage,
-        },
+      await this.roomRepository.createGuestMember(room.code, guestToken!, {
+        nickname: dto.nickname,
+        profileImage: dto.profileImage,
       });
     }
-    const state = await this.getRedisState(room.code);
+    const state = await this.roomRepository.getState(room.code);
     if (state) {
       state.members[userId ?? guestToken!] = {
         nickname: dto.nickname,
@@ -435,44 +337,17 @@ export class RoomService {
     }
   }
 
-  private async createRoomWithUniqueCode(data: {
-    title: string;
-    hostId: string;
-    passwordHash: string;
-    phase: string;
-  }) {
-    for (let i = 0; i < RoomService.MAX_CODE_RETRIES; i++) {
-      const code = nanoid(8);
-      try {
-        return await this.prismaService.room.create({
-          data: { code, ...data },
-        });
-      } catch (e) {
-        if (
-          e instanceof Prisma.PrismaClientKnownRequestError &&
-          e.code === 'P2002'
-        )
-          continue;
-        throw e;
-      }
-    }
-    throw new ConflictException('방 코드 생성 실패.');
-  }
-
   async deleteRoom(roomCode: string) {
     await Promise.all([
-      this.redisService.instance.del(`room:state:${roomCode}`),
+      this.roomRepository.deleteState(roomCode),
       this.updatePhase(roomCode, 'closed'),
     ]);
   }
   async updatePhase(roomCode: string, phase: string) {
-    await this.prismaService.room.update({
-      where: { code: roomCode },
-      data: { phase },
-    });
+    await this.roomRepository.updatePhase(roomCode, phase);
   }
   async updateRedisPhase(roomCode: string, phase: string) {
-    const state = await this.getRedisState(roomCode);
+    const state = await this.roomRepository.getState(roomCode);
     if (state) {
       state.phase = phase;
       await this.saveRedisState(roomCode, state);
@@ -481,24 +356,9 @@ export class RoomService {
   async findMyActiveRoom(userId: string) {
     const isGuest = userId.startsWith('guest_');
     if (isGuest) {
-      return this.prismaService.room.findFirst({
-        where: {
-          phase: { notIn: ['closed', 'result'] },
-          roomMembers: { some: { guestToken: userId, gaveUpAt: null } },
-        },
-        select: { code: true, phase: true, title: true },
-      });
+      return this.roomRepository.findActiveRoomByGuest(userId);
     }
-    return this.prismaService.room.findFirst({
-      where: {
-        phase: { notIn: ['closed', 'result'] },
-        OR: [
-          { roomMembers: { some: { userId, gaveUpAt: null } } },
-          { hostId: userId, roomMembers: { none: { userId } } },
-        ],
-      },
-      select: { code: true, phase: true, title: true },
-    });
+    return this.roomRepository.findActiveRoomByUser(userId);
   }
   async isMember(
     roomCode: string,
@@ -507,15 +367,12 @@ export class RoomService {
   ) {
     return !!(await this.getMemberRecord(roomCode, userId, guestToken));
   }
+
   async findRoomWithTemplate(roomCode: string) {
-    return this.prismaService.room.findUnique({
-      where: { code: roomCode },
-      include: { template: true },
-    });
+    return this.roomRepository.findByCodeWithTemplate(roomCode);
   }
+
   async countActiveMembersInRoom(roomCode: string): Promise<number> {
-    return this.prismaService.roomMember.count({
-      where: { roomCode, gaveUpAt: null },
-    });
+    return this.roomRepository.countActiveMembers(roomCode);
   }
 }

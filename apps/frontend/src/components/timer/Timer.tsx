@@ -24,12 +24,15 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { urlBase64ToUint8Array } from '@/lib/utils';
+import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDuration } from '@/lib/format';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 
 export default function Timer() {
+  useBlockBrowserBack();
+
   const router = useRouter();
   const socket = useSocket();
   const room = useRoom();
@@ -219,7 +222,14 @@ export default function Timer() {
 
   useEffect(() => {
     if (phaseRemainingSec > 0) return;
+    
     void syncEndedSessionRoute();
+
+    const intervalId = setInterval(() => {
+      void syncEndedSessionRoute();
+    }, 2000);
+
+    return () => clearInterval(intervalId);
   }, [phaseRemainingSec, syncEndedSessionRoute]);
 
   useEffect(() => {

@@ -17,12 +17,52 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
+import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
+import { cn } from '@/lib/utils';
+
+const MAX_ROOM_MEMBERS = 10;
+
+const PHASE_LABEL: Record<string, string> = {
+  lobby: '입장 전',
+  contract: '계약서 작성 중',
+  timer: '집중 중',
+};
+
+function StatBox({
+  label,
+  value,
+  truncate,
+}: {
+  label: string;
+  value: string;
+  truncate?: boolean;
+}) {
+  return (
+    <div className='rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-center backdrop-blur-sm'>
+      <p className='text-[11px] text-white/55'>{label}</p>
+      <p
+        className={cn(
+          'mt-1 text-sm font-semibold text-white',
+          truncate && 'truncate',
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export const MainPage = () => {
   const router = useRouter();
   const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
+  const activeRoom = useActiveRoom();
+
+  const handleRestore = () => {
+    if (!activeRoom) return;
+    router.push(getActiveRoomPath(activeRoom));
+  };
 
   const handleOpenTerms = () => {
     startTermsAgreementLogin(router.push);
@@ -51,7 +91,7 @@ export const MainPage = () => {
 
   return (
     <div className='relative min-h-dvh w-full overflow-hidden text-white'>
-      {/* 배경 이미지 */}
+
       <Image
         src='/images/mainBackground.webp'
         alt=''
@@ -60,10 +100,10 @@ export const MainPage = () => {
         sizes='(max-width: 390px) 100vw, 390px'
         className='object-cover'
       />
-      {/* 하단 가독성용 그라데이션 */}
+
       <div className='absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80' />
 
-      {/* 우측 상단 로그인 / 마이페이지 */}
+
       <div className='absolute right-0 top-0 z-20 p-4'>
         {isLoading ? (
           <div
@@ -100,7 +140,7 @@ export const MainPage = () => {
         )}
       </div>
 
-      {/* 본문 */}
+
       <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image
           src='/images/logo.webp'
@@ -123,30 +163,60 @@ export const MainPage = () => {
           계약하고 집중하고 벌칙으로 완성한다
         </span>
 
-        {/* 남은 공간 */}
+  
         <div className='flex-1' />
 
-        {/* 하단 버튼 */}
-        <div className='flex w-full flex-col gap-3'>
-          <Button
-            variant='outline'
-            size='main'
-            onClick={() => setShowCodeDialog(true)}
-            className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
-          >
-            방 코드로 입장하기
-          </Button>
-          <Button
-            size='main'
-            onClick={handleCreateRoom}
-            className='rounded-[14px] font-bold'
-          >
-            방만들기
-          </Button>
-        </div>
+        {activeRoom ? (
+          <div className='flex w-full flex-col gap-3'>
+            <div className='grid grid-cols-2 gap-2'>
+              <StatBox
+                label='참여 중 방 이름'
+                value={activeRoom.title}
+                truncate
+              />
+              <StatBox
+                label='참여 중 멤버 수'
+                value={`${activeRoom.memberCount} / ${MAX_ROOM_MEMBERS}`}
+              />
+              <StatBox
+                label='방 상태'
+                value={PHASE_LABEL[activeRoom.phase] ?? activeRoom.phase}
+              />
+              <StatBox
+                label='방장 여부'
+                value={activeRoom.isHost ? '방장' : '참여자'}
+              />
+            </div>
+            <Button
+              size='main'
+              onClick={handleRestore}
+              className='rounded-[14px] font-bold'
+            >
+              방 복귀하기
+            </Button>
+          </div>
+        ) : (
+          <div className='flex w-full flex-col gap-3'>
+            <Button
+              variant='outline'
+              size='main'
+              onClick={() => setShowCodeDialog(true)}
+              className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
+            >
+              방 코드로 입장하기
+            </Button>
+            <Button
+              size='main'
+              onClick={handleCreateRoom}
+              className='rounded-[14px] font-bold'
+            >
+              방만들기
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* 코드 입력 다이얼로그 */}
+
       <Dialog open={showCodeDialog} onOpenChange={setShowCodeDialog}>
         <DialogContent>
           <DialogHeader>

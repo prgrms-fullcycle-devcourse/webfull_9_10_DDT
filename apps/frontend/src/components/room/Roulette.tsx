@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 import { clearGuestAccessToken } from '@/lib/authToken';
 import type {
   GiveUpRouletteResponseDto,
@@ -100,6 +101,8 @@ const getUnrevealedPenaltyCount = (
   );
 
 export function Roulette() {
+  useBlockBrowserBack();
+
   const router = useRouter();
   const params = useParams<{ code: string }>();
   const queryClient = useQueryClient();
@@ -159,6 +162,7 @@ export function Roulette() {
     data: giveUpResult,
     isError: isGiveUpResultError,
     isLoading: isGiveUpResultLoading,
+    dataUpdatedAt: giveUpDataUpdatedAt,
   } = useQuery({
     queryKey: queryKeys.result.giveUp(params.code),
     queryFn: async () => {
@@ -299,7 +303,7 @@ export function Roulette() {
   const pickedSpins = Math.min(totalChances, currentIndex);
   const remainingChances = Math.max(0, totalChances - pickedSpins);
   const hasResolvedResult = isGiveUpRoulette || !!myResult;
-  // 멤버 1명(혼자) 방: "다른 멤버"가 없으므로 완료 버튼 라벨을 분기.
+
   const isSoloMember = (result?.members?.length ?? 0) <= 1;
   const isAllCompleted =
     (hasResolvedResult && totalChances === 0) ||
@@ -315,6 +319,25 @@ export function Roulette() {
       )
     : 0;
   const remainingTime = formatRemainingTime(remainingSeconds);
+
+  // 10분 제한 시간 경과(서버시간 보정 기준)
+  const isExpired = !isGiveUpRoulette && !!result && remainingSeconds <= 0;
+  // 중도포기 룰렛 제한 시간 경과
+  const giveUpRemainingSeconds = giveUpResult
+    ? getRemainingSeconds(
+        giveUpResult.serverTime,
+        giveUpResult.rouletteEndsAt,
+        giveUpDataUpdatedAt,
+        now,
+      )
+    : 0;
+  const isGiveUpExpired = isGiveUpRoulette && !!giveUpResult && giveUpRemainingSeconds <= 0;
+  // 자동추첨까지 끝났거나(전부 공개), 타임아웃인데 뽑을 게 없으면 완료
+  const isCompleted = isAllCompleted || (isExpired && remainingChances <= 0);
+  // 휠 정지까지 끝난 진짜 완료 (연출 중 버튼/문구 깜빡임 방지)
+  const isDrawDone = isCompleted && !isSpinning;
+  // 타임아웃 자동추첨 진행 중 (남은 벌칙을 자동으로 돌리는 상태)
+  const isAutoDraw = isExpired && remainingChances > 0;
 
   const rouletteLabels = useMemo(
     () => rouletteItems.map((item) => item.label),
@@ -342,8 +365,8 @@ export function Roulette() {
     (!isGiveUpRoulette && !myResult) ||
     hasInvalidTarget;
 
-  const handleStartSpinning = async () => {
-    if (isAllCompleted) {
+  const handleStartSpinning = useCallback(async () => {
+    if (isCompleted) {
       moveToFinishTarget();
       return;
     }
@@ -382,7 +405,17 @@ export function Roulette() {
         err instanceof Error ? err.message : '룰렛 실행에 실패했습니다.',
       );
     }
-  };
+  }, [
+    isCompleted,
+    moveToFinishTarget,
+    cannotStart,
+    isGiveUpRoulette,
+    giveUpSpinResults,
+    pickedSpins,
+    spinMutation,
+    nextSpinIndex,
+    rouletteItems,
+  ]);
 
   const handleStopSpinning = useCallback(() => {
     if (currentSpinResult) {
@@ -395,14 +428,103 @@ export function Roulette() {
 
   const selectedPenaltyRef = useRef<HTMLDivElement | null>(null);
 
+  // 룰렛이 완전히 멈춘 뒤(전부 완료) 선택된 벌칙 섹션으로 1회 스크롤 이동
   useEffect(() => {
-    if (history.length > 0) {
+    if (!isSpinning && isAllCompleted && history.length > 0) {
       selectedPenaltyRef.current?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
       });
     }
-  }, [history.length]);
+  }, [isSpinning, isAllCompleted, history.length]);
+
+  // 자동추첨 시작 시 안내 토스트 1회
+  const autoDrawToastShownRef = useRef(false);
+  useEffect(() => {
+    if (!isAutoDraw) {
+      autoDrawToastShownRef.current = false;
+      return;
+    }
+    if (autoDrawToastShownRef.current) return;
+    autoDrawToastShownRef.current = true;
+    toast.error('시간이 초과되었습니다');
+  }, [isAutoDraw]);
+
+  // 자동추첨 진행: 휠이 멈춰있으면 다음 틱에 다음 스핀 트리거 (완료 시 정지)
+  // setTimeout으로 비동기 트리거 — effect 본문 동기 setState 회피 + 회차 간 간격 부여
+  useEffect(() => {
+    if (!isAutoDraw || isAllCompleted) return;
+    if (isSpinning || spinMutation.isPending) return;
+    const id = setTimeout(() => {
+      void handleStartSpinning();
+    }, 150);
+    return () => clearTimeout(id);
+  }, [
+    isAutoDraw,
+    isAllCompleted,
+    isSpinning,
+    spinMutation.isPending,
+    handleStartSpinning,
+  ]);
+
+  // 페이지 진입 시 뽑을 룰렛이 없는 경우(시간 만료+잔여 횟수 없음 OR 아이템 목록 없음) total-result로 이동
+  useEffect(() => {
+    if (isGiveUpRoulette) return;
+    if (isResultLoading || !result) return;
+    const shouldSkip =
+      (isExpired && remainingChances <= 0) || !hasRouletteItems;
+    if (shouldSkip && !isSpinning && history.length === 0) {
+      moveToFinishTarget(true);
+    }
+  }, [
+    isGiveUpRoulette,
+    isResultLoading,
+    result,
+    isExpired,
+    remainingChances,
+    hasRouletteItems,
+    isSpinning,
+    history.length,
+    moveToFinishTarget,
+  ]);
+
+  // 중도포기 룰렛: 진입 시 또는 진행 중 만료 시 메인으로 이동
+  const giveUpExpiredToastShownRef = useRef(false);
+  useEffect(() => {
+    if (!isGiveUpRoulette) return;
+    if (isGiveUpResultLoading || !giveUpResult) return;
+    if (!isGiveUpExpired) {
+      giveUpExpiredToastShownRef.current = false;
+      return;
+    }
+    if (giveUpExpiredToastShownRef.current) return;
+    giveUpExpiredToastShownRef.current = true;
+    toast.error('시간이 초과되어 벌칙이 자동으로 결정됩니다.');
+    moveToFinishTarget(true);
+  }, [
+    isGiveUpRoulette,
+    isGiveUpResultLoading,
+    giveUpResult,
+    isGiveUpExpired,
+    moveToFinishTarget,
+  ]);
+
+  // 중도포기 룰렛: 패널티풀이 비어있으면 메인으로 이동
+  useEffect(() => {
+    if (!isGiveUpRoulette) return;
+    if (isGiveUpResultLoading || !giveUpResult) return;
+    if (!hasRouletteItems && !isSpinning && history.length === 0) {
+      moveToFinishTarget(true);
+    }
+  }, [
+    isGiveUpRoulette,
+    isGiveUpResultLoading,
+    giveUpResult,
+    hasRouletteItems,
+    isSpinning,
+    history.length,
+    moveToFinishTarget,
+  ]);
 
   const handleExit = () => {
     if (isGiveUpRoulette) {
@@ -419,11 +541,14 @@ export function Roulette() {
         <div className='flex w-full items-center justify-between text-foreground'>
           <span className='mx-auto text-lg font-medium'>벌칙 룰렛</span>
           <CloseButton
-            onClick={() =>
-              !isSpinning && !isAllCompleted && setIsDialogOpen(true)
-            }
+            onClick={() => {
+              if (isCompleted) {
+                moveToFinishTarget();
+              } else {
+                setIsDialogOpen(true);
+              }
+            }}
             aria-label='룰렛 나가기'
-            disabled={isSpinning || isAllCompleted}
           ></CloseButton>
         </div>
       }
@@ -433,35 +558,47 @@ export function Roulette() {
           size='main'
           className='w-full rounded-[14px] font-bold'
           onClick={handleStartSpinning}
-          disabled={cannotStart && !isAllCompleted}
+          disabled={isSpinning || ((cannotStart || isAutoDraw) && !isDrawDone)}
         >
           {(isGiveUpRoulette ? isGiveUpResultLoading : isResultLoading)
             ? '룰렛 준비 중...'
-            : spinMutation.isPending
-              ? '당첨 벌칙 확인 중...'
-              : isSpinning
-                ? '룰렛 돌리는 중...'
-                : isAllCompleted
-                  ? isGiveUpRoulette
-                    ? '홈 화면으로 이동'
-                    : isSoloMember
-                      ? '결과 확인하기'
-                      : '다른 멤버 벌칙 보기'
-                  : `룰렛 돌리기 (${Math.max(
-                      0,
-                      remainingChances,
-                    )}/${totalChances})`}
+            : isAutoDraw
+              ? `자동으로 뽑는중... (${remainingChances}/${totalChances})`
+              : spinMutation.isPending
+                ? '당첨 벌칙 확인 중...'
+                : isSpinning
+                  ? '룰렛 돌리는 중...'
+                  : isCompleted
+                    ? isGiveUpRoulette
+                      ? '홈 화면으로 이동'
+                      : isSoloMember
+                        ? '결과 확인하기'
+                        : '다른 멤버 벌칙 보기'
+                    : `룰렛 돌리기 (${Math.max(
+                        0,
+                        remainingChances,
+                      )}/${totalChances})`}
         </Button>
       }
     >
       <div className='flex min-w-0 flex-col gap-6 pb-6 text-foreground'>
         <div className='rounded-[14px] border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] p-4 text-center'>
-          <div className='text-sm text-muted-foreground'>
-            남은 시간
-            <span className='ml-1 text-base font-bold text-destructive'>
-              {remainingTime}
-            </span>
-          </div>
+          {isDrawDone ? (
+            <div className='text-sm font-bold text-foreground'>
+              벌칙을 다 뽑았어요
+            </div>
+          ) : isAutoDraw ? (
+            <div className='text-sm font-bold text-foreground'>
+              시간 초과되어 자동으로 벌칙을 뽑습니다
+            </div>
+          ) : (
+            <div className='text-sm text-muted-foreground'>
+              남은 시간
+              <span className='ml-1 text-base font-bold text-destructive'>
+                {remainingTime}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className='flex w-full min-w-0 flex-col items-center rounded-2xl border border-[var(--roulette-card-border)] bg-[var(--roulette-card)] px-4 py-6'>
@@ -471,6 +608,7 @@ export function Roulette() {
             targetIndex={targetIndex}
             onStopSpinning={handleStopSpinning}
             items={rouletteLabels}
+            spinDuration={isAutoDraw ? 0.2 : undefined}
           />
           {(isGiveUpRoulette ? isGiveUpResultError : isResultError) ? (
             <p className='mt-4 text-sm text-destructive'>

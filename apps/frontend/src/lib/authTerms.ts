@@ -1,5 +1,6 @@
 export const PENDING_TERMS_KEY = 'pending_google_terms_agreement';
 export const TERMS_LOGIN_RETURN_TO_KEY = 'terms_login_return_to';
+export const TERMS_OAUTH_STARTED_KEY = 'terms_google_oauth_started';
 
 export type TermsAgreement = {
   termsOfService: boolean;
@@ -14,6 +15,8 @@ export const EMPTY_TERMS_AGREEMENT: TermsAgreement = {
 };
 
 export const readPendingTerms = (): TermsAgreement | null => {
+  if (typeof window === 'undefined') return null;
+
   try {
     const value = sessionStorage.getItem(PENDING_TERMS_KEY);
     if (!value) return null;

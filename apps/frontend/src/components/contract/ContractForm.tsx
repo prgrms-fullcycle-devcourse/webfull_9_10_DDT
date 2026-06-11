@@ -53,6 +53,8 @@ const ContractForm = () => {
   }
 
   const isHost = me?.id === hostId;
+  const yjsEnabled =
+    !!me && (phase === null || phase === 'contract' || phase === 'lobby');
 
   const {
     fields,
@@ -71,7 +73,7 @@ const ContractForm = () => {
     updatePenalty,
     removePenalty,
     applyAll,
-  } = useYjsContract(room.code, !!me || phase === 'contract', isHost);
+  } = useYjsContract(room.code, yjsEnabled, isHost);
 
   const { confirm, confirmProps } = useConfirm();
 
@@ -288,7 +290,7 @@ const ContractForm = () => {
           >
             나가기
           </Button>
-          {isHost && !allSigned && (
+          {isHost && !allSigned && memberCount !== 1 && (
             <Button
               type='button'
               disabled={!isMeSigned}
@@ -298,10 +300,10 @@ const ContractForm = () => {
               강제 시작
             </Button>
           )}
-          {isHost && allSigned && (
+          {isHost && (allSigned || memberCount === 1) && (
             <Button
               type='button'
-              disabled={startTimerMutation.isPending}
+              disabled={startTimerMutation.isPending || !isMeSigned}
               onClick={async () => {
                 await handleStartFocus();
               }}

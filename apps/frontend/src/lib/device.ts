@@ -3,11 +3,23 @@ export const isMobileOrTablet = () => {
   if (typeof navigator === 'undefined') return false;
 
   const userAgent = navigator.userAgent.toLowerCase();
+  const userAgentData = (
+    navigator as Navigator & { userAgentData?: { mobile?: boolean } }
+  ).userAgentData;
   // iPadOS는 데스크톱 UA로 위장하므로 터치 지원 + macintosh 조합으로 보강 판별한다.
   const hasTouchScreen =
     navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent);
+  const hasCoarsePointer =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(pointer: coarse)').matches;
+  const hasMobileViewport =
+    typeof window !== 'undefined' && window.innerWidth <= 768;
 
   return (
-    /android|iphone|ipad|ipod|mobile|tablet/.test(userAgent) || hasTouchScreen
+    userAgentData?.mobile === true ||
+    /android|iphone|ipad|ipod|mobile|tablet/.test(userAgent) ||
+    hasTouchScreen ||
+    hasCoarsePointer ||
+    hasMobileViewport
   );
 };

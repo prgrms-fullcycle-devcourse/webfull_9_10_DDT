@@ -226,9 +226,9 @@ export function TotalResult() {
     <div className='flex flex-col gap-2.5 bg-linear-to-t from-background from-65% to-transparent px-4 pt-8 pb-[calc(env(safe-area-inset-bottom)+12px)]'>
       <Button
         type='button'
-        variant='outline'
+        variant='secondary'
         onClick={() => setIsContractDialogOpen(true)}
-        className='h-12 w-full rounded-[14px] border-primary text-base font-bold text-muted-foreground'
+        className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
       >
         계약서 보기
       </Button>
@@ -496,8 +496,9 @@ export function TotalResult() {
                 <DialogTitle className='truncate text-base font-medium text-white/85'>
                   {result?.roomTitle ?? params.code}의 계약서
                 </DialogTitle>
-                <DialogDescription className="sr-only">
-                  진행했던 방의 계약서 상세 내용입니다.
+                <DialogDescription className='sr-only'>
+                  완료된 집중 세션에서 사용한 계약서의 타이머, 벌칙 목록, 벌칙
+                  강도 설정을 확인할 수 있습니다.
                 </DialogDescription>
               </div>
             </div>

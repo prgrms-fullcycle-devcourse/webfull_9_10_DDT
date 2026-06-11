@@ -78,6 +78,9 @@ export function SocketProvider({
         router.replace('/');
       } else if (data.reason === 'duplicate-connection') {
         toast.error('다른 곳에서 접속했습니다.');
+        sessionStorage.setItem('duplicate-kicked', roomCode);
+        clearGuestSession();
+        router.replace('/');
       }
     });
 
