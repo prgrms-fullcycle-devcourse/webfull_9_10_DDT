@@ -93,11 +93,7 @@ function CreateRoomComplete({
       </div>
 
       {/* 복사 버튼 */}
-      <Button
-        variant='outline'
-        onClick={onCopyAll}
-        className='w-full h-auto py-3 rounded-[16px] border border-ring text-sm text-white/80 hover:bg-white/5'
-      >
+      <Button variant='outline' onClick={onCopyAll} size='main'>
         초대 정보 공유
       </Button>
     </div>

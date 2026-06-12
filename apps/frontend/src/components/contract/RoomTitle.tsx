@@ -21,9 +21,9 @@ export default function RoomTitle({
             {isConnected ? '실시간 연결됨' : '연결 시도 중...'}
           </Badge>
         </div>
-        <CardDescription>
-          <p className='text-xs'>방 코드: {code}</p>
-          <p className='text-xs'>함께 규칙을 정하고 서명하세요.</p>
+        <CardDescription className='text-xs'>
+          <p>방 코드: {code}</p>
+          <p>함께 규칙을 정하고 서명하세요.</p>
         </CardDescription>
       </CardHeader>
     </Card>

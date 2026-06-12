@@ -91,7 +91,6 @@ export const MainPage = () => {
 
   return (
     <div className='relative min-h-dvh w-full overflow-hidden text-white'>
-
       <Image
         src='/images/mainBackground.webp'
         alt=''
@@ -102,7 +101,6 @@ export const MainPage = () => {
       />
 
       <div className='absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80' />
-
 
       <div className='absolute right-0 top-0 z-20 p-4'>
         {isLoading ? (
@@ -140,7 +138,6 @@ export const MainPage = () => {
         )}
       </div>
 
-
       <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image
           src='/images/logo.webp'
@@ -148,7 +145,7 @@ export const MainPage = () => {
           width={596}
           height={302}
           priority
-          className="w-[160px] h-auto"
+          className='w-[160px] h-auto'
         />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
@@ -163,7 +160,6 @@ export const MainPage = () => {
           계약하고 집중하고 벌칙으로 완성한다
         </span>
 
-  
         <div className='flex-1' />
 
         {activeRoom ? (
@@ -201,7 +197,7 @@ export const MainPage = () => {
               variant='outline'
               size='main'
               onClick={() => setShowCodeDialog(true)}
-              className='w-full rounded-[14px] border-[#914CFF]! bg-[#242136]! font-bold text-white/90 transition hover:bg-[#2A2640]!'
+              className='bg-black/40!'
             >
               방 코드로 입장하기
             </Button>
@@ -215,7 +211,6 @@ export const MainPage = () => {
           </div>
         )}
       </div>
-
 
       <Dialog open={showCodeDialog} onOpenChange={setShowCodeDialog}>
         <DialogContent>
