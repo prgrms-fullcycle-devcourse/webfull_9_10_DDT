@@ -106,17 +106,21 @@ export class PushNotificationService {
           platform: string;
           data: string | PushSubscription;
         };
-        
+
         if (parsed.platform === 'android') {
-          await this.snsService.sendPushNotification(parsed.data as string, title, body).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
-          });
+          await this.snsService
+            .sendPushNotification(parsed.data as string, title, body)
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
+            });
         } else {
-          await webpush.sendNotification(parsed.data as PushSubscription, payload).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
-          });
+          await webpush
+            .sendNotification(parsed.data as PushSubscription, payload)
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
+            });
         }
       }),
     );
@@ -154,9 +158,16 @@ export class PushNotificationService {
       const payload = JSON.stringify({ title, body });
 
       if (parsed.platform === 'android') {
-        await this.snsService.sendPushNotification(parsed.data as string, title, body);
+        await this.snsService.sendPushNotification(
+          parsed.data as string,
+          title,
+          body,
+        );
       } else {
-        await webpush.sendNotification(parsed.data as PushSubscription, payload);
+        await webpush.sendNotification(
+          parsed.data as PushSubscription,
+          payload,
+        );
       }
 
       await this.redisService.instance.set(
