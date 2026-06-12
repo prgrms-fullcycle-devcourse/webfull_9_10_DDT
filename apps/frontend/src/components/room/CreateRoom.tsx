@@ -48,11 +48,11 @@ function CreateRoomComplete({
         <div className='flex gap-4'>
           <div className='flex-1 flex flex-col gap-1'>
             <span className='text-xs text-[#6B7280]'>방 이름</span>
-            <span className='text-sm font-semibold text-white'>{roomName}</span>
+            <span className='text-xl font-semibold text-white'>{roomName}</span>
           </div>
           <div className='flex flex-col gap-1'>
             <span className='text-xs text-[#6B7280]'>최대 인원</span>
-            <span className='text-sm font-semibold text-white'>10명</span>
+            <span className='text-xl font-semibold text-white'>10명</span>
           </div>
         </div>
 
