@@ -19,8 +19,8 @@ import { toast } from 'sonner';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
 import { cn } from '@/lib/utils';
-import bgMain from '../../../../public/images/mainBackground.webp';
-import logoImg from '../../../../public/images/logo.webp';
+import bgMain from '../../../public/images/mainBackground.webp';
+import logoImg from '../../../public/images/logo.webp';
 
 const MAX_ROOM_MEMBERS = 10;
 
