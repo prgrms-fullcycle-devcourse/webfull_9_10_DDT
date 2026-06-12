@@ -19,6 +19,8 @@ import { toast } from 'sonner';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
 import { cn } from '@/lib/utils';
+import bgMain from '../../../../public/images/mainBackground.webp';
+import logoImg from '../../../../public/images/logo.webp';
 
 const MAX_ROOM_MEMBERS = 10;
 
@@ -92,10 +94,11 @@ export const MainPage = () => {
   return (
     <div className='relative min-h-dvh w-full overflow-hidden text-white'>
       <Image
-        src='/images/mainBackground.webp'
+        src={bgMain}
         alt=''
         fill
         priority
+        placeholder='blur'
         sizes='(max-width: 390px) 100vw, 390px'
         className='object-cover'
       />
@@ -140,11 +143,12 @@ export const MainPage = () => {
 
       <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image
-          src='/images/logo.webp'
+          src={logoImg}
           alt='감옥'
           width={596}
           height={302}
           priority
+          placeholder='blur'
           className='w-[160px] h-auto'
         />
 
