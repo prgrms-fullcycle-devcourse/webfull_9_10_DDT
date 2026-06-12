@@ -127,6 +127,13 @@ const getPenaltyContents = (member: ResultMember) =>
   );
 
 export function TotalResult() {
+  const [closeTarget] = useState(() => {
+    const from = sessionStorage.getItem('totalResultFrom');
+    if (from === 'mypage-history') return '/mypage/history';
+    if (from === 'mypage') return '/mypage';
+    return '/';
+  });
+
   const [isFromRoulette] = useState(() => {
     return sessionStorage.getItem('totalResultFrom') === 'room';
   });
