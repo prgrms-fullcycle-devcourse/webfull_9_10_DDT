@@ -82,6 +82,7 @@ describe('RouletteService.getGiveUpResult', () => {
       penalties: [{ itemId: 'p1', content: '팔굽혀펴기', count: 2 }],
       // endedAt 없는 목 데이터라 null, serverTime은 매 호출 현재시각이라 타입만 검증
       rouletteEndsAt: null,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       serverTime: expect.any(Date),
     });
     // 결과가 이미 존재하므로 fallback 재산정은 호출되지 않음
