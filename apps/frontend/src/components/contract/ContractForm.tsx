@@ -6,7 +6,7 @@ import { useYjsContract } from '@/hooks/useYjsContract';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
-
+import { useShallow } from 'zustand/react/shallow';
 import { MobileLayout } from '../layout/mobileLayout';
 import { BackButton } from '../layout/BackButton';
 import { HeaderTitle } from '../layout/HeaderTitle';
@@ -44,16 +44,18 @@ const ContractForm = () => {
   const router = useRouter();
   const room = useRoom();
   const me = useAuth().me;
-  const members = useRoomStore((state) => state.members);
+  const { members, hostId } = useRoomStore(
+    useShallow((s) => ({ members: s.members, hostId: s.hostId })),
+  );
   const myMember = useRoomStore((state) =>
     me ? state.members[me.id] : undefined,
   );
-  const hostId = useRoomStore((s) => s.hostId);
   const phase = useRoomStore((s) => s.phase);
   const noSleepRef = useRef<NoSleep | null>(null);
-  if (noSleepRef.current === null) {
-    noSleepRef.current = new NoSleep();
-  }
+  const getNoSleep = () => {
+    if (!noSleepRef.current) noSleepRef.current = new NoSleep();
+    return noSleepRef.current;
+  };
 
   const isHost = me?.id === hostId;
   const yjsEnabled =
@@ -138,7 +140,7 @@ const ContractForm = () => {
 
   const handleForceStartFocus = async () => {
     try {
-      noSleepRef.current?.enable();
+      getNoSleep().enable();
     } catch {}
     try {
       const dto = toBackendFormat(fields, tiers, penalties);

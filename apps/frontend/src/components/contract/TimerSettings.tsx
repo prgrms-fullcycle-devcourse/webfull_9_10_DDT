@@ -128,12 +128,13 @@ function TimerNumberInput({
 
 export default function TimerSettings({ yjs }: TimerSettingsProps) {
   const me = useAuth().me;
-  const members = useRoomStore((state) => state.members);
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
 
   if (!me) return null;
   const { fields, fieldOwners, updateField, handleFocus, handleBlur } = yjs;
 
-  const myMember = members[me!.id];
   const canEdit = myMember?.canEdit ?? false;
   const myNickname = myMember?.nickname ?? me.nickname;
 

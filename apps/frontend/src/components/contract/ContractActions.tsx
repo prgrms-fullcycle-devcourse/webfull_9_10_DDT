@@ -27,9 +27,10 @@ export function ContractActions({
 }: ContractActionsProps) {
   const queryClient = useQueryClient();
   const me = useAuth().me;
-  const members = useRoomStore((state) => state.members);
 
-  const myMember = me ? members[me.id] : undefined;
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
   const canEdit = myMember?.canEdit ?? false;
   const isGuest = me?.role === 'guest';
 
