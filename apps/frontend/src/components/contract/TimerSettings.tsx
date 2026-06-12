@@ -95,6 +95,7 @@ function TimerNumberInput({
       disabled={disabled}
       onFocus={() => {
         isEditingRef.current = true;
+        setDraft('');
         onFocus();
       }}
       onKeyDown={blockNonInteger}
@@ -114,7 +115,7 @@ function TimerNumberInput({
       }}
       onBlur={() => {
         isEditingRef.current = false;
-        const n = Math.floor(Number(draft));
+        const n = draft === '' ? value : Math.floor(Number(draft));
         let final = Number.isFinite(n) ? n : min;
         final = Math.max(min, final);
         if (max !== undefined) final = Math.min(max, final);
