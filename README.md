@@ -1,114 +1,61 @@
-# DDT (Digital Detox Timer) ⏳
+# 📱 감옥 (디지털 디톡스 타이머)
 
-> "남들이 딴짓할 때, 우리는 서로를 가두고 집중한다."
+남들이 딴짓할 때, 우리는 서로를 가두고 집중한다.
+**감옥** 프로젝트는 스마트폰과 딴짓으로부터 벗어나 팀원들과 함께 온전히 몰입할 수 있도록 돕는 협업형 집중 타이머 서비스입니다.
 
-DDT는 팀원, 친구들과 함께 집중할 시간을 정하고, 화면을 이탈(딴짓)할 경우 이탈한 시간에 비례하여 벌칙을 부여하는 **실시간 디지털 디톡스 서비스**입니다.
+---
 
-## 🌟 주요 기능
-* **실시간 계약서 작성:** Yjs를 활용한 노션/구글 Docs 스타일의 실시간 동시 편집
-* **엄격한 타이머 & 화면 이탈 감지:** 브라우저 Visibility API와 웹소켓 Heartbeat를 이용한 화면 이탈 추적
-* **벌칙 룰렛:** 이탈 시간 비례 다중 티어(Tier) 벌칙 시스템 및 실시간 룰렛 공개
-* **PWA & 푸시 알림:** 데스크톱/모바일 앱처럼 설치 가능하며, 휴식 종료 전 푸시 알림 제공
+## 📝 프로젝트 소개
+
+스마트폰 중독과 집중력 저하를 해결하기 위해 기획된 서비스 입니다.
+방장이 방을 생성하면 팀원들이 모여 집중 시간과 휴식 시간 그리고 벌칙을 정합니다.
+목표를 달성하지 못하고 화면을 이탈하는 경우 룰렛을 통해 사전에 정해둔 벌칙을 받게 됩니다.
+
+---
+
+## ✨ 주요 기능
+
+* **실시간 방 참여** : 방 코드를 통해 게스트 및 로그인 유저가 실시간으로 모일 수 있습니다.
+* **계약서 동시 편집** : 팀원들이 실시간으로 목표 시간과 벌칙을 함께 작성하고 수정할 수 있습니다.
+* **디지털 디톡스 타이머** : 설정된 집중 시간 동안 기기 화면을 이탈하면 이탈 시간이 실시간으로 누적됩니다.
+* **벌칙 룰렛** : 세션 종료 후 이탈자가 발생하면 룰렛을 통해 벌칙을 공정하게 추첨합니다.
+* **푸시 알림** : 집중 시간 및 휴식 시간 종료 전 브라우저 및 앱 푸시 알림을 제공하여 참여를 유도합니다.
+
+---
 
 ## 🛠 기술 스택
 
-### Backend
-* **Framework:** NestJS
-* **Database:** PostgreSQL, Prisma ORM
-* **Cache & Real-time:** Redis, Socket.io
-* **CRDT (동시 편집):** Yjs, y-websocket
-* **Auth:** Google OAuth 2.0, JWT (Passport)
+* **Frontend** : Next.js, React, Tailwind CSS, Zustand, React Query
+* **Backend** : NestJS, Prisma, PostgreSQL, Redis, BullMQ
+* **Realtime** : Socket.io, Yjs, y-websocket
+* **Infra & Tooling** : Turborepo, pnpm, AWS SNS, Sentry
 
-### Frontend
-* **Framework:** Next.js (App Router), React 19
-* **Styling:** Tailwind CSS, Radix UI (Shadcn/ui)
-* **State Management:** Zustand, React Query (@tanstack/react-query)
-* **API Generation:** Orval (Axios)
-* **PWA:** next-pwa, Service Worker
+---
 
-## 📂 프로젝트 구조 상세
+## 💡 주요 기술적 성과 및 구현 포인트
 
-본 프로젝트는 **pnpm workspace**를 이용한 Monorepo 구조로 구성되어 있으며, 프론트엔드와 백엔드가 분리되어 있습니다.
+* **CRDT 기반 실시간 동시 편집 (Yjs)** : 팀원들이 동시에 규칙(시간, 벌칙 등)을 작성할 때 충돌이 발생하지 않도록 **Yjs** 와 **WebSocket** 을 결합하여 구글 문서와 같은 원활한 동시 편집 환경을 구현했습니다.
+* **안정적인 타이머 및 비동기 작업 처리 (BullMQ)** : 타이머의 정확도 향상과 세션 종료, 알림 발송의 안정성을 보장하기 위해 **Redis** 기반의 **BullMQ** 를 도입하여 무거운 로직을 백그라운드 큐(Queue) 작업으로 분리했습니다.
+* **실시간 소켓 통신 및 스케일아웃 고려 (Socket.io)** : 실시간 방 상태 동기화 및 룰렛 이벤트를 위해 **Socket.io** 를 적용했으며, 향후 다중 서버 환경을 대비해 **Redis Adapter** 를 사용하여 소켓 세션을 안전하게 동기화하고 관리합니다.
+* **크로스 플랫폼 푸시 알림 (Web Push + AWS SNS)** : 웹과 모바일 환경 모두에서 사용자가 화면을 벗어나더라도 경고 및 종료 알림을 받을 수 있도록 **Web Push API** 와 **AWS SNS** 를 연동한 하이브리드 푸시 알림 시스템을 구축했습니다.
+* **모노레포 기반의 타입 안정성 확보 (Turborepo)** : 프론트엔드와 백엔드 간의 소켓 이벤트 이름 및 데이터 타입(DTO)을 **packages/shared** 로 분리하여 타입 불일치로 인한 런타임 에러를 방지하고, **Turborepo** 를 통해 빌드 효율성을 크게 높였습니다.
+* **에러 모니터링 체계 구축 (Sentry)** : 프론트엔드와 백엔드 양측에 **Sentry** 를 연동하여, 배포 환경에서 발생하는 예상치 못한 예외 상황을 실시간으로 추적하고 신속하게 대응할 수 있는 기반을 마련했습니다.
 
-```text
-ddt-workspace/
-├── 📦 packages/shared/             # 공통 패키지 (Monorepo)
-│   ├── socket-events.ts          # WebSocket 이벤트명 및 Payload 타입 (오타 방지용)
-│   └── socket-data.ts            # 공통 도메인 인터페이스 (RoomState 등)
-│
-├── 🖥️ apps/backend/                # NestJS 백엔드
-│   ├── prisma/                   # 데이터베이스 스키마 및 마이그레이션
-│   │   └── schema.prisma         # 사용자, 방, 계약서, 이탈 로그, 결과 테이블 정의
-│   └── src/
-│       ├── common/               # 전역 예외 처리, 인터셉터, Redis/Prisma 어댑터
-│       └── modules/              # 도메인별 기능 모듈
-│           ├── auth/             # Google OAuth 및 게스트 로그인, JWT 발급
-│           ├── escape/           # 화면 이탈(딴짓) 감지 및 시간 계산 로직
-│           ├── gateway/          # Socket.io(채팅/상태) 및 Yjs(동시 편집) 웹소켓 게이트웨이
-│           ├── penalty/          # 세션 종료 시 이탈 시간에 따른 티어/벌칙 정산 알고리즘
-│           ├── result/           # 랭킹, 통계, 최종 결과 조회 API
-│           ├── room/             # 방 생성/입장/퇴장/상태 관리
-│           ├── roulette/         # 벌칙 룰렛 스핀 및 남은 벌칙 처리
-│           ├── rule/             # 방장이 설정하는 계약서 템플릿(규칙) CRUD
-│           ├── timer/            # 집중 세션 진행 (Start, Force-start, Give up)
-│           └── user/             # 마이페이지, 내 통계, 참여 히스토리
-│
-└── 📱 apps/frontend/               # Next.js 프론트엔드 (App Router)
-    ├── public/                   # PWA 아이콘, SVG, 배경 이미지 세트
-    └── src/
-        ├── api/generated/        # Orval을 이용해 백엔드 Swagger에서 자동 생성된 Axios API
-        ├── app/                  # Next.js App Router 기반 라우팅
-        │   ├── room/[code]/      # 방 입장, 계약서 작성, 타이머, 룰렛, 결과 페이지
-        │   ├── mypage/           # 내 정보 수정 및 히스토리 조회
-        │   └── terms/            # 서비스 이용약관 및 개인정보처리방침
-        ├── components/           # UI 컴포넌트
-        │   ├── auth/             # 소셜 로그인 및 약관 동의 팝업 핸들러
-        │   ├── contract/         # Yjs를 활용한 실시간 계약서 동시 편집 컴포넌트
-        │   ├── room/             # 대기실, 타이머, 룰렛 등 도메인 컴포넌트
-        │   └── ui/               # Shadcn/ui 기반 공통 디자인 시스템 (Button, Dialog 등)
-        ├── contexts/             # Socket, Room 전역 상태 Context Provider
-        ├── hooks/                # 커스텀 훅 (Yjs 연결, Timer 동기화 로직 등)
-        ├── lib/                  # 유틸리티 함수 (Axios 설정, 시간 포맷팅 등)
-        ├── store/                # Zustand 기반 전역 상태 관리 (useAuthStore, useRoomStore)
-        └── types/                # 프론트엔드 전용 타입 정의 (Yjs Doc 스키마 등)
+---
+
+## 📂 프로젝트 구조
+
+* **apps/frontend** : 웹 프론트엔드 애플리케이션 (Next.js)
+* **apps/backend** : API 및 웹소켓 메인 서버 (NestJS)
+* **packages/shared** : 프론트엔드와 백엔드가 공유하는 소켓 이벤트 및 인터페이스 타입
+
+---
 
 ## 🚀 시작하기
 
-### 1. 환경 변수 설정
-`apps/backend` 및 `apps/frontend` 디렉토리에 `.env.example`을 참고하여 `.env` 파일을 구성합니다.
+프로젝트 루트 경로에서 아래 가이드에 따라 전체 패키지를 설치하고 실행할 수 있습니다.
 
-**Backend (.env)**
-\`\`\`env
-DATABASE_URL="postgresql://user:password@localhost:5432/ddtdb"
-REDIS_URL="redis://localhost:6379"
-GOOGLE_CLIENT_ID="..."
-GOOGLE_CLIENT_SECRET="..."
-GOOGLE_CALLBACK_URL="http://localhost:8080/auth/google/callback"
-JWT_SECRET="your-super-secret-key"
-FRONTEND_URL="http://localhost:3000"
-VAPID_PUBLIC_KEY="..."
-VAPID_PRIVATE_KEY="..."
-VAPID_SUBJECT="mailto:your-email@domain.com"
-\`\`\`
-
-### 2. 패키지 설치
-이 프로젝트는 **pnpm workspace**를 사용합니다. 루트 디렉토리에서 패키지를 설치합니다.
-\`\`\`bash
-pnpm install
-\`\`\`
-
-### 3. 데이터베이스 세팅 (Prisma)
-\`\`\`bash
-cd apps/backend
-pnpm prisma generate
-pnpm prisma db push
-\`\`\`
-
-### 4. 개발 서버 실행
-루트 디렉토리에서 Turborepo를 활용해 프론트엔드와 백엔드를 동시에 실행합니다.
-\`\`\`bash
-pnpm dev
-\`\`\`
-
-* **Frontend:** http://localhost:3000
-* **Backend API & Swagger:** http://localhost:8080/api/docs
+1. **패키지 설치** : `pnpm install` 명령어로 전체 의존성을 설치합니다.
+2. **환경 변수 설정** : 프론트엔드와 백엔드 디렉토리의 `.env.example` 파일을 참고하여 각각 `.env` 파일을 생성합니다.
+3. **데이터베이스 세팅** : 백엔드 디렉토리에서 `pnpm --filter backend exec prisma generate` 및 DB 마이그레이션 명령어를 실행하여 테이블을 생성합니다.
+4. **개발 서버 실행** : 루트 디렉토리에서 `pnpm dev` 명령어를 입력하여 프론트엔드와 백엔드 서버를 동시에 구동합니다.

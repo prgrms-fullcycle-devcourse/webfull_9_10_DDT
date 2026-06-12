@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Users, Lightbulb } from 'lucide-react';
+import { Eye, EyeOff, Users, Lightbulb, Copy } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { CloseButton } from '@/components/layout/CloseButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
@@ -36,6 +36,15 @@ function CreateRoomComplete({
   inviteLink: string;
   onCopyAll: () => void;
 }) {
+  const handleCopy = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} 복사 완료`);
+    } catch {
+      toast.error('복사에 실패했어요.');
+    }
+  };
+
   return (
     <div className='flex flex-col gap-5 pt-2'>
       <p className='text-center text-base text-white/70'>
@@ -48,38 +57,76 @@ function CreateRoomComplete({
         <div className='flex gap-4'>
           <div className='flex-1 flex flex-col gap-1'>
             <span className='text-xs text-[#6B7280]'>방 이름</span>
-            <span className='text-sm font-semibold text-white'>{roomName}</span>
+            <span className='text-xl font-semibold text-white'>{roomName}</span>
           </div>
           <div className='flex flex-col gap-1'>
             <span className='text-xs text-[#6B7280]'>최대 인원</span>
-            <span className='text-sm font-semibold text-white'>10명</span>
+            <span className='text-xl font-semibold text-white'>10명</span>
           </div>
         </div>
 
         <div className='border-t border-white/[0.08]' />
 
         {/* 비밀번호 */}
-        <div className='flex flex-col gap-1'>
-          <span className='text-xs text-[#6B7280]'>비밀번호</span>
-          <span className='text-2xl font-semibold text-white'>{password}</span>
+        <div className='flex items-center justify-between gap-2'>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <span className='text-xs text-[#6B7280]'>비밀번호</span>
+            <span className='truncate text-2xl font-semibold text-white'>
+              {password}
+            </span>
+          </div>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            aria-label='비밀번호 복사'
+            onClick={() => handleCopy('비밀번호', password)}
+            className='shrink-0 text-[#6B7280] hover:bg-white/5 hover:text-white'
+          >
+            <Copy size={18} />
+          </Button>
         </div>
 
         <div className='border-t border-white/[0.08]' />
 
         {/* 방 코드 */}
-        <div className='flex flex-col gap-1'>
-          <span className='text-xs text-[#6B7280]'>방 코드</span>
-          <span className='text-2xl font-bold text-white tracking-widest'>
-            {roomCode}
-          </span>
+        <div className='flex items-center justify-between gap-2'>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <span className='text-xs text-[#6B7280]'>방 코드</span>
+            <span className='text-2xl font-bold tracking-widest text-white'>
+              {roomCode}
+            </span>
+          </div>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            aria-label='방 코드 복사'
+            onClick={() => handleCopy('방 코드', roomCode)}
+            className='shrink-0 text-[#6B7280] hover:bg-white/5 hover:text-white'
+          >
+            <Copy size={18} />
+          </Button>
         </div>
 
         <div className='border-t border-white/[0.08]' />
 
         {/* 친구 초대 링크 */}
-        <div className='flex flex-col gap-1'>
-          <span className='text-xs text-[#6B7280]'>친구 초대 링크</span>
-          <span className='text-xs text-ring break-all'>{inviteLink}</span>
+        <div className='flex items-center justify-between gap-2'>
+          <div className='flex min-w-0 flex-col gap-1'>
+            <span className='text-xs text-[#6B7280]'>친구 초대 링크</span>
+            <span className='break-all text-xs text-ring'>{inviteLink}</span>
+          </div>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            aria-label='초대 링크 복사'
+            onClick={() => handleCopy('초대 링크', inviteLink)}
+            className='shrink-0 text-[#6B7280] hover:bg-white/5 hover:text-white'
+          >
+            <Copy size={18} />
+          </Button>
         </div>
       </div>
 
@@ -93,11 +140,7 @@ function CreateRoomComplete({
       </div>
 
       {/* 복사 버튼 */}
-      <Button
-        variant='outline'
-        onClick={onCopyAll}
-        className='w-full h-auto py-3 rounded-[16px] border border-ring text-sm text-white/80 hover:bg-white/5'
-      >
+      <Button variant='outline' onClick={onCopyAll} size='main'>
         초대 정보 공유
       </Button>
     </div>
@@ -317,7 +360,7 @@ export const CreateRoom = () => {
             </p>
 
             <div className='flex justify-center mb-8'>
-              <div className='inline-flex items-center gap-2.5 bg-card border border-border rounded-lg px-4 py-3.5 text-sm text-muted-foreground'>
+              <div className='inline-flex items-center gap-2.5 bg-card rounded-lg px-4 py-3 text-sm text-muted-foreground'>
                 <Users size={18} className='text-[#6B7280] shrink-0' />
                 최대 10명까지 입장 가능합니다.
               </div>

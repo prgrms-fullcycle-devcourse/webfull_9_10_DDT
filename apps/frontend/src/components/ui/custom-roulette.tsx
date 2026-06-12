@@ -188,7 +188,7 @@ const RoulettePreview = React.memo(function RoulettePreview({
   const pinnedLabel = hasItems ? (items[activeIndex] ?? items[0]) : '';
 
   return (
-    <div className='mb-5 flex h-10 w-full min-w-0 items-center overflow-hidden rounded-[14px] border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] px-3'>
+    <div className='mb-5 flex h-10 w-full min-w-0 items-center overflow-hidden rounded-[14px] bg-[var(--roulette-panel)] px-3'>
       {!hasSpun ? (
         <p className='w-full text-center text-xs text-muted-foreground'>
           {isDrawDone ? '벌칙 뽑기 완료' : '뽑기 대기 중…'}
@@ -413,6 +413,7 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
     () => ({
       even: getCssVariable('--roulette-wheel-even'),
       odd: getCssVariable('--roulette-wheel-odd'),
+      third: getCssVariable('--roulette-wheel-third'),
       center: getCssVariable('--roulette-wheel-center'),
       border: getCssVariable('--roulette-panel-border'),
       foreground: getCssVariable('--foreground'),
@@ -423,14 +424,18 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
 
   const rouletteData: RouletteData[] = useMemo(() => {
     const maxLen = getLabelMaxLength(displayItems.length);
-    return displayItems.map((item, index) => ({
-      option: item.length > maxLen ? item.slice(0, maxLen - 1) + '…' : item,
-      style: {
-        backgroundColor:
-          index % 2 === 0 ? rouletteTheme.even : rouletteTheme.odd,
-        textColor: rouletteTheme.foreground,
-      },
-    }));
+    const n = displayItems.length;
+    const colors = [rouletteTheme.even, rouletteTheme.odd, rouletteTheme.third];
+    return displayItems.map((item, index) => {
+      const colorIndex = n % 2 === 1 && index === n - 1 ? 2 : index % 2;
+      return {
+        option: item.length > maxLen ? item.slice(0, maxLen - 1) + '…' : item,
+        style: {
+          backgroundColor: colors[colorIndex],
+          textColor: rouletteTheme.foreground,
+        },
+      };
+    });
   }, [displayItems, rouletteTheme]);
 
   return (

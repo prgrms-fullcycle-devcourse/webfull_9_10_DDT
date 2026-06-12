@@ -9,7 +9,7 @@ import { SESSION_QUEUE } from './timer.queue';
 import { SessionProcessor } from './session.processor';
 import { EscapeModule } from '../escape/escape.module';
 import { TimerRepository } from './timer.repository';
-import { PushNotificationService } from './push-notification.service'; // 💡 다시 임포트!
+import { PushNotificationService } from './push-notification.service';
 
 @Module({
   imports: [
@@ -26,9 +26,6 @@ import { PushNotificationService } from './push-notification.service'; // 💡 �
     TimerRepository,
     PushNotificationService,
   ],
-  exports: [
-    TimerService, 
-    PushNotificationService,
-  ],
+  exports: [TimerService, PushNotificationService],
 })
 export class TimerModule {}

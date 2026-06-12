@@ -95,26 +95,26 @@ function TimerNumberInput({
       disabled={disabled}
       onFocus={() => {
         isEditingRef.current = true;
+        setDraft('');
         onFocus();
       }}
       onKeyDown={blockNonInteger}
       onChange={(e) => {
         const raw = e.target.value;
-        setDraft(raw);
-        if (raw !== '') {
-          const n = Math.floor(Number(raw));
-          if (
-            Number.isFinite(n) &&
-            n >= min &&
-            (max === undefined || n <= max)
-          ) {
-            onCommit(n);
-          }
+        if (raw === '') {
+          setDraft('');
+          return;
         }
+        const n = Math.floor(Number(raw));
+        if (!Number.isFinite(n)) return;
+
+        const clamped = Math.max(min, max !== undefined ? Math.min(max, n) : n);
+        setDraft(String(clamped));
+        onCommit(clamped);
       }}
       onBlur={() => {
         isEditingRef.current = false;
-        const n = Math.floor(Number(draft));
+        const n = draft === '' ? value : Math.floor(Number(draft));
         let final = Number.isFinite(n) ? n : min;
         final = Math.max(min, final);
         if (max !== undefined) final = Math.min(max, final);

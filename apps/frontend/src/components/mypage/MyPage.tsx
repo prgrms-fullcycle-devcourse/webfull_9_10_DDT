@@ -51,6 +51,8 @@ const emptyStats: UserStats = {
   totalEscapeMs: 0,
 };
 
+const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
 export const MyPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats>(emptyStats);
@@ -197,6 +199,8 @@ export const MyPage = () => {
               alt={`${profile?.nickname ?? '사용자'} 프로필`}
               width={62}
               height={62}
+              placeholder='blur' 
+              blurDataURL={BLUR_PLACEHOLDER} 
               className='h-full w-full object-cover'
             />
           ) : null}

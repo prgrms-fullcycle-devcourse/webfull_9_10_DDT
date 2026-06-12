@@ -13,7 +13,14 @@ export async function generateMetadata({
     openGraph: {
       title: `방 입장하기 - ${code} | 감옥`,
       description: '초대받은 방에 입장해서 함께 집중해보세요!',
-      images: ['/icons/icon-512x512.png'], 
+      images: [
+        {
+          url: '/icons/icon-512x512.png',
+          width: 512,
+          height: 512,
+          alt: '감옥 로고',
+        },
+      ], 
     },
   };
 }

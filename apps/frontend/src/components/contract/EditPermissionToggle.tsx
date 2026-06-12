@@ -47,10 +47,8 @@ const EditPermissionToggle = () => {
           />
         </div>
         <CardDescription className='text-xs'>
-          {hostOnly ? '방장만 편집 가능' : '모든 멤버가 편집 가능'}
-        </CardDescription>
-        <CardDescription className='text-xs'>
-          OFF 시 모든 멤버가 편집할 수 있어요.
+          <p>현재 {hostOnly ? '방장만 편집 가능' : '모든 멤버가 편집 가능'}</p>
+          <p>OFF 시 모든 멤버가 편집할 수 있어요.</p>
         </CardDescription>
       </CardHeader>
     </Card>

@@ -96,6 +96,7 @@ export function SemiResult() {
 
   useEffect(() => {
     if (isNoDisruption) {
+      sessionStorage.setItem('totalResultFrom', 'room');
       router.replace(`/room/${params.code}/total-result`);
     }
   }, [isNoDisruption, params.code, router]);
@@ -108,13 +109,16 @@ export function SemiResult() {
 
   const BottomButtonComponent = (
     <Button
-      onClick={() =>
+      onClick={() => {
+        if (!shouldShowRoulette) {
+          sessionStorage.setItem('totalResultFrom', 'room');
+        }
         router.push(
           shouldShowRoulette
             ? `/room/${params.code}/roulette`
             : `/room/${params.code}/total-result`,
-        )
-      }
+        );
+      }}
       disabled={isLoading || isError || !canDecideNextRoute}
       className='w-full h-12 rounded-[14px] text-base font-bold'
     >
@@ -168,7 +172,7 @@ export function SemiResult() {
                 )}
               </div>
 
-              <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/50'>
+              <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1d1c31] text-center text-[11px] text-white/50'>
                 <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
                   <span>총 진행 시간</span>
                   <strong className='text-base text-white/85'>
@@ -194,7 +198,7 @@ export function SemiResult() {
                   {isNoDisruption ? '참여 멤버' : '이탈 시간 순위'}
                 </h3>
 
-                <div className='overflow-hidden rounded-2xl border border-slate-800/70 bg-[#151926]'>
+                <div className='overflow-hidden rounded-2xl bg-[#1d1c31]'>
                   {rankedMembers.map((member) => {
                     const isMe = me
                       ? (me.role === 'user' && member.userId === me.id) ||

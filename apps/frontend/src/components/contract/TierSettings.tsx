@@ -77,6 +77,7 @@ function PenaltyCountInput({
       disabled={disabled}
       onFocus={() => {
         isEditingRef.current = true;
+        setDraft('');
         onFocus();
       }}
       onKeyDown={blockNonInteger}
@@ -93,7 +94,7 @@ function PenaltyCountInput({
       onBlur={() => {
         isEditingRef.current = false;
         const n = Math.floor(Number(draft));
-        const final = Number.isFinite(n) && n >= 0 ? n : 0;
+        const final = draft === '' || !Number.isFinite(n) || n < 0 ? value : n;
         setDraft(String(final));
         onCommit(final);
         onBlur();
@@ -141,6 +142,7 @@ function TierPctInput({
       disabled={disabled}
       onFocus={() => {
         isEditingRef.current = true;
+        setDraft('');
         onFocus();
       }}
       onKeyDown={blockNonInteger}
@@ -157,8 +159,9 @@ function TierPctInput({
       onBlur={() => {
         isEditingRef.current = false;
         const n = Math.floor(Number(draft));
-        const valid = Number.isFinite(n) && n > minPct && n <= 99;
-        const final = valid ? n : Math.min(99, minPct + 1);
+        const valid =
+          draft !== '' && Number.isFinite(n) && n > minPct && n <= 99;
+        const final = valid ? n : (value ?? Math.min(99, minPct + 1));
         setDraft(String(final));
         onCommit(final);
         onBlur();
@@ -297,11 +300,11 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
               )}
               <Button
                 type='button'
-                variant='ghost'
+                variant='outline'
                 size='lg'
                 onClick={addTier}
                 disabled={!canAddTier}
-                className='w-full ring-1 ring-ring'
+                className='w-full'
               >
                 <Plus className='w-4 h-4 mr-1' /> 단계 추가
               </Button>

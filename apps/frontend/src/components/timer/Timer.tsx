@@ -29,6 +29,7 @@ import { useWakeLock } from '@/hooks/useWakeLock';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDuration } from '@/lib/format';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
+import { getToken } from '@/lib/getToken';
 
 export default function Timer() {
   useBlockBrowserBack();
@@ -39,7 +40,9 @@ export default function Timer() {
   const me = useAuth().me;
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
-  const members = useRoomStore((s) => s.members);
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
 
   const escapeSummary = useRoomStore((s) => s.escapeSummary);
   const setEscapeSummary = useRoomStore((s) => s.setEscapeSummary);
@@ -57,12 +60,11 @@ export default function Timer() {
   const isEscapingRef = useRef(false);
 
   useEffect(() => {
-    const myMember = me ? members[me.id] : undefined;
     if (myMember?.gaveUpAt) {
       toast.error('이미 중도 포기한 세션입니다.');
       router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
-  }, [me, members, room.code, router]);
+  }, [me, myMember?.gaveUpAt, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;
@@ -117,10 +119,13 @@ export default function Timer() {
 
         await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
-          subscription,
+          {
+            subscription: subscription,
+            platform: 'web',
+          },
           {
             headers: {
-              Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}`,
+              Authorization: `Bearer ${getToken() ?? ''}`,
             },
           },
         );
@@ -143,6 +148,7 @@ export default function Timer() {
       if (me?.role === 'guest') {
         document.cookie =
           'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        sessionStorage.setItem('totalResultFrom', 'room');
         router.push(`/room/${room.code}/total-result`);
       } else {
         router.push(`/room/${room.code}/roulette?from=giveup`);
@@ -217,10 +223,12 @@ export default function Timer() {
       if (data.phase === 'result') {
         router.replace(`/room/${room.code}/semi-result`);
       } else if (data.phase === 'closed') {
+        sessionStorage.setItem('totalResultFrom', 'room');
         router.replace(`/room/${room.code}/total-result`);
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
+        sessionStorage.setItem('totalResultFrom', 'room');
         router.replace(`/room/${room.code}/total-result`);
       }
     } finally {
@@ -228,8 +236,10 @@ export default function Timer() {
     }
   }, [room.code, router, sessionInfo]);
 
+  const isExpiredPhase = phaseRemainingSec <= 0;
+
   useEffect(() => {
-    if (phaseRemainingSec > 0) return;
+    if (!isExpiredPhase) return;
 
     void syncEndedSessionRoute();
 
@@ -238,7 +248,7 @@ export default function Timer() {
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [phaseRemainingSec, syncEndedSessionRoute]);
+  }, [isExpiredPhase, syncEndedSessionRoute]);
 
   useEffect(() => {
     if (!socket || !sessionInfo) return;

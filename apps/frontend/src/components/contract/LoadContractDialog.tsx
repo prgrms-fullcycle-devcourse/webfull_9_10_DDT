@@ -231,14 +231,16 @@ export function LoadContractDialog({
                         />
                         <div className='min-w-0 flex-1'>
                           <AccordionTrigger className='w-full min-w-0 p-0 hover:no-underline **:data-[slot=accordion-trigger-icon]:hidden'>
-                            <p className='min-w-0 flex-1 truncate text-left font-medium'>
-                              {item.title}
-                            </p>
+                            <div className='min-w-0 flex-1 text-left'>
+                              <p className='min-w-0 truncate font-medium'>
+                                {item.title}
+                              </p>
+                              <DialogDescription className='mt-1 text-xs'>
+                                집중 {item.focusMin}분 · 휴식 {item.breakMin}분 ·{' '}
+                                {item.rounds}회 · 벌칙 {item.penalties.length}개
+                              </DialogDescription>
+                            </div>
                           </AccordionTrigger>
-                          <DialogDescription className='mt-1 text-xs'>
-                            집중 {item.focusMin}분 · 휴식 {item.breakMin}분 ·{' '}
-                            {item.rounds}회 · 벌칙 {item.penalties.length}개
-                          </DialogDescription>
                         </div>
                       </div>
                     </div>

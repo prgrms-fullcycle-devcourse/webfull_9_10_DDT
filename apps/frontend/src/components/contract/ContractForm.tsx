@@ -18,7 +18,6 @@ import RoomTitle from './RoomTitle';
 import TimerSettings from './TimerSettings';
 import TierSettings from './TierSettings';
 import PenaltyList from './PenaltyList';
-import { Separator } from '../ui/separator';
 import { ContractActions } from './ContractActions';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -32,6 +31,7 @@ import { useAuth } from '@/hooks/useAuth';
 import NoSleep from 'nosleep.js';
 import { clearGuestAccessToken } from '@/lib/authToken';
 import { queryKeys } from '@/lib/queryKeys';
+import { cn } from '@/lib/utils';
 
 interface ContractFormValues {
   focusMin: number;
@@ -45,6 +45,9 @@ const ContractForm = () => {
   const room = useRoom();
   const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
   const hostId = useRoomStore((s) => s.hostId);
   const phase = useRoomStore((s) => s.phase);
   const noSleepRef = useRef<NoSleep | null>(null);
@@ -186,6 +189,10 @@ const ContractForm = () => {
     if (!isHost) {
       return;
     }
+    if (!isMeSigned) {
+      toast.error('서명을 먼저 완료해주세요.');
+      return;
+    }
     const ok = await confirm({
       title: `강제로 시작하시겠습니까?`,
       description: '서명하지 않은 유저는 자동으로 강퇴됩니다.',
@@ -204,7 +211,6 @@ const ContractForm = () => {
     return null;
   }
 
-  const myMember = members[me.id];
   const memberList = Object.entries(members);
   const signedCount = memberList.filter(([, m]) => m.isSigned).length;
   const memberCount = memberList.length;
@@ -280,7 +286,7 @@ const ContractForm = () => {
           </div>
           <MemberSignList />
         </div>
-        <Separator />
+
         <div className='flex w-full gap-2'>
           <Button
             type='button'
@@ -292,9 +298,13 @@ const ContractForm = () => {
           </Button>
           {isHost && !allSigned && memberCount !== 1 && (
             <Button
+              aria-disabled={!isMeSigned}
               type='button'
-              disabled={!isMeSigned}
-              className='flex-1 h-12 rounded-[14px] text-base font-bold bg-destructive'
+              className={cn(
+                'flex-1 h-12 rounded-[14px] text-base font-bold bg-destructive',
+                !isMeSigned &&
+                  'opacity-50 pointer-events-auto hover:cursor-auto active:scale-100',
+              )}
               onClick={handleForceStart}
             >
               강제 시작
@@ -302,12 +312,21 @@ const ContractForm = () => {
           )}
           {isHost && (allSigned || memberCount === 1) && (
             <Button
+              aria-disabled={!isMeSigned}
               type='button'
-              disabled={startTimerMutation.isPending || !isMeSigned}
+              disabled={startTimerMutation.isPending}
               onClick={async () => {
+                if (!isMeSigned) {
+                  toast.error('서명을 먼저 완료해주세요.');
+                  return;
+                }
                 await handleStartFocus();
               }}
-              className='flex-1 h-12 rounded-[14px] text-base font-bold'
+              className={cn(
+                'flex-1 h-12 rounded-[14px] text-base font-bold',
+                !isMeSigned &&
+                  'opacity-50 pointer-events-auto hover:cursor-auto active:scale-100',
+              )}
             >
               {startTimerMutation.isPending ? '시작 중...' : '집중 시작'}
             </Button>

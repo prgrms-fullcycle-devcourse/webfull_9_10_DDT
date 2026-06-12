@@ -11,6 +11,32 @@ import { RoomGateway } from '../gateway/room/room.gateway';
 import { PenaltyService } from '../penalty/penalty.service';
 import { ROULETTE_TIMEOUT_MS } from '../result/result.service';
 
+/**
+ * 결정적 셔플 — 같은 seed면 항상 같은 순열을 반환한다.
+ * 룰렛 노출 순서를 '무작위처럼' 보이게 하되, 동일 spinIndex 재호출 시 결과가 흔들리지 않도록(멱등)
+ * spinIndex ↔ 벌칙 1:1 대응을 보장한다. (FNV-1a 해시로 문자열 seed→32bit, mulberry32 PRNG로 Fisher-Yates)
+ */
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let state = h >>> 0;
+  const rand = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 @Injectable()
 export class RouletteService {
   constructor(
@@ -45,21 +71,17 @@ export class RouletteService {
     if (penalties.length > 0 && penalties.every((p) => p.isRevealed))
       throw new ConflictException('이미 완료된 룰렛입니다.');
 
-    // spinIndex = content 오름차순을 count만큼 펼친 '전역 스핀 순번'(1..총합)
+    // spinIndex = count만큼 펼친 인스턴스의 '전역 스핀 순번'(1..총합)
     const totalSpins = penalties.reduce((acc, p) => acc + p.count, 0);
     if (spinIndex < 1 || spinIndex > totalSpins)
       throw new BadRequestException('해당 스핀의 벌칙이 존재하지 않습니다.');
 
-    // spinIndex번째 행을 결정적으로 탐색 (중간 상태 DB 미저장)
-    let cumulative = 0;
-    let target: (typeof penalties)[number] | undefined;
-    for (const p of penalties) {
-      cumulative += p.count;
-      if (spinIndex <= cumulative) {
-        target = p;
-        break;
-      }
-    }
+    // count만큼 펼친 인스턴스 시퀀스를 member.id seed로 결정적 셔플 → 노출 순서를 무작위처럼 섞되,
+    // 같은 spinIndex 재호출은 항상 동일 결과(멱등). 중간 상태 DB 미저장.
+    const flat = penalties.flatMap((p) =>
+      Array.from({ length: p.count }, () => p),
+    );
+    const target = seededShuffle(flat, member.id)[spinIndex - 1];
     if (!target)
       throw new BadRequestException('해당 스핀의 벌칙이 존재하지 않습니다.');
 

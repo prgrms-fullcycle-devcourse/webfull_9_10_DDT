@@ -102,13 +102,26 @@ export class PushNotificationService {
         this.logger.log(`[Push] 구독 조회 (user=${userId}, found=${!!subRaw})`);
         if (!subRaw) return;
 
-        const subscription = JSON.parse(subRaw) as PushSubscription;
-        await webpush
-          .sendNotification(subscription, payload)
-          .catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
-          });
+        const parsed = JSON.parse(subRaw) as {
+          platform: string;
+          data: string | PushSubscription;
+        };
+
+        if (parsed.platform === 'android') {
+          await this.snsService
+            .sendPushNotification(parsed.data as string, title, body)
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
+            });
+        } else {
+          await webpush
+            .sendNotification(parsed.data as PushSubscription, payload)
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.warn(`푸시 전송 실패 (${userId}): ${msg}`);
+            });
+        }
       }),
     );
   }
@@ -138,10 +151,24 @@ export class PushNotificationService {
     if (!subRaw) return;
 
     try {
-      const subscription = JSON.parse(subRaw) as PushSubscription;
+      const parsed = JSON.parse(subRaw) as {
+        platform: string;
+        data: string | PushSubscription;
+      };
       const payload = JSON.stringify({ title, body });
 
-      await webpush.sendNotification(subscription, payload);
+      if (parsed.platform === 'android') {
+        await this.snsService.sendPushNotification(
+          parsed.data as string,
+          title,
+          body,
+        );
+      } else {
+        await webpush.sendNotification(
+          parsed.data as PushSubscription,
+          payload,
+        );
+      }
 
       await this.redisService.instance.set(
         cooldownKey,
