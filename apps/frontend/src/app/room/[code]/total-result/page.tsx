@@ -13,6 +13,14 @@ export async function generateMetadata({
     openGraph: {
       title: `통합 결과 - ${code} | 감옥`,
       description: '집중 세션 결과를 확인해보세요!',
+      images: [
+        {
+          url: `/room/${code}/total-result/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: '통합 결과 | 감옥',
+        },
+      ],
     },
   };
 }
