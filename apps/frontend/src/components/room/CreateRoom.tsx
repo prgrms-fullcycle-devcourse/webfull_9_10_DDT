@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Users, Lightbulb } from 'lucide-react';
+import { Eye, EyeOff, Users, Lightbulb, Copy } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { CloseButton } from '@/components/layout/CloseButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
@@ -36,6 +36,15 @@ function CreateRoomComplete({
   inviteLink: string;
   onCopyAll: () => void;
 }) {
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      toast.success('방 코드가 복사되었어요.');
+    } catch {
+      toast.error('방 코드 복사에 실패했습니다.');
+    }
+  };
+
   return (
     <div className='flex flex-col gap-5 pt-2'>
       <p className='text-center text-base text-white/70'>
@@ -69,9 +78,21 @@ function CreateRoomComplete({
         {/* 방 코드 */}
         <div className='flex flex-col gap-1'>
           <span className='text-xs text-[#6B7280]'>방 코드</span>
-          <span className='text-2xl font-bold text-white tracking-widest'>
-            {roomCode}
-          </span>
+          <div className='flex items-center justify-between'>
+            <span className='text-2xl font-bold text-white tracking-widest'>
+              {roomCode}
+            </span>
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              onClick={handleCopyCode}
+              aria-label='방 코드 복사'
+              className='text-muted-foreground hover:text-white hover:bg-white/10'
+            >
+              <Copy className='w-4 h-4' />
+            </Button>
+          </div>
         </div>
 
         <div className='border-t border-white/[0.08]' />
