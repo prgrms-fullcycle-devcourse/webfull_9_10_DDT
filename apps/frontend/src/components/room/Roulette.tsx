@@ -99,9 +99,11 @@ const getUnrevealedPenaltyCount = (
   Math.max(
     0,
     (member?.penalties.totalCount ?? 0) - (member?.penaltyCount ?? 0),
-  );
+  );
+
 const SKIP_THRESHOLD = 5;
-const SPOTLIGHT_DURATION_MS = 2400;
+const SPOTLIGHT_DURATION_MS = 2400;
+
 const getAxiosMessage = (err: unknown): string | undefined => {
   const errorData = axios.isAxiosError(err) ? err.response?.data : null;
   const rawMessage =
@@ -149,15 +151,12 @@ export function Roulette() {
     }
   }, [queryClient]);
 
-  const moveToFinishTarget = useCallback(
-    () => {
-      if (finishTarget === '/') {
-        clearGuestSession();
-      }
-      router.replace(finishTarget);
-    },
-    [clearGuestSession, finishTarget, router],
-  );
+  const moveToFinishTarget = useCallback(() => {
+    if (finishTarget === '/') {
+      clearGuestSession();
+    }
+    router.replace(finishTarget);
+  }, [clearGuestSession, finishTarget, router]);
 
   const {
     data: result,
@@ -270,11 +269,12 @@ export function Roulette() {
       );
 
       return res.data as unknown as ExitRouletteResponseDto;
-    },
+    },
+
     onMutate: () => {
       skipInitiatedRef.current = true;
     },
-    onSuccess: (data) => {
+    onSuccess: (data) => {
       const revealed = (data?.revealedPenalties ?? []).flatMap((p) =>
         Array.from({ length: p.count }, () => p.content),
       );
@@ -285,7 +285,8 @@ export function Roulette() {
       toast.success('벌칙 결과를 모두 자동으로 뽑았어요');
     },
     onError: (err) => {
-      const message = getAxiosMessage(err);
+      const message = getAxiosMessage(err);
+
       if (
         axios.isAxiosError(err) &&
         err.response?.status === 400 &&
@@ -293,7 +294,8 @@ export function Roulette() {
       ) {
         moveToFinishTarget();
         return;
-      }
+      }
+
       skipInitiatedRef.current = false;
       toast.error('처리하지 못했어요. 잠시 후 다시 시도해주세요.');
     },
@@ -359,7 +361,8 @@ export function Roulette() {
         dataUpdatedAt,
         now,
       )
-    : 0;
+    : 0;
+
   const giveUpRemainingSeconds = giveUpResult
     ? getRemainingSeconds(
         giveUpResult.serverTime,
@@ -371,15 +374,19 @@ export function Roulette() {
 
   const remainingTime = formatRemainingTime(
     isGiveUpRoulette ? giveUpRemainingSeconds : remainingSeconds,
-  );
+  );
+
   const isExpired = !isGiveUpRoulette && !!result && remainingSeconds <= 0;
   const isGiveUpExpired =
-    isGiveUpRoulette && !!giveUpResult && giveUpRemainingSeconds <= 0;
+    isGiveUpRoulette && !!giveUpResult && giveUpRemainingSeconds <= 0;
+
   const isCompleted =
-    isAllCompleted ||
-    ((isExpired || isGiveUpExpired) && remainingChances <= 0);
-  const isDrawDone = isCompleted && !isSpinning;
-  const isAutoDraw = (isExpired || isGiveUpExpired) && remainingChances > 0;
+    isAllCompleted || ((isExpired || isGiveUpExpired) && remainingChances <= 0);
+
+  const isDrawDone = isCompleted && !isSpinning;
+
+  const isAutoDraw = (isExpired || isGiveUpExpired) && remainingChances > 0;
+
   if (
     !skipEverQualified &&
     !isGiveUpRoulette &&
@@ -387,7 +394,8 @@ export function Roulette() {
     totalChances >= SKIP_THRESHOLD
   ) {
     setSkipEverQualified(true);
-  }
+  }
+
   const skipVisibleNow =
     !isGiveUpRoulette &&
     !!myResult &&
@@ -432,7 +440,8 @@ export function Roulette() {
       if (isCompleted) {
         moveToFinishTarget();
         return;
-      }
+      }
+
       if (skipInitiatedRef.current) return;
 
       if (cannotStart) return;
@@ -441,7 +450,8 @@ export function Roulette() {
         setSpinErrorMessage('');
         const spinResult = isGiveUpRoulette
           ? giveUpSpinResults[pickedSpins]
-          : await spinMutation.mutateAsync(nextSpinIndex);
+          : await spinMutation.mutateAsync(nextSpinIndex);
+
         if (skipInitiatedRef.current) return;
         if (!spinResult) {
           setSpinErrorMessage('룰렛 결과를 찾을 수 없습니다.');
@@ -463,7 +473,7 @@ export function Roulette() {
         manualSpinRef.current = !auto;
         setCurrentSpinResult(spinResult);
         setIsSpinning(true);
-      } catch (err) {
+      } catch (err) {
         if (skipInitiatedRef.current) return;
 
         if (axios.isAxiosError(err) && err.response?.status === 409) {
@@ -489,14 +499,15 @@ export function Roulette() {
     ],
   );
 
-  const handleStopSpinning = useCallback(() => {
+  const handleStopSpinning = useCallback(() => {
     if (skipInitiatedRef.current) {
       setIsSpinning(false);
       setCurrentSpinResult(null);
       return;
     }
     if (currentSpinResult) {
-      setHistory((prev) => [...prev, currentSpinResult.penaltyContent]);
+      setHistory((prev) => [...prev, currentSpinResult.penaltyContent]);
+
       if (manualSpinRef.current) {
         setSpotlightLabel(currentSpinResult.penaltyContent);
       }
@@ -505,7 +516,8 @@ export function Roulette() {
     setCurrentIndex((prev) => prev + 1);
     setIsSpinning(false);
     setCurrentSpinResult(null);
-  }, [currentSpinResult]);
+  }, [currentSpinResult]);
+
   useEffect(() => {
     if (!spotlightLabel) return;
 
@@ -517,7 +529,8 @@ export function Roulette() {
     return () => window.clearTimeout(timerId);
   }, [spotlightLabel]);
 
-  const selectedPenaltyRef = useRef<HTMLDivElement | null>(null);
+  const selectedPenaltyRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (
       !isSpinning &&
@@ -571,7 +584,8 @@ export function Roulette() {
     isDialogOpen,
     exitMutation.isPending,
     handleStartSpinning,
-  ]);
+  ]);
+
   useEffect(() => {
     if (isGiveUpRoulette) return;
     if (isResultLoading || !result) return;
@@ -590,7 +604,8 @@ export function Roulette() {
     isSpinning,
     history.length,
     moveToFinishTarget,
-  ]);
+  ]);
+
   useEffect(() => {
     if (!isGiveUpRoulette) return;
     if (isGiveUpResultLoading || !giveUpResult) return;
@@ -705,7 +720,7 @@ export function Roulette() {
             targetIndex={targetIndex}
             onStopSpinning={handleStopSpinning}
             items={rouletteLabels}
-            spinDuration={isAutoDraw ? 0.2 : undefined}
+            spinDuration={isAutoDraw ? 0.1 : undefined}
             isDrawDone={isDrawDone}
           />
           {(isGiveUpRoulette ? isGiveUpResultError : isResultError) ? (
@@ -781,20 +796,17 @@ export function Roulette() {
         </DialogContent>
       </Dialog>
 
-      
       {spotlightLabel ? (
         <div
           aria-hidden
           className='pointer-events-none fixed inset-0 z-40'
           style={{ animation: 'spotlightIn 0.2s ease-out both' }}
         >
-          
           <div
             className='absolute inset-0'
             style={{ background: 'rgba(0, 0, 0, 0.85)' }}
           />
 
-          
           <div
             className='absolute inset-0'
             style={{
@@ -804,9 +816,7 @@ export function Roulette() {
             }}
           />
 
-          
           <div className='absolute inset-0 z-10 flex flex-col items-center justify-center px-10 text-center'>
-            
             <div className='flex flex-col items-center rounded-[14px] mb-2 bg-black/60 px-4 py-2 text-xs font-semibold  text-white/70'>
               벌칙 확정
             </div>

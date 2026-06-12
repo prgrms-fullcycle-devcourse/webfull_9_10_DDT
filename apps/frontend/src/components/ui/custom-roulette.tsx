@@ -188,7 +188,7 @@ const RoulettePreview = React.memo(function RoulettePreview({
   const pinnedLabel = hasItems ? (items[activeIndex] ?? items[0]) : '';
 
   return (
-    <div className='mb-5 flex h-10 w-full min-w-0 items-center overflow-hidden rounded-[14px] border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] px-3'>
+    <div className='mb-5 flex h-10 w-full min-w-0 items-center overflow-hidden rounded-[14px] bg-[var(--roulette-panel)] px-3'>
       {!hasSpun ? (
         <p className='w-full text-center text-xs text-muted-foreground'>
           {isDrawDone ? '벌칙 뽑기 완료' : '뽑기 대기 중…'}

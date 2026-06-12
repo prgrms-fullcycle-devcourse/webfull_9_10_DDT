@@ -26,9 +26,6 @@ import { PushNotificationService } from './push-notification.service'; // ðŸ’¡ ë
     TimerRepository,
     PushNotificationService,
   ],
-  exports: [
-    TimerService, 
-    PushNotificationService,
-  ],
+  exports: [TimerService, PushNotificationService],
 })
 export class TimerModule {}

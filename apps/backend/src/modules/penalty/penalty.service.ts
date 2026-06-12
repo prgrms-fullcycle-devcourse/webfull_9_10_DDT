@@ -343,15 +343,12 @@ export class PenaltyService {
     pool: PenaltyItem[],
     count: number,
   ): Record<string, number> {
-    const shuffled = [...pool];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-
     const result: Record<string, number> = {};
+    if (pool.length === 0) return result;
+
+    // 매 회 풀 전체에서 독립 추첨(복원추출) → 같은 벌칙이 중복/편향될 수 있음
     for (let i = 0; i < count; i++) {
-      const item = shuffled[i % shuffled.length];
+      const item = pool[Math.floor(Math.random() * pool.length)];
       result[item.content] = (result[item.content] ?? 0) + 1;
     }
     return result;

@@ -317,7 +317,7 @@ export const CreateRoom = () => {
             </p>
 
             <div className='flex justify-center mb-8'>
-              <div className='inline-flex items-center gap-2.5 bg-card border border-border rounded-lg px-4 py-3.5 text-sm text-muted-foreground'>
+              <div className='inline-flex items-center gap-2.5 bg-card rounded-lg px-4 py-3 text-sm text-muted-foreground'>
                 <Users size={18} className='text-[#6B7280] shrink-0' />
                 최대 10명까지 입장 가능합니다.
               </div>

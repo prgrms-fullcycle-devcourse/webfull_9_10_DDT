@@ -98,16 +98,20 @@ describe('PenaltyService.calculateAndSaveForGiveUp', () => {
       },
     });
 
-    // 최대 개수 count=2, pool=2 → 두 벌칙 각 1회, 전부 공개
+    // 최대 개수 count=2 → 합계 2개, 전부 공개.
+    // 복원추출(독립 추첨)이라 같은 벌칙이 중복될 수 있어 '종류 수'는 단정하지 않고,
+    // 합계와 풀 소속만 검증한다.
     const createManyCalls = tx.resultPenalty.createMany.mock.calls as Array<
       [{ data: { content: string; count: number; isRevealed: boolean }[] }]
     >;
     const createManyArg = createManyCalls[0][0];
-    expect(createManyArg.data).toHaveLength(2);
+    const poolContents = POOL.map((p) => p.content);
+    const totalCount = createManyArg.data.reduce((a, d) => a + d.count, 0);
+    expect(totalCount).toBe(2);
     expect(createManyArg.data.every((d) => d.isRevealed === true)).toBe(true);
-    expect(createManyArg.data.map((d) => d.content).sort()).toEqual(
-      ['노래 부르기', '팔굽혀펴기'].sort(),
-    );
+    expect(
+      createManyArg.data.every((d) => poolContents.includes(d.content)),
+    ).toBe(true);
   });
 
   it('늦은 포기: 등급 배지는 이탈시간 기반(낮음)이나 벌칙 개수는 항상 최대다', async () => {

@@ -121,10 +121,7 @@ const isGuestToken = () => {
 const getUnknownPenaltyCount = (member: ResultMember) =>
   Math.max(0, member.penalties.totalCount - member.penaltyCount);
 
-const getPenaltyContents = (member: ResultMember) =>
-  member.penalties.items.flatMap((penalty) =>
-    Array.from({ length: penalty.count }, () => penalty.content),
-  );
+const getPenaltyContents = (member: ResultMember) => member.penalties.items;
 
 export function TotalResult() {
   const [closeTarget] = useState(() => {
@@ -170,7 +167,6 @@ export function TotalResult() {
 
     if (isGuestToken()) clearAccessTokenCookie();
   }, [result]);
-
 
   const rankedMembers = [...(result?.members ?? [])].sort(
     (a, b) => a.rank - b.rank || b.totalEscapeMs - a.totalEscapeMs,
@@ -224,10 +220,12 @@ export function TotalResult() {
   const HeaderComponent = (
     <>
       <HeaderTitle align='center'>통합 결과</HeaderTitle>
-      <CloseButton onClick={() => {
-        sessionStorage.removeItem('totalResultFrom');
-        router.push(closeTarget);
-      }} />
+      <CloseButton
+        onClick={() => {
+          sessionStorage.removeItem('totalResultFrom');
+          router.push(closeTarget);
+        }}
+      />
     </>
   );
 
@@ -294,7 +292,7 @@ export function TotalResult() {
                 </p>
               </section>
 
-              <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/50'>
+              <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1d1c31] text-center text-[11px] text-white/50'>
                 <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
                   <span>총 진행 시간</span>
                   <strong className='text-base text-white/85'>
@@ -321,7 +319,7 @@ export function TotalResult() {
                 <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
                   이탈 시간 순위
                 </h3>
-                <div className='overflow-hidden rounded-[14px] border border-slate-800/70 bg-[#151926]'>
+                <div className='overflow-hidden rounded-[14px] bg-[#1d1c31]'>
                   {rankedMembers.map((member) => {
                     const isMe = me
                       ? (me.role === 'user' && member.userId === me.id) ||
@@ -382,7 +380,7 @@ export function TotalResult() {
                 <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
                   멤버별 벌칙 결과
                 </h3>
-                <div className='overflow-hidden rounded-[14px] bg-[#181828]'>
+                <div className='overflow-hidden rounded-[14px] bg-[#1d1c31]'>
                   {penaltyMembers.length > 0 ? (
                     penaltyMembers.map((member) => {
                       const isMe = me
@@ -462,7 +460,12 @@ export function TotalResult() {
                                     <li
                                       key={`${member.memberId}-penalty-${index}`}
                                     >
-                                      {penalty}
+                                      <div className='flex items-center justify-between gap-2'>
+                                        <span>{penalty.content}</span>
+                                        <span className='shrink-0 text-white/50'>
+                                          ×{penalty.count}
+                                        </span>
+                                      </div>
                                     </li>
                                   ))}
                                 </ul>
