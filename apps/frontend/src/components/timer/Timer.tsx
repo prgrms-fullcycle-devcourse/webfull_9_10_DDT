@@ -115,15 +115,18 @@ export default function Timer() {
           });
         }
 
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
-          subscription,
-          {
-            headers: {
-              Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}`,
-            },
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+        {
+          subscription: subscription,
+          platform: 'web'
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}`,
           },
-        );
+        },
+      );
       } catch (error) {
         console.error('푸시 알림 설정 실패:', error);
       }
