@@ -157,44 +157,39 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                     fieldKey={penaltyKey}
                     fieldOwners={fieldOwners}
                   />
-                  <div className='flex gap-2 items-center'>
-                    <div className='flex items-center gap-1'>
-                      <PenaltyInput
-                        ref={i === penalties.length - 1 ? lastInputRef : null}
-                        content={p.content}
-                        onUpdate={(val) => updatePenalty(i, val)}
-                        className={cn(
-                          CONTRACT_INPUT_FOCUS,
-                          fieldOwners[penaltyKey] &&
-                            'outline-2 outline-offset-1',
-                          'bg-background! h-12 z-0 flex-1 min-w-0',
-                        )}
-                        style={{
-                          outlineColor: fieldOwners[penaltyKey]?.color,
-                        }}
-                        disabled={
-                          !canEdit ||
-                          (!!fieldOwners[penaltyKey] &&
-                            fieldOwners[penaltyKey].userId !== me.id)
-                        }
-                        placeholder='예: 팔굽혀펴기 10회'
-                        onFocus={() =>
-                          handleFocus(penaltyKey, me.id, myNickname)
-                        }
-                        onBlur={handleBlur}
-                      />
-                      {canEdit && (
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          aria-label={`${i + 1}번째 벌칙 삭제`}
-                          onClick={() => removePenalty(i)}
-                          className='shrink-0 w-10 h-10'
-                        >
-                          <X />
-                        </Button>
+                  <div className='flex flex-1 items-center gap-1'>
+                    <PenaltyInput
+                      ref={i === penalties.length - 1 ? lastInputRef : null}
+                      content={p.content}
+                      onUpdate={(val) => updatePenalty(i, val)}
+                      className={cn(
+                        CONTRACT_INPUT_FOCUS,
+                        fieldOwners[penaltyKey] && 'outline-2 outline-offset-1',
+                        'bg-background! h-12 z-0 flex-1 min-w-0',
                       )}
-                    </div>
+                      style={{
+                        outlineColor: fieldOwners[penaltyKey]?.color,
+                      }}
+                      disabled={
+                        !canEdit ||
+                        (!!fieldOwners[penaltyKey] &&
+                          fieldOwners[penaltyKey].userId !== me.id)
+                      }
+                      placeholder='예: 팔굽혀펴기 10회'
+                      onFocus={() => handleFocus(penaltyKey, me.id, myNickname)}
+                      onBlur={handleBlur}
+                    />
+                    {canEdit && (
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        aria-label={`${i + 1}번째 벌칙 삭제`}
+                        onClick={() => removePenalty(i)}
+                        className='shrink-0 w-10 h-10'
+                      >
+                        <X />
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
