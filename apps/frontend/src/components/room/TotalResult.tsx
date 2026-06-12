@@ -227,7 +227,11 @@ export function TotalResult() {
       <CloseButton
         onClick={() => {
           sessionStorage.removeItem('totalResultFrom');
-          router.push(closeTarget);
+          if (closeTarget === '/mypage' || closeTarget === '/mypage/history') {
+            router.back();
+          } else {
+            router.push(closeTarget);
+          }
         }}
       />
     </>
@@ -255,7 +259,7 @@ export function TotalResult() {
         <Button
           type='button'
           variant='secondary'
-          onClick={() => router.push(isLoggedInUser ? '/mypage' : '/')}
+          onClick={() => router.replace(isLoggedInUser ? '/mypage' : '/')}
           className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
         >
           {isLoggedInUser ? '마이페이지' : '홈 화면으로 이동'}
