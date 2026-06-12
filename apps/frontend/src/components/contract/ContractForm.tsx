@@ -280,7 +280,7 @@ const ContractForm = () => {
           </div>
           <MemberSignList />
         </div>
-        <Separator />
+
         <div className='flex w-full gap-2'>
           <Button
             type='button'

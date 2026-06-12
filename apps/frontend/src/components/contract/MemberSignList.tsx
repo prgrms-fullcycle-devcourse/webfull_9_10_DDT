@@ -74,9 +74,9 @@ export default function MemberSignList() {
 
   return (
     <Card>
-      <div className='p-2'>
+      <div className='pr-4 pl-4'>
         <div>
-          <div className='flex w-full justify-between items-center p-1 my-1'>
+          <div className='flex w-full justify-between items-center pb-2'>
             <div className='flex items-center p-1 gap-2'>
               <div className='relative'>
                 <Image
@@ -114,11 +114,13 @@ export default function MemberSignList() {
             </div>
             <Button
               type='button'
-              variant='ghost'
+              variant={isMeSigned ? 'outline' : 'default'}
               onClick={handleSignToggle}
               className={cn(
-                'ring-1 rounded-sm! px-4!',
-                isMeSigned ? 'ring-primary' : 'ring-success',
+                'rounded-sm! px-4!',
+                isMeSigned
+                  ? 'border-primary! bg-transparent! text-primary'
+                  : 'bg-success!',
               )}
             >
               {isMeSigned ? '취소' : '서명'}
@@ -132,8 +134,8 @@ export default function MemberSignList() {
             .map(([id, m]) => {
               const isThisHost = m.isHost;
               return (
-                <div key={id} className='my-1'>
-                  <div className='flex w-full justify-between items-center p-1'>
+                <div key={id} className=''>
+                  <div className='flex w-full justify-between items-center pt-2 pb-2'>
                     <div className='flex items-center p-1 gap-2'>
                       <div className='relative'>
                         <Image
@@ -174,7 +176,7 @@ export default function MemberSignList() {
                       </div>
                     </div>
                     {isHost && (
-                      <div className='flex'>
+                      <div className='flex flex-row items-center gap-1'>
                         <Switch
                           size='lg'
                           checked={m.canEdit ?? false}

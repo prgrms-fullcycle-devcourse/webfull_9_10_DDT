@@ -297,11 +297,11 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
               )}
               <Button
                 type='button'
-                variant='ghost'
+                variant='outline'
                 size='lg'
                 onClick={addTier}
                 disabled={!canAddTier}
-                className='w-full ring-1 ring-ring'
+                className='w-full'
               >
                 <Plus className='w-4 h-4 mr-1' /> 단계 추가
               </Button>

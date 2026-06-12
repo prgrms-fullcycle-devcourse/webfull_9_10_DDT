@@ -202,11 +202,10 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
             {canEdit && (
               <Button
                 type='button'
-                variant='ghost'
+                variant='outline'
                 disabled={!canEdit}
                 size='lg'
                 onClick={handleAddPenalty}
-                className='w-full ring-1 ring-ring'
               >
                 <Plus className='w-4 h-4 mr-1' /> 벌칙 추가
               </Button>
