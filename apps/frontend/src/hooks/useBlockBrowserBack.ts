@@ -50,8 +50,10 @@ if (typeof window !== 'undefined') {
   window.addEventListener('popstate', handlePopState, true);
 }
 
-export function useBlockBrowserBack(options?: { redirectTo?: string }) {
+export function useBlockBrowserBack(options?: { redirectTo?: string; enabled?: boolean }) {
   useEffect(() => {
+    if (options?.enabled === false) return;
+
     guardPath =
       window.location.pathname +
       window.location.search +
@@ -68,5 +70,5 @@ export function useBlockBrowserBack(options?: { redirectTo?: string }) {
       blockActive = false;
       redirectTarget = null;
     };
-  }, [options?.redirectTo]);
+  }, [options?.redirectTo, options?.enabled]);
 }

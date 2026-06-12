@@ -153,6 +153,8 @@ export function Roulette() {
     () => {
       if (finishTarget === '/') {
         clearGuestSession();
+      } else {
+        sessionStorage.setItem('totalResultFrom', 'room');
       }
       router.replace(finishTarget);
     },

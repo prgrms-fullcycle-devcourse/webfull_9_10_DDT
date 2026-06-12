@@ -146,6 +146,7 @@ export default function Timer() {
       if (me?.role === 'guest') {
         document.cookie =
           'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        sessionStorage.setItem('totalResultFrom', 'room');
         router.push(`/room/${room.code}/total-result`);
       } else {
         router.push(`/room/${room.code}/roulette?from=giveup`);
@@ -220,10 +221,12 @@ export default function Timer() {
       if (data.phase === 'result') {
         router.replace(`/room/${room.code}/semi-result`);
       } else if (data.phase === 'closed') {
+        sessionStorage.setItem('totalResultFrom', 'room');
         router.replace(`/room/${room.code}/total-result`);
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
+        sessionStorage.setItem('totalResultFrom', 'room');
         router.replace(`/room/${room.code}/total-result`);
       }
     } finally {

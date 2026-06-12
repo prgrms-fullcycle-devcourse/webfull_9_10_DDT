@@ -96,6 +96,7 @@ export function SemiResult() {
 
   useEffect(() => {
     if (isNoDisruption) {
+      sessionStorage.setItem('totalResultFrom', 'room');
       router.replace(`/room/${params.code}/total-result`);
     }
   }, [isNoDisruption, params.code, router]);
@@ -108,13 +109,16 @@ export function SemiResult() {
 
   const BottomButtonComponent = (
     <Button
-      onClick={() =>
+      onClick={() => {
+        if (!shouldShowRoulette) {
+          sessionStorage.setItem('totalResultFrom', 'room');
+        }
         router.push(
           shouldShowRoulette
             ? `/room/${params.code}/roulette`
             : `/room/${params.code}/total-result`,
-        )
-      }
+        );
+      }}
       disabled={isLoading || isError || !canDecideNextRoute}
       className='w-full h-12 rounded-[14px] text-base font-bold'
     >

@@ -133,7 +133,11 @@ export function TotalResult() {
     if (from === 'mypage') return '/mypage';
     return '/';
   });
-  useBlockBrowserBack({ redirectTo: closeTarget });
+
+  const [isFromRoulette] = useState(() => {
+    return sessionStorage.getItem('totalResultFrom') === 'room';
+  });
+  useBlockBrowserBack({ redirectTo: '/', enabled: isFromRoulette });
   const router = useRouter();
   const params = useParams<{ code: string }>();
   const { me } = useAuth();
