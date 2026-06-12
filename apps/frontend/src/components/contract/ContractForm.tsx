@@ -18,7 +18,6 @@ import RoomTitle from './RoomTitle';
 import TimerSettings from './TimerSettings';
 import TierSettings from './TierSettings';
 import PenaltyList from './PenaltyList';
-import { Separator } from '../ui/separator';
 import { ContractActions } from './ContractActions';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
@@ -45,6 +44,9 @@ const ContractForm = () => {
   const room = useRoom();
   const me = useAuth().me;
   const members = useRoomStore((state) => state.members);
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
   const hostId = useRoomStore((s) => s.hostId);
   const phase = useRoomStore((s) => s.phase);
   const noSleepRef = useRef<NoSleep | null>(null);
@@ -204,7 +206,6 @@ const ContractForm = () => {
     return null;
   }
 
-  const myMember = members[me.id];
   const memberList = Object.entries(members);
   const signedCount = memberList.filter(([, m]) => m.isSigned).length;
   const memberCount = memberList.length;

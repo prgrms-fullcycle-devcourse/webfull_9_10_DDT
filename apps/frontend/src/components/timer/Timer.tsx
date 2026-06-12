@@ -29,6 +29,7 @@ import { useWakeLock } from '@/hooks/useWakeLock';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDuration } from '@/lib/format';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
+import { getToken } from '@/lib/getToken';
 
 export default function Timer() {
   useBlockBrowserBack();
@@ -40,6 +41,9 @@ export default function Timer() {
   const phase = useRoomStore((s) => s.phase);
   const sessionInfo = useRoomStore((s) => s.sessionInfo);
   const members = useRoomStore((s) => s.members);
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
 
   const escapeSummary = useRoomStore((s) => s.escapeSummary);
   const setEscapeSummary = useRoomStore((s) => s.setEscapeSummary);
@@ -57,12 +61,11 @@ export default function Timer() {
   const isEscapingRef = useRef(false);
 
   useEffect(() => {
-    const myMember = me ? members[me.id] : undefined;
     if (myMember?.gaveUpAt) {
       toast.error('이미 중도 포기한 세션입니다.');
       router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
-  }, [me, members, room.code, router]);
+  }, [me, members, myMember?.gaveUpAt, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;
@@ -115,18 +118,18 @@ export default function Timer() {
           });
         }
 
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
-        {
-          subscription: subscription,
-          platform: 'web'
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/)?.[1]}`,
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+          {
+            subscription: subscription,
+            platform: 'web',
           },
-        },
-      );
+          {
+            headers: {
+              Authorization: `Bearer ${getToken() ?? ''}`,
+            },
+          },
+        );
       } catch (error) {
         console.error('푸시 알림 설정 실패:', error);
       }
@@ -234,8 +237,10 @@ export default function Timer() {
     }
   }, [room.code, router, sessionInfo]);
 
+  const isExpiredPhase = phaseRemainingSec <= 0;
+
   useEffect(() => {
-    if (phaseRemainingSec > 0) return;
+    if (!isExpiredPhase) return;
 
     void syncEndedSessionRoute();
 
@@ -244,7 +249,7 @@ export default function Timer() {
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [phaseRemainingSec, syncEndedSessionRoute]);
+  }, [isExpiredPhase, syncEndedSessionRoute]);
 
   useEffect(() => {
     if (!socket || !sessionInfo) return;
