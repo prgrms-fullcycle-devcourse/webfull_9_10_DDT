@@ -3,7 +3,7 @@
 interface TimerCircleProps {
   timeLeft: number;
   totalDuration: number;
-  strokeColor: string; // 💡 이제 다시 'stroke-primary' 또는 'stroke-success' 클래스가 들어옵니다.
+  strokeColor: string;
   subStatusText: string;
 }
 
@@ -51,7 +51,6 @@ export function TimerCircle({
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          // 💡 stroke 속성을 빼고 className에 strokeColor 클래스를 명확하게 결합합니다.
           className={`origin-center ${strokeColor} ${
             isResetMoment 
               ? "transition-none" 
@@ -60,9 +59,11 @@ export function TimerCircle({
         />
       </svg>
 
-      <div className="absolute text-center">
-        <p className="text-sm text-[#94A3B8] mb-1">{subStatusText}</p>
-        <p className="text-6xl font-semibold tracking-wider font-mono">
+      <div className="absolute flex flex-col items-center justify-center">
+        <p className="absolute bottom-full mb-2 text-sm text-[#94A3B8] whitespace-nowrap">
+          {subStatusText}
+        </p>
+        <p className="text-6xl font-semibold tracking-wider font-mono leading-none m-0">
           {formatTime(timeLeft)}
         </p>
       </div>
