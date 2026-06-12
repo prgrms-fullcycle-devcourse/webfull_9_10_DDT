@@ -11,6 +11,8 @@ interface ProfileImagePickerProps {
   description?: string;
 }
 
+const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
 export function ProfileImagePicker({
   selectedProfile,
   onSelectProfile,
@@ -40,6 +42,8 @@ export function ProfileImagePicker({
               src={opt.src}
               alt={opt.label}
               fill
+              placeholder='blur'
+              blurDataURL={BLUR_PLACEHOLDER}
               sizes='(max-width: 390px) 60px, 80px'
               className='object-cover rounded-full z-0'
             />
