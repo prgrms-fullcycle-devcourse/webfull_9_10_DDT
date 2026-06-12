@@ -248,3 +248,13 @@
     opacity: 1;
   }
 }
+
+/* 글로벌 스크롤바 숨기기 (앱 고유 레이아웃 유지) */
+html, body {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
