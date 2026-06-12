@@ -15,7 +15,6 @@ import {
   readPendingTerms,
   type TermsAgreement,
 } from '@/lib/authTerms';
-import { Separator } from 'radix-ui';
 
 const resetAgreementAfterOAuthBack = () => {
   if (typeof window === 'undefined') return false;
@@ -127,79 +126,102 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
         </p>
 
         <div className='flex flex-col gap-3 w-full'>
-          <div className='flex items-center p-4 pb-4.5 bg-white/5 h-[58px] rounded-[16px] border border-white/10'>
+          <div
+            role='button'
+            onClick={handleAllCheck}
+            className='flex items-center p-4 pb-4.5 bg-white/5 h-[58px] rounded-[16px] border border-white/10 cursor-pointer'
+          >
             <Checkbox
               id='all'
               checked={allChecked}
-              onCheckedChange={handleAllCheck}
+              className='pointer-events-none'
+              tabIndex={-1}
+              aria-hidden
             />
-            <label
-              htmlFor='all'
-              className='ml-2 text-lg font-semibold cursor-pointer'
-            >
-              약관 전체동의
-            </label>
+            <span className='ml-2 text-lg font-semibold'>약관 전체동의</span>
           </div>
           <div className='h-px w-full bg-white/5' />
 
           <div className='flex flex-col gap-3'>
-            <div className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5'>
+            <div
+              role='button'
+              onClick={() =>
+                updateAgreement('termsOfService', !agreement.termsOfService)
+              }
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+            >
               <div className='flex items-center'>
                 <Checkbox
                   id='terms'
                   checked={agreement.termsOfService}
-                  onCheckedChange={(c) =>
-                    updateAgreement('termsOfService', !!c)
-                  }
+                  className='pointer-events-none'
+                  tabIndex={-1}
+                  aria-hidden
                 />
-                <label htmlFor='terms' className='ml-2 cursor-pointer'>
+                <span className='ml-2'>
                   서비스 이용약관{' '}
                   <span className='text-destructive'>(필수)</span>
-                </label>
+                </span>
               </div>
               <Link
                 href='/terms/service'
                 aria-label='서비스 이용약관 전문 보기'
+                onClick={(e) => e.stopPropagation()}
                 className='rounded-full p-1 text-muted-foreground hover:text-white'
               >
                 <ChevronRight />
               </Link>
             </div>
 
-            <div className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5'>
+            <div
+              role='button'
+              onClick={() =>
+                updateAgreement('privacyPolicy', !agreement.privacyPolicy)
+              }
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+            >
               <div className='flex items-center'>
                 <Checkbox
                   id='privacy'
                   checked={agreement.privacyPolicy}
-                  onCheckedChange={(c) => updateAgreement('privacyPolicy', !!c)}
+                  className='pointer-events-none'
+                  tabIndex={-1}
+                  aria-hidden
                 />
-                <label htmlFor='privacy' className='ml-2 cursor-pointer'>
+                <span className='ml-2'>
                   개인정보 수집 및 이용동의{' '}
                   <span className='text-destructive'>(필수)</span>
-                </label>
+                </span>
               </div>
               <Link
                 href='/terms/privacy'
                 aria-label='개인정보 처리방침 전문 보기'
+                onClick={(e) => e.stopPropagation()}
                 className='rounded-full p-1 text-muted-foreground hover:text-white'
               >
                 <ChevronRight />
               </Link>
             </div>
 
-            <div className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5'>
+            <div
+              role='button'
+              onClick={() =>
+                updateAgreement('ageVerification', !agreement.ageVerification)
+              }
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+            >
               <div className='flex items-center'>
                 <Checkbox
                   id='isOver14'
                   checked={agreement.ageVerification}
-                  onCheckedChange={(c) =>
-                    updateAgreement('ageVerification', !!c)
-                  }
+                  className='pointer-events-none'
+                  tabIndex={-1}
+                  aria-hidden
                 />
-                <label htmlFor='isOver14' className='ml-2 cursor-pointer'>
+                <span className='ml-2'>
                   만 14세 이상 확인{' '}
                   <span className='text-destructive'>(필수)</span>
-                </label>
+                </span>
               </div>
             </div>
           </div>

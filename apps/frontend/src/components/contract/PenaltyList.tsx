@@ -158,7 +158,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                     fieldOwners={fieldOwners}
                   />
                   <div className='flex gap-2 items-center'>
-                    <div className='flex items-center gap-1'>
+                    <div className='flex flex-1 items-center'>
                       <PenaltyInput
                         ref={i === penalties.length - 1 ? lastInputRef : null}
                         content={p.content}

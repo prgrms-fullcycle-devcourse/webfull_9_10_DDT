@@ -452,6 +452,8 @@ export function Roulette() {
 
       if (cannotStart) return;
 
+      setSpotlightLabel(null);
+
       try {
         setSpinErrorMessage('');
         const spinResult = isGiveUpRoulette

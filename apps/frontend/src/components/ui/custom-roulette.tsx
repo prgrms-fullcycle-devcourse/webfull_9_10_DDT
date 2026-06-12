@@ -413,6 +413,7 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
     () => ({
       even: getCssVariable('--roulette-wheel-even'),
       odd: getCssVariable('--roulette-wheel-odd'),
+      third: getCssVariable('--roulette-wheel-third'),
       center: getCssVariable('--roulette-wheel-center'),
       border: getCssVariable('--roulette-panel-border'),
       foreground: getCssVariable('--foreground'),
@@ -423,14 +424,18 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
 
   const rouletteData: RouletteData[] = useMemo(() => {
     const maxLen = getLabelMaxLength(displayItems.length);
-    return displayItems.map((item, index) => ({
-      option: item.length > maxLen ? item.slice(0, maxLen - 1) + '…' : item,
-      style: {
-        backgroundColor:
-          index % 2 === 0 ? rouletteTheme.even : rouletteTheme.odd,
-        textColor: rouletteTheme.foreground,
-      },
-    }));
+    const n = displayItems.length;
+    const colors = [rouletteTheme.even, rouletteTheme.odd, rouletteTheme.third];
+    return displayItems.map((item, index) => {
+      const colorIndex = n % 2 === 1 && index === n - 1 ? 2 : index % 2;
+      return {
+        option: item.length > maxLen ? item.slice(0, maxLen - 1) + '…' : item,
+        style: {
+          backgroundColor: colors[colorIndex],
+          textColor: rouletteTheme.foreground,
+        },
+      };
+    });
   }, [displayItems, rouletteTheme]);
 
   return (
