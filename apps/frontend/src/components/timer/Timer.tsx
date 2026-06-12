@@ -64,7 +64,7 @@ export default function Timer() {
       toast.error('이미 중도 포기한 세션입니다.');
       router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
-  }, [me, myMember?.gaveUpAt, room.code, router]);
+  }, [myMember?.gaveUpAt, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;

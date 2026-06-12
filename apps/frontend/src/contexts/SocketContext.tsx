@@ -203,7 +203,7 @@ export function SocketProvider({
 
     return () => {
       console.log('소켓 해제');
-      s.off('room:closed');
+      s.removeAllListeners();
       s.disconnect();
       useRoomStore.getState().reset();
       socketRef.current = null;

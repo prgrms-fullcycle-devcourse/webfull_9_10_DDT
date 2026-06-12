@@ -17,14 +17,16 @@ import { cn } from '@/lib/utils';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useShallow } from 'zustand/react/shallow';
 
 const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 export default function MemberSignList() {
   const socket = useSocket();
   const me = useAuth().me;
-  const members = useRoomStore((state) => state.members);
-  const hostId = useRoomStore((state) => state.hostId);
+  const { members, hostId } = useRoomStore(
+    useShallow((s) => ({ members: s.members, hostId: s.hostId })),
+  );
   const { confirm, confirmProps } = useConfirm();
 
   if (!me) {
