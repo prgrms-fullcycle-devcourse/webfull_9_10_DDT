@@ -9,7 +9,8 @@ import {
 } from '@nestjs/swagger';
 import { TimerService } from './timer.service';
 import type { Request } from 'express';
-import type { PushSubscription } from 'web-push';
+import { SavePushSubscriptionDto } from './dto/push-subscription.dto';
+import { BadRequestException } from '@nestjs/common';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; email: string; role: string };
@@ -161,18 +162,27 @@ export class TimerController {
     return { message: '세션 중도 포기가 완료되었습니다.', data };
   }
   @ApiBearerAuth()
-  @ApiOperation({ summary: '푸시 알림 구독 정보 저장' })
+  @ApiOperation({ summary: '푸시 알림 구독 정보 저장 (SNS 연동)' })
   @UseGuards(AuthGuard('jwt'))
   @Post(':roomCode/push-subscription')
   async savePushSubscription(
     @Param('roomCode') roomCode: string,
     @Req() req: AuthenticatedRequest,
-    @Body() subscription: PushSubscription,
+    @Body() body: SavePushSubscriptionDto,
   ) {
+    const platform = body.platform || 'web';
+    const tokenOrSub = platform === 'web' ? body.subscription : body.token;
+
+    if (!tokenOrSub) {
+      throw new BadRequestException(
+        `플랫폼(${platform})에 맞는 푸시 알림 데이터(token 또는 subscription)가 누락되었습니다.`,
+      );
+    }
     await this.timerService.savePushSubscription(
       roomCode,
       req.user!.id,
-      subscription,
+      tokenOrSub,
+      platform,
     );
     return { message: '알림 설정이 완료되었습니다.' };
   }

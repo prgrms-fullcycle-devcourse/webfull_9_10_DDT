@@ -3,6 +3,7 @@ import { EscapeService } from './escape.service';
 import { HeartBeatExpirationService } from './heartbeat-expiration.service';
 
 @Module({
+  imports: [],
   providers: [EscapeService, HeartBeatExpirationService],
   exports: [EscapeService],
 })

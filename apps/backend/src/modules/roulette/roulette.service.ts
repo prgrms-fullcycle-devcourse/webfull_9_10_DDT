@@ -108,6 +108,7 @@ export class RouletteService {
       const rows = await tx.resultPenalty.findMany({
         where: { roomMemberId: member.id, isRevealed: false },
         select: { content: true, count: true },
+        orderBy: { content: 'asc' },
       });
       if (rows.length === 0) {
         // 0건은 '이미 전부 공개됨'(result 존재)과 '미산정'(result 부재) 두 경우 → 구분.

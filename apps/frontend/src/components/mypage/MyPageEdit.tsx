@@ -113,6 +113,7 @@ export function MyPageEdit() {
       await refetchMe();
 
       toast.success('프로필이 저장되었습니다.');
+      router.push('/mypage');
     } catch (err) {
       const message = getErrorMessage(err, '저장에 실패했습니다.');
       toast.error(message);

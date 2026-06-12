@@ -116,6 +116,7 @@ export function MyPageHistory() {
           errorOnlyWhenEmpty
           emptyMessage='참여 기록이 없습니다.'
           loadingMessage='불러오는 중...'
+          from='mypage-history'
         />
 
         {hasMore && (

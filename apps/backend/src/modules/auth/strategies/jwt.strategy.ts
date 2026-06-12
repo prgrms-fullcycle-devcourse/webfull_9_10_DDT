@@ -2,13 +2,14 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { RedisService } from '../../../common/redis/redis.service';
-import type { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 
 interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  exp: number;
+  jti: string;
 }
 
 interface JwtUserResult {
@@ -27,15 +28,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
-      passReqToCallback: true,
     });
   }
 
-  async validate(req: Request, payload: JwtPayload): Promise<JwtUserResult> {
-    const token = req.headers.authorization?.split(' ')[1];
-
+  async validate(payload: JwtPayload): Promise<JwtUserResult> {
     const isBlacklisted = await this.redisService.instance.get(
-      `blacklist:${token}`,
+      `blacklist:${payload.jti}`,
     );
     if (isBlacklisted) {
       throw new UnauthorizedException('로그아웃 처리된 토큰입니다.');

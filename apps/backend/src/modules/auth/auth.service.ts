@@ -35,6 +35,7 @@ interface GoogleProfile {
 interface JwtPayload {
   sub: string;
   exp: number;
+  jti: string;
 }
 
 interface AgreeTermsDto {
@@ -86,13 +87,14 @@ export class AuthService {
       email: user.email,
       role: 'user',
       isTermsAgreed: user.isTermsAgreed,
+      jti: uuidv4(),
     };
     return this.jwtService.sign(payload);
   }
 
   generateGuestToken(): GuestTokenResult {
     const guestId = `guest_${uuidv4()}`;
-    const payload = { sub: guestId, role: 'guest' };
+    const payload = { sub: guestId, role: 'guest', jti: uuidv4() };
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '12h' }),
@@ -135,17 +137,19 @@ export class AuthService {
         !decoded ||
         typeof decoded !== 'object' ||
         !('exp' in decoded) ||
-        typeof (decoded as Record<string, unknown>).exp !== 'number'
+        typeof (decoded as Record<string, unknown>).exp !== 'number' ||
+        typeof (decoded as Record<string, unknown>).jti !== 'string'
       ) {
         throw new UnauthorizedException();
       }
 
       const exp = (decoded as JwtPayload).exp;
       const expirationTime = exp - Math.floor(Date.now() / 1000);
+      const jti = (decoded as JwtPayload).jti;
 
       if (expirationTime > 0) {
         await this.redisService.instance.set(
-          `blacklist:${token}`,
+          `blacklist:${jti}`,
           'logout',
           'EX',
           expirationTime,

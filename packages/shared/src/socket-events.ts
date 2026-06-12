@@ -29,6 +29,7 @@ export const SOCKET_EVENTS = {
     SIGN_RESET: "sign:reset",
     EDIT_UPDATED: "edit:updated",
     EDIT_ALL_UPDATED: "edit:all-updated",
+    BREAK_WARNING: "break:warning",
   },
 } as const;
 
@@ -124,4 +125,5 @@ export interface ServerToClientEvents {
   "sign:reset": (payload: SignResetPayload) => void;
   "edit:updated": (payload: EditUpdatedPayload) => void;
   "edit:all-updated": (payload: EditAllUpdatedPayload) => void;
+  "break:warning": () => void;
 }

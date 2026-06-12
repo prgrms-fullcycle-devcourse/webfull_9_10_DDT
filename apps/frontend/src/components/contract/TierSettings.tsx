@@ -10,6 +10,7 @@ import {
 } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { CONTRACT_INPUT_FOCUS } from './inputStyles';
 import { useRoomStore } from '@/store/useRoomStore';
 import { Tier, UseContractYjsReturn } from '@/types/yjs';
 import { Separator } from '../ui/separator';
@@ -68,7 +69,7 @@ function PenaltyCountInput({
 
   return (
     <Input
-      className='bg-background! h-12 w-15 border-white/20'
+      className={`bg-background! h-12 w-15 border-white/20 ${CONTRACT_INPUT_FOCUS}`}
       type='number'
       min={0}
       step={1}
@@ -131,7 +132,7 @@ function TierPctInput({
 
   return (
     <Input
-      className='bg-background! h-12 w-15 border-white/20'
+      className={`bg-background! h-12 w-15 border-white/20 ${CONTRACT_INPUT_FOCUS}`}
       type='number'
       min={minPct + 1}
       max={99}

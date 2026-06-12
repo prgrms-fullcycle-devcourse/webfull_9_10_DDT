@@ -27,30 +27,19 @@ import {
 } from './timer.queue';
 import { EscapeService } from '../escape/escape.service';
 import { TimerRepository } from './timer.repository';
-import { PushNotificationService } from './push-notification.service';
+import { PushNotificationService } from './push-notification.service'; // ✅ 주입
+import { OnEvent } from '@nestjs/event-emitter';
 
-// 강퇴 재시도 횟수 (총 시도 = 1 + KICK_MAX_RETRIES). kickMember는 멱등이라 재시도 안전.
 const KICK_MAX_RETRIES = 2;
-// 강퇴 대상 소켓 disconnect 지연(ms) — kicked 이벤트 수신 여유 확보.
 const KICK_DISCONNECT_DELAY_MS = 100;
-
 const MAX_ROUNDS_FALLBACK = 30;
 
-type SessionTemplate = {
-  focusMin: number;
-  breakMin: number;
-  rounds: number;
-};
-
+type SessionTemplate = { focusMin: number; breakMin: number; rounds: number };
 type RoomStateMembers = Record<
   string,
   { isSigned?: boolean; isHost?: boolean }
 >;
-
-type UnsignedSummary = {
-  hostUnsigned: boolean;
-  memberIds: string[];
-};
+type UnsignedSummary = { hostUnsigned: boolean; memberIds: string[] };
 
 function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
   if (!rawState) return { hostUnsigned: false, memberIds: [] };
@@ -67,9 +56,9 @@ function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
 @Injectable()
 export class TimerService implements OnModuleInit {
   private readonly logger = new Logger(TimerService.name);
+
   constructor(
     private readonly timerRepository: TimerRepository,
-    private readonly pushService: PushNotificationService,
     private readonly roomGateway: RoomGateway,
     private readonly roomService: RoomService,
     private readonly penaltyService: PenaltyService,
@@ -77,15 +66,16 @@ export class TimerService implements OnModuleInit {
     @InjectQueue(SESSION_QUEUE)
     private readonly sessionQueue: Queue<SessionJob>,
     private readonly escapeService: EscapeService,
+    private readonly pushService: PushNotificationService, // ✅ 푸시 서비스 주입
   ) {}
 
   async savePushSubscription(
     roomCode: string,
     userId: string,
-    subscription: PushSubscription,
+    data: string | PushSubscription,
+    platform: string,
   ) {
-    this.logger.log(`[Push] 구독 저장 (room=${roomCode}, user=${userId})`);
-    await this.pushService.saveSubscription(roomCode, userId, subscription);
+    await this.pushService.saveSubscription(roomCode, userId, data, platform);
   }
 
   private async verifyHost(roomCode: string, userId: string) {
@@ -96,11 +86,7 @@ export class TimerService implements OnModuleInit {
     return room;
   }
 
-  private getSessionDurationMs(template: {
-    focusMin: number;
-    breakMin: number;
-    rounds: number;
-  }) {
+  private getSessionDurationMs(template: SessionTemplate) {
     return (
       (template.focusMin * template.rounds +
         template.breakMin * Math.max(0, template.rounds - 1)) *
@@ -137,23 +123,16 @@ export class TimerService implements OnModuleInit {
   async startTimer(roomCode: string, userId: string) {
     const room = await this.verifyHost(roomCode, userId);
     this.ensureContractPhase(room.phase);
-
     const template = await this.loadRoomTemplate(roomCode);
     const { memberIds } = await this.loadSignState(roomCode);
-
-    if (memberIds.length > 0) {
-      throw new BadRequestException(
-        '아직 서명하지 않은 멤버가 있습니다. 강제 시작을 사용해주세요.',
-      );
-    }
-
+    if (memberIds.length > 0)
+      throw new BadRequestException('아직 서명하지 않은 멤버가 있습니다.');
     return this.beginSession(roomCode, template);
   }
 
   async forceStartTimer(roomCode: string, userId: string) {
     const room = await this.verifyHost(roomCode, userId);
     this.ensureContractPhase(room.phase);
-
     const template = await this.loadRoomTemplate(roomCode);
     const { memberIds: targetIds } = await this.loadSignState(roomCode);
     const kickedMemberIds: string[] = [];
@@ -188,30 +167,19 @@ export class TimerService implements OnModuleInit {
         kickedMemberIds.push(targetId);
       }
 
-      // 1차 게이트: 강퇴 실패 멤버가 있으면 세션 시작 차단 (fail-closed)
-      if (failedMemberIds.length > 0) {
+      if (failedMemberIds.length > 0)
         throw new InternalServerErrorException(
-          '일부 멤버 강퇴에 실패했습니다. 다시 시도해주세요.',
+          '일부 멤버 강퇴에 실패했습니다.',
         );
-      }
 
-      // 2차 게이트: phase 전환 직전 최신 state 재검사 (동시 unsign 재발생 차단)
       const freshState = await this.timerRepository.getRoomStateRaw(roomCode);
       const fresh = extractUnsignedSummary(freshState);
       if (fresh.hostUnsigned || fresh.memberIds.length > 0) {
-        Sentry.captureException(
-          new Error(
-            `force-start 2차 게이트 차단: 강퇴 후에도 미서명자 잔존 ` +
-              `(room=${roomCode}, hostUnsigned=${fresh.hostUnsigned}, ` +
-              `members=${fresh.memberIds.join(',')})`,
-          ),
-        );
         throw new InternalServerErrorException(
-          '일부 멤버 강퇴에 실패했습니다. 다시 시도해주세요.',
+          '일부 멤버 강퇴에 실패했습니다.',
         );
       }
     }
-
     return this.beginSession(roomCode, template, { kickedMemberIds });
   }
 
@@ -231,11 +199,8 @@ export class TimerService implements OnModuleInit {
       throw new ConflictException('이미 중도 포기한 상태입니다.');
 
     const now = new Date();
-
     await this.timerRepository.giveUpTransaction(member.id, now);
-
     await this.safeCalculateForGiveUp(roomCode, member.id);
-
     await this.timerRepository.saveGiveUpState(
       roomCode,
       userId,
@@ -251,9 +216,7 @@ export class TimerService implements OnModuleInit {
 
     const activeCount =
       await this.roomService.countActiveMembersInRoom(roomCode);
-
     if (activeCount === 0) {
-      this.logger.log(`모두가 중도 포기했습니다. 방을 종료합니다: ${roomCode}`);
       await this.endSession(roomCode);
     }
     return responseData;
@@ -261,19 +224,15 @@ export class TimerService implements OnModuleInit {
 
   async endSession(roomCode: string): Promise<void> {
     const room = await this.timerRepository.findRoomPhase(roomCode);
+    if (!room || room.phase === 'result' || room.phase === 'closed') return;
 
-    if (!room || room.phase === 'result' || room.phase === 'closed') {
-      return;
-    }
     const now = new Date();
     await this.timerRepository.updateRoomSessionEnd(roomCode, now);
-
     await this.roomService.updateRedisPhase(roomCode, 'result');
     try {
       await this.penaltyService.calculateAndSave(roomCode);
     } catch (err) {
       Sentry.captureException(err);
-      this.logger.error(`세션 결과 저장 실패 (room=${roomCode})`, err as Error);
     }
 
     await this.cancelSessionJobs(roomCode);
@@ -283,23 +242,14 @@ export class TimerService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const running = await this.timerRepository
-      .findTimerRooms()
-      .catch((err: unknown) => {
-        Sentry.captureException(err);
-        this.logger.error('세션 복구 스윕 실패', err as Error);
-        return [];
-      });
-
+    const running = await this.timerRepository.findTimerRooms().catch(() => []);
     for (const room of running) {
       if (!room.template || !room.startedAt) continue;
       const totalMs = this.getSessionDurationMs(room.template);
       const remaining = totalMs - (Date.now() - room.startedAt.getTime());
 
       if (remaining <= 0) {
-        await this.endSession(room.code).catch((err: unknown) =>
-          Sentry.captureException(err),
-        );
+        await this.endSession(room.code).catch(() => undefined);
       } else {
         await this.sessionQueue
           .add(
@@ -313,13 +263,11 @@ export class TimerService implements OnModuleInit {
             },
           )
           .catch(() => undefined);
-
         const { focusMin, breakMin, rounds } = room.template;
         for (let r = 1; r < rounds; r++) {
           const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
           const targetTime = room.startedAt.getTime() + notifyTimeMs;
           const delay = targetTime - Date.now();
-
           if (delay > 0) {
             await this.sessionQueue
               .add(
@@ -339,31 +287,23 @@ export class TimerService implements OnModuleInit {
     }
   }
 
-  // ── Processor 호출용 public 메서드 ───────────────────────────
-
   async sendBreakWarning(roomCode: string): Promise<void> {
     await this.pushService.sendToRoom(
       roomCode,
       '휴식이 1분 남았어요! ⏰',
       '곧 집중 시간이 시작됩니다. 자리에 앉아주세요!',
     );
+    this.roomGateway.server.to(roomCode).emit('break:warning');
   }
-
-  // ── private 헬퍼 ─────────────────────────────────────────────
 
   private async loadSignState(roomCode: string): Promise<UnsignedSummary> {
     const rawState = await this.timerRepository.getRoomStateRaw(roomCode);
-    if (!rawState) {
-      throw new ConflictException(
-        '방 상태를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.',
-      );
-    }
+    if (!rawState) throw new ConflictException('방 상태를 확인할 수 없습니다.');
     const summary = extractUnsignedSummary(rawState);
-    if (summary.hostUnsigned) {
+    if (summary.hostUnsigned)
       throw new BadRequestException(
         '방장이 서명을 완료해야 시작할 수 있습니다.',
       );
-    }
     return summary;
   }
 
@@ -381,13 +321,11 @@ export class TimerService implements OnModuleInit {
     const now = new Date();
     try {
       await this.timerRepository.updateRoomSessionStart(roomCode, now);
-    } catch (err) {
-      Sentry.captureException(err);
+    } catch {
       throw new InternalServerErrorException(
-        '세션 시작 중 오류가 발생했습니다. 다시 시도해주세요.',
+        '세션 시작 중 오류가 발생했습니다.',
       );
     }
-
     await this.roomService.updateRedisPhase(roomCode, 'timer');
 
     const responseData = {
@@ -398,11 +336,9 @@ export class TimerService implements OnModuleInit {
       totalRounds: template.rounds,
       serverTime: now,
     };
-
     await this.scheduleSessionJobs(roomCode, template);
     this.yjsGateway.destroyRoom(roomCode);
     this.roomGateway.server.to(roomCode).emit('session:started', responseData);
-
     return responseData;
   }
 
@@ -414,10 +350,6 @@ export class TimerService implements OnModuleInit {
       await this.penaltyService.calculateAndSaveForGiveUp(roomCode, memberId);
     } catch (err: unknown) {
       Sentry.captureException(err);
-      this.logger.error(
-        `give-up 벌칙 산정 실패 (room=${roomCode}, member=${memberId})`,
-        err as Error,
-      );
     }
   }
 
@@ -426,7 +358,6 @@ export class TimerService implements OnModuleInit {
     template: SessionTemplate,
   ): Promise<void> {
     await this.cancelSessionJobs(roomCode);
-
     const { focusMin, breakMin, rounds } = template;
     const totalMs = this.getSessionDurationMs(template);
 
@@ -438,26 +369,27 @@ export class TimerService implements OnModuleInit {
         delay: totalMs,
         removeOnComplete: true,
         removeOnFail: 100,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
       },
-    );
-    this.logger.log(
-      `[BullMQ] 세션 종료 잡 등록 (room=${roomCode}, delay=${totalMs}ms)`,
     );
 
     for (let r = 1; r < rounds; r++) {
       const notifyTimeMs = ((focusMin + breakMin) * r - 1) * 60 * 1000;
-      if (notifyTimeMs <= 0) continue;
-      await this.sessionQueue.add(
-        'break-warning',
-        { kind: 'break-warning', roomCode, round: r },
-        {
-          jobId: warnJobId(roomCode, r),
-          delay: notifyTimeMs,
-          removeOnComplete: true,
-          removeOnFail: 100,
-        },
-      );
-
+      if (notifyTimeMs > 0) {
+        await this.sessionQueue.add(
+          'break-warning',
+          { kind: 'break-warning', roomCode, round: r },
+          {
+            jobId: warnJobId(roomCode, r),
+            delay: notifyTimeMs,
+            removeOnComplete: true,
+            removeOnFail: 100,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 1000 },
+          },
+        );
+      }
       const breakStartMs = (focusMin * r + breakMin * (r - 1)) * 60 * 1000;
       await this.sessionQueue.add(
         'break-start',
@@ -467,11 +399,9 @@ export class TimerService implements OnModuleInit {
           delay: breakStartMs,
           removeOnComplete: true,
           removeOnFail: 100,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
         },
-      );
-
-      this.logger.log(
-        `[BullMQ] 휴식 알림 잡 등록 (room=${roomCode}, round=${r}, delay=${notifyTimeMs}ms)`,
       );
     }
   }
@@ -496,5 +426,10 @@ export class TimerService implements OnModuleInit {
     this.roomGateway.server
       .to(roomCode)
       .emit('escape:summary', { members: summary });
+  }
+
+  @OnEvent('room.closed')
+  async handleRoomClosed(payload: { roomCode: string }) {
+    await this.cancelSessionJobs(payload.roomCode);
   }
 }
