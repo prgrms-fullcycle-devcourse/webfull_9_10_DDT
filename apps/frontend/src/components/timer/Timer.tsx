@@ -310,7 +310,7 @@ export default function Timer() {
     <MobileLayout
       header={
         <HeaderTitle align='center' className={theme.textColor}>
-          {theme.statusText} {round} / {totalRounds}
+          {theme.statusText} {round} / {isFocus ? totalRounds : Math.max(0, totalRounds - 1)}
         </HeaderTitle>
       }
       bottomButton={
