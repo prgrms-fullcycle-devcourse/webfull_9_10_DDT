@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { useAuth } from '@/hooks/useAuth';
 import { TERMS_LOGIN_RETURN_TO_KEY } from '@/lib/authTerms';
+import { setAccessTokenCookie } from '@/lib/authToken';
 
 type TermsAgreement = {
   termsOfService: boolean;
@@ -70,7 +71,7 @@ export function OAuthMessageHandler() {
       const token = event.data.token;
       if (typeof token !== 'string' || !token) return;
 
-      document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24}`;
+      setAccessTokenCookie(token);
 
       const agreement = pendingTermsRef.current;
       void (async () => {

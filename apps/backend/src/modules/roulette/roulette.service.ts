@@ -223,9 +223,9 @@ export class RouletteService {
       totalEscapeMs: member.result?.totalEscapeMs ?? 0,
       penaltyPool,
       penalties,
-      rouletteEndsAt: member.room.endedAt
-        ? new Date(member.room.endedAt.getTime() + ROULETTE_TIMEOUT_MS)
-        : null,
+      rouletteEndsAt: new Date(
+        member.gaveUpAt!.getTime() + ROULETTE_TIMEOUT_MS,
+      ),
       serverTime: new Date(),
     };
   }

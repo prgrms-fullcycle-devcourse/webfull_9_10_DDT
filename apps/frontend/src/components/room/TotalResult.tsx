@@ -25,6 +25,7 @@ import { getProfileImageSrc } from '@/lib/profileImage';
 import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
 import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
+import { clearAccessTokenCookie } from '@/lib/authToken';
 
 type ResultPenaltyItem = {
   content: string;
@@ -101,11 +102,6 @@ const formatEscapeTime = (totalMs: number) => {
 
 const formatTierRange = (minPct: number, maxPct: number | null) =>
   maxPct === null ? `${minPct}% ~` : `${minPct} ~ ${maxPct}%`;
-
-const clearAccessTokenCookie = () => {
-  document.cookie =
-    'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-};
 
 const isGuestToken = () => {
   const token = getToken();

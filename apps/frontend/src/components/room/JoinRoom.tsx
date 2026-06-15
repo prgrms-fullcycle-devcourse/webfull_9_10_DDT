@@ -32,6 +32,7 @@ import { getErrorMessage } from '@/lib/error';
 import { useAuth } from '@/hooks/useAuth';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { queryKeys } from '@/lib/queryKeys';
+import { setAccessTokenCookie } from '@/lib/authToken';
 
 interface RoomInfo {
   title: string;
@@ -186,7 +187,7 @@ export const JoinRoom = () => {
       const res = await getAuthApi().authControllerGuestLogin();
       const data = res.data as { accessToken: string; guestToken: string };
 
-      document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400`;
+      setAccessTokenCookie(data.accessToken);
 
       await refetchMe();
 

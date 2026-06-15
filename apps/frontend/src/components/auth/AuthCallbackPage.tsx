@@ -16,6 +16,7 @@ import {
   TERMS_OAUTH_STARTED_KEY,
 } from '@/lib/authTerms';
 import { queryKeys } from '@/lib/queryKeys';
+import { setAccessTokenCookie } from '@/lib/authToken';
 
 const getApiUrl = () =>
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -37,7 +38,7 @@ export const AuthCallbackPage = () => {
         return;
       }
 
-      document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24}`;
+      setAccessTokenCookie(token);
 
       if (isCompleteTermsAgreement(agreement)) {
         const authApi = getAuthApi(axios.create({ baseURL: getApiUrl() }));
@@ -63,7 +64,9 @@ export const AuthCallbackPage = () => {
 
     void completeLogin().catch((error) => {
       console.error('Mobile OAuth Callback Error:', error);
-      setMessage('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
+      setMessage(
+        '로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.',
+      );
     });
   }, [queryClient, router, searchParams]);
 
