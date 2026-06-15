@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { Home } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 export default function RootError({
   error,
@@ -14,7 +13,6 @@ export default function RootError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const router = useRouter();
 
   useEffect(() => {
     Sentry.captureException(error);

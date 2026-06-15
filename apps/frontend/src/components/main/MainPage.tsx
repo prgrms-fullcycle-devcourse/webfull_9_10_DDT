@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
 import { cn } from '@/lib/utils';
