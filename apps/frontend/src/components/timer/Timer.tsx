@@ -145,14 +145,7 @@ export default function Timer() {
       toast.info('중도 포기 처리되었습니다.');
       setIsModalOpen(false);
 
-      if (me?.role === 'guest') {
-        document.cookie =
-          'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        sessionStorage.setItem('totalResultFrom', 'room');
-        router.push(`/room/${room.code}/total-result`);
-      } else {
-        router.push(`/room/${room.code}/roulette?from=giveup`);
-      }
+      router.push(`/room/${room.code}/roulette?from=giveup`);
     },
     onError: (error) => {
       const message = axios.isAxiosError(error)

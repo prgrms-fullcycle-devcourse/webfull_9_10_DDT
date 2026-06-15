@@ -147,7 +147,7 @@ export function Roulette() {
 
   const clearGuestSession = useCallback(() => {
     if (clearGuestAccessToken()) {
-      queryClient.setQueryData(['me'], null);
+      queryClient.setQueryData(queryKeys.auth.me(), null);
     }
   }, [queryClient]);
 
