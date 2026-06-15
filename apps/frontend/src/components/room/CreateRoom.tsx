@@ -157,11 +157,13 @@ export const CreateRoom = () => {
   const [shouldBlockBack, setShouldBlockBack] = useState(false);
 
   useEffect(() => {
-    const flag = sessionStorage.getItem('justLoggedIn');
-    if (flag === 'true') {
-      setShouldBlockBack(true);
-      sessionStorage.removeItem('justLoggedIn');
-    }
+    void Promise.resolve().then(() => {
+      const flag = sessionStorage.getItem('justLoggedIn');
+      if (flag === 'true') {
+        setShouldBlockBack(true);
+        sessionStorage.removeItem('justLoggedIn');
+      }
+    });
   }, []);
 
   useBlockBrowserBack({
