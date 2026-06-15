@@ -104,7 +104,7 @@ export const MainPage = () => {
         fill
         priority
         placeholder='blur'
-        sizes='(max-width: 390px) 100vw, 390px'
+        sizes='100vw'
         className='object-cover'
       />
 
@@ -150,11 +150,10 @@ export const MainPage = () => {
         <Image
           src={logoImg}
           alt='감옥'
-          width={596}
-          height={302}
+          width={160}
+          height={81}
           priority
           placeholder='blur'
-          className='w-[160px] h-auto'
         />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
