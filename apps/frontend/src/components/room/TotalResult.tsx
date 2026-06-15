@@ -121,6 +121,7 @@ const getPenaltyContents = (member: ResultMember) => member.penalties.items;
 
 export function TotalResult() {
   const [closeTarget] = useState(() => {
+    if (typeof window === 'undefined') return '/';
     const from = sessionStorage.getItem('totalResultFrom');
     if (from === 'mypage-history') return '/mypage/history';
     if (from === 'mypage') return '/mypage';
@@ -128,6 +129,7 @@ export function TotalResult() {
   });
 
   const [isFromRoulette] = useState(() => {
+    if (typeof window === 'undefined') return false;
     return sessionStorage.getItem('totalResultFrom') === 'room';
   });
   useBlockBrowserBack({ redirectTo: '/', enabled: isFromRoulette });
@@ -426,7 +428,7 @@ export function TotalResult() {
                               </AvatarFallback>
                             </Avatar>
                             <div className='min-w-0 flex-1'>
-                              <span className='truncate text-sm font-medium text-white/85'>
+                              <span className='block truncate text-sm font-medium text-white/85'>
                                 {member.nickname}
                                 {member.isHost ? ' (방장)' : ''}
                                 {isMe && !isSolo ? ' (본인)' : ''}

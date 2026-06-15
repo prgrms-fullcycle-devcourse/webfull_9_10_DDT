@@ -148,12 +148,12 @@ export const MyPage = () => {
     () => [
       {
         label: '참여한 방',
-        value: `${stats.totalRoomCount}회`,
+        value: `${stats.totalRoomCount}개`,
         className: 'col-span-1 row-span-2 bg-[#1D1C2C]',
         icon: true,
       },
       {
-        label: '총 완료 시간',
+        label: '총 집중 시간',
         value: formatDuration(stats.totalFocusMs),
         className: 'bg-[#0B241A]',
       },
@@ -249,7 +249,7 @@ export const MyPage = () => {
             >
               {card.label}
             </p>
-            <p className='mt-1 text-center text-[20px] font-extrabold leading-7 text-white/90'>
+            <p className='mt-1 text-center text-[17px] font-extrabold leading-7 text-white/90'>
               {card.value}
             </p>
             {card.icon ? (
