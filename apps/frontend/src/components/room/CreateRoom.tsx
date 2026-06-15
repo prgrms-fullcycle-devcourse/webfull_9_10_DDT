@@ -20,6 +20,7 @@ import { isMobileOrTablet } from '@/lib/device';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
+import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 
 type Step = 'form' | 'complete';
 /* ── 완료 화면 ── */
@@ -153,8 +154,27 @@ export const CreateRoom = () => {
   const { me, refetchMe } = useAuth();
   const isGuest = me?.role === 'guest';
 
+  const [shouldBlockBack, setShouldBlockBack] = useState(false);
+
+  useEffect(() => {
+    const flag = sessionStorage.getItem('justLoggedIn');
+    if (flag === 'true') {
+      setShouldBlockBack(true);
+      sessionStorage.removeItem('justLoggedIn');
+    }
+  }, []);
+
+  useBlockBrowserBack({
+    redirectTo: '/',
+    enabled: shouldBlockBack,
+  });
+
   const onBack = () => {
-    router.back();
+    if (shouldBlockBack) {
+      router.push('/');
+    } else {
+      router.back();
+    }
   };
 
   // 로그인 팝업(/terms) 열기

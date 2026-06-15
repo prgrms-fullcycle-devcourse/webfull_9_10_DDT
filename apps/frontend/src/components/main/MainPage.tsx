@@ -58,6 +58,7 @@ export const MainPage = () => {
   const router = useRouter();
   const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
   const activeRoom = useActiveRoom();
 
@@ -70,6 +71,11 @@ export const MainPage = () => {
     startTermsAgreementLogin(router.push);
   };
 
+  const handleLoginForCreateRoom = () => {
+    startTermsAgreementLogin(router.push, '/room');
+    setShowLoginDialog(false);
+  };
+
   const handleLogout = () => {
     logout();
   };
@@ -77,7 +83,7 @@ export const MainPage = () => {
   const handleCreateRoom = () => {
     if (isLoading) return;
     if (!isLoggedIn) {
-      toast.error('로그인하고 바로 이어가세요.', { id: 'auth-required' });
+      setShowLoginDialog(true);
       return;
     }
     router.push('/room');
@@ -248,6 +254,34 @@ export const MainPage = () => {
               className='flex-1 h-12 rounded-lg font-bold'
             >
               입장하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>로그인이 필요합니다</DialogTitle>
+            <DialogDescription>
+              방을 만들기 위해서는 로그인이 필요합니다.
+              <br />
+              로그인 하시겠어요?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant='secondary'
+              className='flex-1 h-12 rounded-lg'
+              onClick={() => setShowLoginDialog(false)}
+            >
+              아니요
+            </Button>
+            <Button
+              onClick={handleLoginForCreateRoom}
+              className='flex-1 h-12 rounded-lg font-bold'
+            >
+              로그인 하기
             </Button>
           </DialogFooter>
         </DialogContent>

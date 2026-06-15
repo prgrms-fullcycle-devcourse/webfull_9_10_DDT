@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
 import { useAuth } from '@/hooks/useAuth';
+import { TERMS_LOGIN_RETURN_TO_KEY } from '@/lib/authTerms';
 
 type TermsAgreement = {
   termsOfService: boolean;
@@ -79,6 +80,14 @@ export function OAuthMessageHandler() {
             pendingTermsRef.current = null;
           }
           await fetchMe();
+          const returnTo = sessionStorage.getItem(TERMS_LOGIN_RETURN_TO_KEY);
+          if (returnTo) {
+            sessionStorage.removeItem(TERMS_LOGIN_RETURN_TO_KEY);
+            if (returnTo === '/room') {
+              sessionStorage.setItem('justLoggedIn', 'true');
+            }
+            router.push(returnTo);
+          }
         } catch (error) {
           console.error('Terms Agreement Error:', error);
           alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
