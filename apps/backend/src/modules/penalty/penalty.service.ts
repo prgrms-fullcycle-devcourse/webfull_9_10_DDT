@@ -307,7 +307,6 @@ export class PenaltyService {
         tiers,
       );
       const { penaltyCount } = resolveForfeitTier(tiers);
-      const isForceAll = true;
 
       const existing = await tx.roomResult.findUnique({
         where: { roomMemberId: member.id },
@@ -330,7 +329,7 @@ export class PenaltyService {
               roomMemberId: member.id,
               content,
               count,
-              isRevealed: isForceAll,
+              isRevealed: false,
             })),
             skipDuplicates: true,
           });

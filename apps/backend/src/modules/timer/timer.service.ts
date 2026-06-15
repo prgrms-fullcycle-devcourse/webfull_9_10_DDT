@@ -24,11 +24,13 @@ import {
   endJobId,
   warnJobId,
   breakStartJobId,
+  revealJobId,
 } from './timer.queue';
 import { EscapeService } from '../escape/escape.service';
 import { TimerRepository } from './timer.repository';
 import { PushNotificationService } from './push-notification.service'; // ✅ 주입
 import { OnEvent } from '@nestjs/event-emitter';
+import { ROULETTE_TIMEOUT_MS } from '../result/result.service';
 
 const KICK_MAX_RETRIES = 2;
 const KICK_DISCONNECT_DELAY_MS = 100;
@@ -201,6 +203,26 @@ export class TimerService implements OnModuleInit {
     const now = new Date();
     await this.timerRepository.giveUpTransaction(member.id, now);
     await this.safeCalculateForGiveUp(roomCode, member.id);
+
+    await this.sessionQueue
+      .add(
+        'reveal-penalties',
+        {
+          kind: 'reveal-penalties',
+          roomCode,
+          memberId: member.id,
+        },
+        {
+          jobId: revealJobId(roomCode, member.id),
+          delay: ROULETTE_TIMEOUT_MS,
+          removeOnComplete: true,
+          removeOnFail: 100,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+        },
+      )
+      .catch(() => undefined);
+
     await this.timerRepository.saveGiveUpState(
       roomCode,
       userId,
@@ -222,6 +244,35 @@ export class TimerService implements OnModuleInit {
     return responseData;
   }
 
+  async revealPenalties(memberId: string): Promise<{ count: number }> {
+    return this.timerRepository.revealUnrevealedPenalties(memberId);
+  }
+
+  private async scheduleRevealJobs(roomCode: string): Promise<void> {
+    const memberIds = await this.timerRepository.findRoomMemberIds(roomCode);
+    await Promise.all(
+      memberIds.map((memberId) =>
+        this.sessionQueue
+          .add(
+            'reveal-penalties',
+            { kind: 'reveal-penalties', roomCode, memberId },
+            {
+              jobId: revealJobId(roomCode, memberId),
+              delay: ROULETTE_TIMEOUT_MS,
+              removeOnComplete: true,
+              removeOnFail: 100,
+              attempts: 3,
+              backoff: { type: 'exponential', delay: 1000 },
+            },
+          )
+          .catch(() => undefined),
+      ),
+    );
+    this.logger.log(
+      `[BullMQ] 벌칙 자동공개 잡 ${memberIds.length}건 등록 (room=${roomCode})`,
+    );
+  }
+
   async endSession(roomCode: string): Promise<void> {
     const room = await this.timerRepository.findRoomPhase(roomCode);
     if (!room || room.phase === 'result' || room.phase === 'closed') return;
@@ -239,6 +290,7 @@ export class TimerService implements OnModuleInit {
     this.roomGateway.server
       .to(roomCode)
       .emit('session:ended', { endedAt: now });
+    await this.scheduleRevealJobs(roomCode);
   }
 
   async onModuleInit(): Promise<void> {
@@ -436,8 +488,12 @@ export class TimerService implements OnModuleInit {
         breakStartJobId(roomCode, i + 1),
       ),
     ];
+    const memberIds = await this.timerRepository.findRoomMemberIds(roomCode);
+    const revealIds = memberIds.map((id) => revealJobId(roomCode, id));
     await Promise.all(
-      ids.map((id) => this.sessionQueue.remove(id).catch(() => undefined)),
+      [...ids, ...revealIds].map((id) =>
+        this.sessionQueue.remove(id).catch(() => undefined),
+      ),
     );
   }
 

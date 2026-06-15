@@ -163,4 +163,21 @@ export class TimerRepository {
       await this.updateMemberGaveUp(memberId, now, tx);
     });
   }
+
+  async revealUnrevealedPenalties(
+    memberId: string,
+  ): Promise<{ count: number }> {
+    return this.prisma.resultPenalty.updateMany({
+      where: { roomMemberId: memberId, isRevealed: false },
+      data: { isRevealed: true },
+    });
+  }
+
+  async findRoomMemberIds(roomCode: string): Promise<string[]> {
+    const members = await this.prisma.roomMember.findMany({
+      where: { roomCode },
+      select: { id: true },
+    });
+    return members.map((m) => m.id);
+  }
 }

@@ -209,10 +209,6 @@ export function Roulette() {
 
   // ── Exit/Skip handlers ──
   const handleExit = () => {
-    if (isGiveUpRoulette) {
-      moveToFinishTarget();
-      return;
-    }
     data.exitMutation.mutate(undefined, {
       onSuccess: () => {
         setIsDialogOpen(false);

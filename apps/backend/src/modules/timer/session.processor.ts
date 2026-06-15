@@ -37,6 +37,14 @@ export class SessionProcessor extends WorkerHost {
         await this.timerService.emitEscapeSummary(data.roomCode);
       } else if (data.kind === 'break-warning') {
         await this.timerService.sendBreakWarning(data.roomCode);
+      } else if (data.kind === 'reveal-penalties') {
+        const { roomCode, memberId } = data;
+        const { count } = await this.timerService.revealPenalties(memberId);
+        if (count > 0) {
+          this.logger.log(
+            `[BullMQ] 벌칙 자동공개 ${count}건 (room=${roomCode}, member=${memberId})`,
+          );
+        }
       }
       this.logger.log(
         `[BullMQ] 잡 실행 완료 (kind=${data.kind}, room=${data.roomCode})`,
