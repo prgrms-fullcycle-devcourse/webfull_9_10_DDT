@@ -103,7 +103,9 @@ PenaltyInput.displayName = 'PenaltyInput';
 
 export default function PenaltyList({ yjs }: PenaltyListProps) {
   const me = useAuth().me;
-  const members = useRoomStore((state) => state.members);
+  const myMember = useRoomStore((state) =>
+    me ? state.members[me.id] : undefined,
+  );
 
   const {
     addPenalty,
@@ -134,7 +136,6 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
 
   if (!me) return null;
 
-  const myMember = members[me!.id];
   const canEdit = myMember?.canEdit ?? false;
   const myNickname = myMember?.nickname ?? me.nickname;
   return (

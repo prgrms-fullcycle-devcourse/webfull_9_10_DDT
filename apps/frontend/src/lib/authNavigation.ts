@@ -10,11 +10,14 @@ const getCurrentPath = () => {
   return `${window.location.pathname}${window.location.search}`;
 };
 
-export const startTermsAgreementLogin = (redirect: (path: string) => void) => {
+export const startTermsAgreementLogin = (
+  redirect: (path: string) => void,
+  returnTo?: string,
+) => {
   if (typeof window === 'undefined') return;
 
   sessionStorage.removeItem(PENDING_TERMS_KEY);
-  sessionStorage.setItem(TERMS_LOGIN_RETURN_TO_KEY, getCurrentPath());
+  sessionStorage.setItem(TERMS_LOGIN_RETURN_TO_KEY, returnTo ?? getCurrentPath());
 
   if (isMobileOrTablet()) {
     redirect('/terms');

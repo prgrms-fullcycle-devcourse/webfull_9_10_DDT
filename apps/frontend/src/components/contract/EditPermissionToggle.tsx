@@ -5,12 +5,14 @@ import { useSocket } from '@/contexts/SocketContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoomStore } from '@/store/useRoomStore';
 import { Unlock, Lock } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 
 const EditPermissionToggle = () => {
   const socket = useSocket();
   const me = useAuth().me;
-  const members = useRoomStore((state) => state.members);
-  const hostId = useRoomStore((state) => state.hostId);
+  const { members, hostId } = useRoomStore(
+    useShallow((s) => ({ members: s.members, hostId: s.hostId })),
+  );
 
   const isHost = me?.id === hostId;
 

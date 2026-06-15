@@ -50,6 +50,10 @@ export const AuthCallbackPage = () => {
         });
       }
 
+      if (returnTo === '/room') {
+        sessionStorage.setItem('justLoggedIn', 'true');
+      }
+
       sessionStorage.removeItem(PENDING_TERMS_KEY);
       sessionStorage.removeItem(TERMS_LOGIN_RETURN_TO_KEY);
       sessionStorage.removeItem(TERMS_OAUTH_STARTED_KEY);

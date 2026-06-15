@@ -391,18 +391,20 @@ export class TimerService implements OnModuleInit {
         );
       }
       const breakStartMs = (focusMin * r + breakMin * (r - 1)) * 60 * 1000;
-      await this.sessionQueue.add(
-        'break-start',
-        { kind: 'break-start', roomCode, round: r },
-        {
-          jobId: breakStartJobId(roomCode, r),
-          delay: breakStartMs,
-          removeOnComplete: true,
-          removeOnFail: 100,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 1000 },
-        },
-      );
+      if (breakStartMs > 0) {
+        await this.sessionQueue.add(
+          'break-start',
+          { kind: 'break-start', roomCode, round: r },
+          {
+            jobId: breakStartJobId(roomCode, r),
+            delay: breakStartMs,
+            removeOnComplete: true,
+            removeOnFail: 100,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 1000 },
+          },
+        );
+      }
     }
   }
 

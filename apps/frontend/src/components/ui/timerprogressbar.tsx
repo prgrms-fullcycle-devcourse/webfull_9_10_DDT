@@ -90,7 +90,7 @@ export function TimerProgressBar({
           <span className="w-2 h-2 rounded-full bg-success"></span> 휴식
         </div>
         <div className="font-medium">
-          {currentSession}/{totalSessions} 세션
+          {currentSession}/{isFocus ? totalSessions : Math.max(0, totalSessions - 1)} 세션
         </div>
       </div>
     </div>

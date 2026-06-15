@@ -64,7 +64,7 @@ export default function Timer() {
       toast.error('이미 중도 포기한 세션입니다.');
       router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
-  }, [me, myMember?.gaveUpAt, room.code, router]);
+  }, [myMember?.gaveUpAt, room.code, router]);
 
   useEffect(() => {
     if (!sessionInfo) return;
@@ -145,14 +145,7 @@ export default function Timer() {
       toast.info('중도 포기 처리되었습니다.');
       setIsModalOpen(false);
 
-      if (me?.role === 'guest') {
-        document.cookie =
-          'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        sessionStorage.setItem('totalResultFrom', 'room');
-        router.push(`/room/${room.code}/total-result`);
-      } else {
-        router.push(`/room/${room.code}/roulette?from=giveup`);
-      }
+      router.push(`/room/${room.code}/roulette?from=giveup`);
     },
     onError: (error) => {
       const message = axios.isAxiosError(error)
@@ -317,7 +310,7 @@ export default function Timer() {
     <MobileLayout
       header={
         <HeaderTitle align='center' className={theme.textColor}>
-          {theme.statusText} {round} / {totalRounds}
+          {theme.statusText} {round} / {isFocus ? totalRounds : Math.max(0, totalRounds - 1)}
         </HeaderTitle>
       }
       bottomButton={
