@@ -134,7 +134,7 @@ export default function Timer() {
       return res.data;
     },
     onSuccess: () => {
-      toast.info('탈옥했어요.');
+      toast.error('탈옥했어요.');
       setIsModalOpen(false);
 
       router.push(`/room/${room.code}/roulette?from=giveup`);

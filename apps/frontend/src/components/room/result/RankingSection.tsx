@@ -1,15 +1,17 @@
 import { ThumbsUp } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { getProfileImageSrc } from '@/lib/profileImage';
 import { isMeMember } from '@/lib/member';
-import { formatEscapeTime, getMemberLabel } from './utils';
+import { formatEscapeTime } from './utils';
+import {
+  MemberTagBadges,
+  GaveUpBadge,
+} from '@/components/common/MemberTagBadges';
 import type { ResultMember } from './types';
 
 interface RankingSectionProps {
   members: ResultMember[];
   me: { id: string; role: string } | null;
-  isSolo: boolean;
   isNoDisruption?: boolean;
   showEscapeTime?: boolean;
 }
@@ -17,7 +19,6 @@ interface RankingSectionProps {
 export function RankingSection({
   members,
   me,
-  isSolo,
   isNoDisruption = false,
   showEscapeTime = true,
 }: RankingSectionProps) {
@@ -30,11 +31,18 @@ export function RankingSection({
         {members.map((member) => {
           const isMe = isMeMember(me, member);
           const profileImageSrc = getProfileImageSrc(member.profileImage);
+          const showGaveUp = !!member.gaveUpAt && !isNoDisruption;
+          // 이탈 시간 강조: 0초 초과면 bold/흰75%, 0분 00초면 regular
+          const escapeTimeClass = !showEscapeTime
+            ? 'font-medium text-slate-400'
+            : member.totalEscapeMs > 0
+              ? 'font-bold text-white/75'
+              : 'font-normal text-slate-400';
 
           return (
             <div
               key={member.memberId}
-              className='flex items-center justify-between border-b border-slate-800/50 px-4 py-3 last:border-b-0'
+              className='flex items-center justify-between gap-2 border-b border-slate-800/50 px-4 py-3 last:border-b-0'
             >
               <div className='flex min-w-0 items-center gap-3'>
                 {member.isAllClear || isNoDisruption ? (
@@ -55,26 +63,17 @@ export function RankingSection({
                     {member.nickname.slice(0, 1)}
                   </AvatarFallback>
                 </Avatar>
-                <div className='min-w-0'>
-                  <div className='flex min-w-0 items-center gap-1.5'>
-                    <span
-                      className={`truncate text-sm font-semibold ${member.gaveUpAt ? 'text-destructive' : 'text-slate-100'}`}
-                    >
-                      {getMemberLabel(member.nickname, {
-                        isMe,
-                        isHost: member.isHost,
-                        isSolo,
-                      })}
-                    </span>
-                    {member.gaveUpAt && !isNoDisruption ? (
-                      <Badge className='h-5 shrink-0 border-none bg-destructive px-1.5 text-[10px] font-bold text-white hover:bg-destructive'>
-                        탈옥
-                      </Badge>
-                    ) : null}
-                  </div>
+                <div className='flex min-w-0 items-center gap-1'>
+                  <span
+                    className={`truncate text-sm ${isMe ? 'font-bold' : 'min-w-[3ch] font-normal'} ${member.gaveUpAt ? 'text-destructive' : 'text-slate-100'}`}
+                  >
+                    {isMe ? '나' : member.nickname}
+                  </span>
+                  {showGaveUp ? <GaveUpBadge /> : null}
+                  <MemberTagBadges isHost={member.isHost} />
                 </div>
               </div>
-              <span className='shrink-0 text-xs font-medium text-slate-400'>
+              <span className={`shrink-0 text-xs ${escapeTimeClass}`}>
                 {showEscapeTime
                   ? formatEscapeTime(member.totalEscapeMs)
                   : !isNoDisruption && member.penalties.totalCount > 0

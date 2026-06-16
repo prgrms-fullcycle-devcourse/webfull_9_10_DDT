@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { MemberTagBadges } from '../common/MemberTagBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -111,11 +112,9 @@ export default function MemberSignList() {
                   </span>
                 )}
               </div>
-              <div className='flex gap-1 items-end'>
-                <span>(나)</span>
-                {isHost && (
-                  <span className='text-xs text-muted-foreground'>(방장)</span>
-                )}
+              <div className='flex items-center gap-1'>
+                <span className='font-bold'>나</span>
+                <MemberTagBadges isHost={isHost} />
               </div>
             </div>
             <Button
@@ -178,9 +177,9 @@ export default function MemberSignList() {
                           </span>
                         )}
                       </div>
-                      <div>
+                      <div className='flex items-center gap-1'>
                         <span>{m.nickname}</span>
-                        {isThisHost && <span>(방장)</span>}
+                        <MemberTagBadges isHost={isThisHost} />
                       </div>
                     </div>
                     {isHost && (

@@ -1,7 +1,11 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { FormInput } from '@/components/ui/form-input';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
 import {
   Dialog,
   DialogContent,
@@ -228,16 +232,28 @@ export const MainPage = () => {
               입장하실 방 코드를 입력해주세요.
             </DialogDescription>
           </DialogHeader>
-          <FormInput
-            type='text'
-            placeholder='코드 8자리를 입력해주세요'
-            maxLength={8}
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleEnterByCode();
-            }}
-          />
+          <div className='flex flex-col gap-2 py-2'>
+            <InputOTP
+              maxLength={8}
+              pattern='^[A-Za-z0-9_-]*$'
+              value={roomCode}
+              onChange={(value) => setRoomCode(value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleEnterByCode();
+              }}
+              containerClassName='w-full'
+            >
+              <InputOTPGroup className='w-full justify-between gap-1.5'>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <InputOTPSlot
+                    key={i}
+                    index={i}
+                    className='h-12 flex-1 rounded-md border border-white/15 bg-black/40 shadow-none first:rounded-l-md last:rounded-r-md data-[active=true]:ring-2 data-[active=true]:ring-ring/30 dark:bg-black/40'
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
           <DialogFooter>
             <Button
               variant='secondary'

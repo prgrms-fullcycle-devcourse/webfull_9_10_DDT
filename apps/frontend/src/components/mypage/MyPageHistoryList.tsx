@@ -49,6 +49,10 @@ export const MyPageHistoryList = ({
   const handleClick = () => {
     if (from) {
       sessionStorage.setItem('totalResultFrom', from);
+      // 전체 참여 기록 → 통합결과 진입일 때만, 복귀 시 스크롤 복원용 1회성 플래그를 남긴다
+      if (from === 'mypage-history') {
+        sessionStorage.setItem('mypageHistoryScrollRestore', '1');
+      }
     }
   };
 

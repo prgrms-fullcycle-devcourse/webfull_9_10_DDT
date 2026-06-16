@@ -11,10 +11,16 @@ export const formatSessionTime = (totalMs: number | null): string => {
 };
 
 export const formatEscapeTime = (totalMs: number): string => {
-  const totalSeconds = Math.floor(totalMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const totalSeconds = Math.max(0, Math.floor(totalMs / 1000)); // 음수/NaN 방어
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}분 ${seconds.toString().padStart(2, '0')}초`;
+  const ss = seconds.toString().padStart(2, '0');
+  // 1시간 이상이면 시 단위까지 표기 (분이 무한정 커지지 않도록)
+  if (hours > 0) return `${hours}시간 ${minutes}분 ${ss}초`;
+  // 60초 미만이면 "0분"을 숨기고 초만 표기
+  if (minutes === 0) return `${seconds}초`;
+  return `${minutes}분 ${ss}초`;
 };
 
 export const formatTierRange = (
@@ -24,13 +30,3 @@ export const formatTierRange = (
 
 export const getUnknownPenaltyCount = (member: ResultMember): number =>
   Math.max(0, member.penalties.totalCount - member.penaltyCount);
-
-export const getMemberLabel = (
-  nickname: string,
-  options: { isMe: boolean; isHost: boolean; isSolo: boolean },
-): string => {
-  const tags: string[] = [];
-  if (options.isMe && !options.isSolo) tags.push('나');
-  if (options.isHost) tags.push('방장');
-  return tags.length > 0 ? `${nickname} (${tags.join(', ')})` : nickname;
-};

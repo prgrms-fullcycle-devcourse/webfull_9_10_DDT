@@ -4,16 +4,16 @@ import { ChevronDown, ThumbsUp } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProfileImageSrc } from '@/lib/profileImage';
 import { isMeMember } from '@/lib/member';
-import { getMemberLabel, getUnknownPenaltyCount } from './utils';
+import { getUnknownPenaltyCount } from './utils';
+import { MemberTagBadges } from '@/components/common/MemberTagBadges';
 import type { ResultMember } from './types';
 
 interface PenaltySectionProps {
   members: ResultMember[];
   me: { id: string; role: string } | null;
-  isSolo: boolean;
 }
 
-export function PenaltySection({ members, me, isSolo }: PenaltySectionProps) {
+export function PenaltySection({ members, me }: PenaltySectionProps) {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const toggle = useCallback((memberId: string) => {
@@ -62,14 +62,13 @@ export function PenaltySection({ members, me, isSolo }: PenaltySectionProps) {
                       {member.nickname.slice(0, 1)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className='min-w-0 flex-1'>
-                    <span className='block truncate text-sm font-medium text-white/85'>
-                      {getMemberLabel(member.nickname, {
-                        isMe,
-                        isHost: member.isHost,
-                        isSolo,
-                      })}
+                  <div className='flex min-w-0 flex-1 items-center gap-1'>
+                    <span
+                      className={`truncate text-sm ${isMe ? 'font-bold' : 'min-w-[3ch] font-medium'} text-white/85`}
+                    >
+                      {isMe ? '나' : member.nickname}
                     </span>
+                    <MemberTagBadges isHost={member.isHost} />
                   </div>
                   <span
                     className={`shrink-0 text-sm ${isPending ? 'text-white/45' : 'text-white/75'}`}

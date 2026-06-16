@@ -46,7 +46,6 @@ export function SemiResult() {
   const shouldShowRoulette = (myResult?.remainingSpins ?? 0) > 0;
   const canDecideNextRoute = !!result && !!me && !!myResult;
   const isNoDisruption = !!result && (result.penaltyMemberCount ?? 0) === 0;
-  const isSolo = rankedMembers.length <= 1;
   const totalTime = formatSessionTime(result?.totalSessionMs ?? null);
   const completedSessions = result?.rule
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
@@ -122,7 +121,6 @@ export function SemiResult() {
             <RankingSection
               members={rankedMembers}
               me={me}
-              isSolo={isSolo}
               isNoDisruption={isNoDisruption}
               showEscapeTime={false}
             />
