@@ -5,8 +5,6 @@ import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
-import { HeaderTitle } from '@/components/layout/HeaderTitle';
-import { MobileLayout } from '@/components/layout/mobileLayout';
 import Loading from '@/components/ui/loading';
 import {
   isCompleteTermsAgreement,
@@ -70,12 +68,5 @@ export const AuthCallbackPage = () => {
     });
   }, [queryClient, router, searchParams]);
 
-  return (
-    <MobileLayout header={<HeaderTitle>로그인</HeaderTitle>}>
-      <div className='flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center text-white/70'>
-        <Loading />
-        <p className='text-sm'>{message}</p>
-      </div>
-    </MobileLayout>
-  );
+  return <Loading label={message} />;
 };

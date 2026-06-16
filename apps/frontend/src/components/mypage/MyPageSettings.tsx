@@ -11,6 +11,15 @@ interface MyPageSettingsProps {
   onLogout: () => void;
 }
 
+/**
+ * 마이페이지 헤더의 설정 버튼과 드롭다운(프로필 수정·로그아웃) 메뉴.
+ * 바깥 클릭 감지를 위해 부모(MyPage)가 컨테이너 ref를 받을 수 있도록 forwardRef로 구현한다.
+ *
+ * @param isOpen - 드롭다운 열림 여부
+ * @param onToggle - 설정 버튼 클릭 시 열림 토글
+ * @param onClose - 메뉴 항목 선택 등으로 드롭다운을 닫을 때 호출
+ * @param onLogout - 로그아웃 메뉴 선택 시 호출(로그아웃 확인 흐름은 부모가 처리)
+ */
 export const MyPageSettings = forwardRef<HTMLDivElement, MyPageSettingsProps>(
   ({ isOpen, onToggle, onClose, onLogout }, ref) => (
     <div className='relative' ref={ref}>

@@ -23,6 +23,10 @@ const PROFILE_IMAGE_KEYS = [
   'basic_image_key_10',
 ];
 
+/**
+ * 가입 시 부여할 기본 프로필 이미지 키를 무작위로 하나 선택합니다.
+ * @returns {string} PROFILE_IMAGE_KEYS 중 무작위로 뽑은 키 1개
+ */
 const getRandomProfileImage = () =>
   PROFILE_IMAGE_KEYS[Math.floor(Math.random() * PROFILE_IMAGE_KEYS.length)];
 
@@ -57,6 +61,11 @@ export class AuthService {
     private readonly redisService: RedisService,
   ) {}
 
+  /**
+   * 구글 프로필로 기존 회원을 조회하고, 없으면 신규 가입시킵니다.
+   * @param {GoogleProfile} profile - 구글 OAuth가 전달한 프로필(id/email/nickname)
+   * @returns {Promise<User>} 조회 또는 신규 생성된 사용자 엔티티
+   */
   async validateOAuthLogin(profile: GoogleProfile): Promise<User> {
     const { id, email, nickname } = profile;
 
@@ -81,6 +90,11 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * 로그인 사용자용 JWT 액세스 토큰을 발급합니다.
+   * @param {User} user - 토큰 페이로드에 담을 사용자 엔티티
+   * @returns {string} 서명된 JWT 문자열
+   */
   generateJwt(user: User): string {
     const payload = {
       sub: user.id,
@@ -92,16 +106,27 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
+  /**
+   * 비회원(게스트)용 임시 JWT와 게스트 식별자를 발급합니다.
+   * @returns {GuestTokenResult} accessToken(12h 만료)과 guestToken
+   */
   generateGuestToken(): GuestTokenResult {
     const guestId = `guest_${uuidv4()}`;
     const payload = { sub: guestId, role: 'guest', jti: uuidv4() };
 
     return {
+      // 게스트는 비영속 임시 참여자이므로 12시간 단기 만료로 제한
       accessToken: this.jwtService.sign(payload, { expiresIn: '12h' }),
       guestToken: guestId,
     };
   }
 
+  /**
+   * 필수 약관 3종 동의를 검증하고 사용자의 동의 상태를 갱신합니다.
+   * @param {string} userId - 동의를 처리할 사용자 ID
+   * @param {AgreeTermsDto} termsDto - 약관 동의 여부 플래그 묶음
+   * @returns {Promise<{ success: boolean }>} 처리 성공 여부
+   */
   async agreeTerms(
     userId: string,
     termsDto: AgreeTermsDto,
@@ -117,6 +142,7 @@ export class AuthService {
       throw new UnauthorizedException('인증이 필요합니다.');
     }
 
+    // 이미 동의한 계정은 재호출돼도 멱등하게 성공 처리(중복 업데이트 방지)
     if (user.isTermsAgreed) {
       return { success: true };
     }
@@ -129,6 +155,11 @@ export class AuthService {
     return { success: true };
   }
 
+  /**
+   * JWT를 Redis 블랙리스트에 등록하여 만료 시점까지 무효화(로그아웃)합니다.
+   * @param {string} token - 무효화할 JWT 문자열
+   * @returns {Promise<{ success: boolean }>} 처리 성공 여부
+   */
   async logout(token: string): Promise<{ success: boolean }> {
     try {
       const decoded: unknown = this.jwtService.decode(token);
@@ -147,6 +178,7 @@ export class AuthService {
       const expirationTime = exp - Math.floor(Date.now() / 1000);
       const jti = (decoded as JwtPayload).jti;
 
+      // 남은 만료 시간(초)만큼만 TTL을 잡아, 토큰 자연 만료 후 Redis에서 자동 정리되게 한다.
       if (expirationTime > 0) {
         await this.redisService.instance.set(
           `blacklist:${jti}`,

@@ -20,9 +20,9 @@ export const startTermsAgreementLogin = (
   sessionStorage.setItem(TERMS_LOGIN_RETURN_TO_KEY, returnTo ?? getCurrentPath());
 
   if (isMobileOrTablet()) {
-    redirect('/terms');
+    redirect('/terms?clear=true');
     return;
   }
 
-  window.open(TERMS_POPUP_PATH, 'Terms Agreement', TERMS_POPUP_FEATURES);
+  window.open(`${TERMS_POPUP_PATH}&clear=true`, 'Terms Agreement', TERMS_POPUP_FEATURES);
 };

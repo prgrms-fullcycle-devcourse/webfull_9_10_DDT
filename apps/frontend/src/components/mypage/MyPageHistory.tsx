@@ -11,19 +11,10 @@ import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 
 const PAGE_SIZE = 10;
 
-// 통합결과를 보고 돌아왔을 때 목록·스크롤을 복원하기 위한 세션 캐시/플래그
-const HISTORY_CACHE_KEY = 'mypage-history-cache';
-const RESTORE_FLAG_KEY = 'mypageHistoryScrollRestore';
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30분 지난 캐시는 무시
-
-type HistoryCache = {
-  history: HistoryItem[];
-  total: number;
-  page: number;
-  scrollY: number;
-  savedAt: number;
-};
-
+/**
+ * 전체 참여 기록 화면. IntersectionObserver 기반 무한 스크롤로 기록을 페이지 단위(10건)로 누적 로드한다.
+ * 전체(1페이지) 실패와 추가 페이지(부분) 실패를 분리해 처리하며, 추가 로드 실패 시 자동 재요청을 멈추고 재시도 버튼을 노출한다.
+ */
 export function MyPageHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [total, setTotal] = useState(0);

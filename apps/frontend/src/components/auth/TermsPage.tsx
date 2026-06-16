@@ -42,12 +42,28 @@ const resetAgreementAfterReload = () => {
 };
 
 export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
-  const [agreement, setAgreement] = useState<TermsAgreement>(() =>
-    resetAgreementAfterOAuthBack() || resetAgreementAfterReload()
+  const [agreement, setAgreement] = useState<TermsAgreement>(() => {
+    if (
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('clear') === 'true'
+    ) {
+      return EMPTY_TERMS_AGREEMENT;
+    }
+    return resetAgreementAfterOAuthBack() || resetAgreementAfterReload()
       ? EMPTY_TERMS_AGREEMENT
-      : (readPendingTerms() ?? EMPTY_TERMS_AGREEMENT),
-  );
+      : (readPendingTerms() ?? EMPTY_TERMS_AGREEMENT);
+  });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('clear') === 'true') {
+        url.searchParams.delete('clear');
+        window.history.replaceState(null, '', url.toString());
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handlePageShow = () => {
