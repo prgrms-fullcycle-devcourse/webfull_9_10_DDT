@@ -151,7 +151,8 @@ export function Roulette() {
           ? data.giveUpSpinResults[pickedSpins]
           : await data.spinMutation.mutateAsync(nextSpinIndex);
         if (skipInitiatedRef.current || !spinResult) {
-          if (!spinResult) setSpinErrorMessage('벌칙 룰렛 결과를 찾을 수 없어요.');
+          if (!spinResult)
+            setSpinErrorMessage('벌칙 룰렛 결과를 찾을 수 없어요.');
           return;
         }
         const idx = data.rouletteItems.findIndex(
@@ -492,7 +493,9 @@ export function Roulette() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>결정할 벌칙이 아직 남았어요.</DialogTitle>
-            <DialogDescription>벌칙이 자동으로 결정돼요.</DialogDescription>
+            <DialogDescription>
+              지금 나가면 벌칙이 자동으로 결정돼요.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

@@ -142,7 +142,7 @@ export default function Timer() {
       return res.data;
     },
     onSuccess: () => {
-      toast.info('탈옥했어요.');
+      toast.error('탈옥했어요.');
       setIsModalOpen(false);
 
       router.push(`/room/${room.code}/roulette?from=giveup`);
@@ -321,7 +321,7 @@ export default function Timer() {
               type='button'
               className='w-full h-12 rounded-[14px] text-base font-bold bg-transparent border border-border text-muted-foreground hover:bg-muted/30 transition-colors'
             >
-              탈옥
+              탈옥하기
             </Button>
           </DialogTrigger>
           <DialogContent>
