@@ -20,6 +20,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
+  /**
+   * 구글 OAuth 인증 성공 시 호출되어, 후속 처리에 쓸 사용자 정보를 정규화합니다.
+   * @param {string} _accessToken - 구글 액세스 토큰(미사용)
+   * @param {string} _refreshToken - 구글 리프레시 토큰(미사용)
+   * @param {GoogleProfile} profile - 구글이 내려준 원본 프로필
+   * @param {VerifyCallback} done - 정규화된 사용자 정보를 넘길 콜백
+   * @returns {void}
+   */
   validate(
     _accessToken: string,
     _refreshToken: string,
