@@ -157,7 +157,6 @@ export const MainPage = () => {
           width={160}
           height={81}
           priority
-          placeholder='blur'
         />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
