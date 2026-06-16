@@ -2,16 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
-import Loading from '@/components/ui/loading';
+import { RoomLoading } from '@/components/room/RoomLoading';
 import { Button } from '@/components/ui/button';
 import { CountableInput } from '@/components/common/CountableInput';
 import { PasswordInput } from '@/components/common/PasswordInput';
-import { FormInput } from '@/components/ui/form-input';
-import { Label } from '@/components/ui/label';
 import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import {
   Dialog,
@@ -45,6 +42,10 @@ interface RoomInfo {
   isHost: boolean;
 }
 
+/**
+ * 방 코드(`/room/[code]`)로 진입한 사용자가 닉네임·프로필(·비밀번호)을 입력해 방에 입장하는 페이지 컴포넌트.
+ * 로그인/게스트 계정 선택, 방 상태별(timer/result/없거나 폭파된 방) 리다이렉트, 방장/참여자에 따른 비밀번호 요구 분기를 처리한다.
+ */
 export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
@@ -55,15 +56,11 @@ export const JoinRoom = () => {
   const isMember = isLoggedIn && me?.role === 'user';
   const defaultNickname = isMember ? (me?.nickname ?? '') : '';
 
-  // 게스트는 초기 프로필을 랜덤으로 1회만 부여한다. SSR Hydration 방지를 위해 초기값 0.
-  const [guestRandomProfile, setGuestRandomProfile] = useState(0);
+  // 게스트는 초기 프로필을 랜덤으로 1회만 부여한다. (회원은 이 값을 쓰지 않음)
+  // 폼은 방 데이터 로딩 완료 후 렌더되므로 SSR/hydration 시점엔 노출되지 않아 mismatch가 없다.
+  const [guestRandomProfile] = useState(() => getRandomProfileIndex());
 
-  useEffect(() => {
-    if (!isMember) {
-      setGuestRandomProfile(getRandomProfileIndex());
-    }
-  }, [isMember]);
-
+  // 회원은 등록된 프로필을 기본 선택으로 맞추고, 매칭 실패 시 첫 번째(0)로 폴백한다.
   const defaultProfile = (() => {
     if (!isMember) return guestRandomProfile;
     const optionKey = getProfileImageOptionKey(me?.profileImage);
@@ -114,6 +111,7 @@ export const JoinRoom = () => {
 
   const isHost = room?.isHost ?? false;
 
+  // 방장은 자기 방에 비밀번호 없이 입장하므로 닉네임만 검증한다. 참여자는 비밀번호(4~12자)까지 필요.
   const isValid =
     nickname.trim().length > 0 &&
     (isHost || (password.length >= 4 && password.length <= 12));
@@ -190,6 +188,7 @@ export const JoinRoom = () => {
 
       await refetchMe();
 
+      // 게스트 토큰 발급·me 갱신이 끝난 뒤 계정 선택 다이얼로그를 닫아 입장 폼으로 넘긴다.
       setDialogDismissed(true);
     } catch (error) {
       toast.error(getErrorMessage(error, '게스트 시작 실패'));
@@ -207,6 +206,7 @@ export const JoinRoom = () => {
   };
 
   // 로딩 중 또는 위 effect가 리다이렉트로 처리하는 방이면 폼 대신 로딩 UI를 보여준다.
+  // RoomLoading은 MobileLayout(헤더 유지) 안에 렌더되어, 로딩→입장 폼 전환 시 레이아웃 점프가 없다.
   if (
     isRoomLoading ||
     isRoomInvalid ||
@@ -214,7 +214,7 @@ export const JoinRoom = () => {
     room?.phase === 'timer' ||
     room?.phase === 'result'
   ) {
-    return <Loading label='방 정보를 불러오는 중...' />;
+    return <RoomLoading />;
   }
 
   return (

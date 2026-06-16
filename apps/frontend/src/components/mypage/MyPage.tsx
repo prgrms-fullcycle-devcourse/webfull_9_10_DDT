@@ -52,6 +52,10 @@ const emptyStats: UserStats = {
 
 const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+/**
+ * 마이페이지 메인 화면. 프로필, 누적 통계(참여 방 수·집중/이탈 시간), 최근 참여 기록 3건을 보여주고
+ * 방 복귀/생성 이동, 설정(프로필 수정·로그아웃) 진입을 제공한다.
+ */
 export const MyPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats>(emptyStats);
@@ -109,6 +113,7 @@ export const MyPage = () => {
       }
     };
 
+    // 프로필과 통계/기록을 독립 호출로 분리해, 한쪽이 실패해도 다른 쪽은 정상 표시되게 한다.
     void loadProfile();
     void loadStatsAndHistory();
   }, []);

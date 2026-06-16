@@ -39,6 +39,10 @@ type UserProfile = {
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 20;
 
+/**
+ * 프로필 수정 화면. 닉네임(2~20자)·프로필 이미지를 수정해 저장하거나 회원 탈퇴를 처리한다.
+ * 저장 성공 시 전역 me를 갱신하고 마이페이지로 복귀한다. RequireAuth로 로그인 사용자만 접근 가능.
+ */
 export function MyPageEdit() {
   const router = useRouter();
   const [nickname, setNickname] = useState('');
