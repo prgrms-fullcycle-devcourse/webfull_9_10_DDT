@@ -168,8 +168,15 @@ export const MainPage = () => {
           집중한다.
         </p>
 
-        <span className='mt-5 inline-block w-fit rounded-md bg-white/10 px-3 py-2 text-sm font-medium text-white/75 '>
-          서명하고 집중하고 벌칙으로 마무리한다.
+        <span className='relative mt-5 inline-block w-fit'>
+          {/* 슬로건 뒤에 겹쳐 깔리는 black/10 배경 박스 (z축 한 단계 아래) */}
+          <span
+            aria-hidden='true'
+            className='absolute inset-0 rounded-md bg-black/40'
+          />
+          <span className='relative z-10 inline-block rounded-md bg-white/10 px-3 py-2 text-sm font-medium text-white/75'>
+            서명하고 집중하고 벌칙으로 마무리한다.
+          </span>
         </span>
 
         <div className='flex-1' />

@@ -31,7 +31,7 @@ export function ForfeitDialog({
           type='button'
           className='w-full h-12 rounded-[14px] text-base font-bold bg-transparent border border-border text-muted-foreground hover:bg-muted/30 transition-colors'
         >
-          탈옥
+          탈옥하기
         </Button>
       </DialogTrigger>
       <DialogContent>

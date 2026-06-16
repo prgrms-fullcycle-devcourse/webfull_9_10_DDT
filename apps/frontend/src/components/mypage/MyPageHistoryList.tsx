@@ -12,6 +12,7 @@ export type HistoryItem = {
   penaltyTier: number;
   memberCount: number;
   endedAt: string;
+  gaveUp?: boolean;
 };
 
 const getPenaltyTextColor = (milliseconds: number) => {
@@ -92,6 +93,12 @@ export const MyPageHistoryList = ({
                 >
                   내 이탈 {formatDuration(item.totalEscapeMs)}
                 </span>
+                {item.gaveUp && (
+                  <>
+                    <span className='ml-2 text-[10px]'>|</span>
+                    <span className='ml-2 text-destructive'>탈옥</span>
+                  </>
+                )}
               </p>
             </div>
             <ChevronRight
