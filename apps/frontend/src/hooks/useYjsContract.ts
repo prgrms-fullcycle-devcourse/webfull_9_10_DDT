@@ -44,10 +44,20 @@ export function useYjsContract(
   const [fieldOwners, setFieldOwners] = useState<Record<string, FocusedField>>(
     {},
   );
+  const [debouncedEnabled, setDebouncedEnabled] = useState(false);
 
   const yjsFieldsRef = useRef<Y.Map<number> | null>(null);
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = setTimeout(() => setDebouncedEnabled(true), 150);
+    return () => {
+      clearTimeout(timer);
+      setDebouncedEnabled(false);
+    };
+  }, [enabled]);
 
   // isHost는 effect 재실행을 피하기 위해 ref로 추적한다.
   const isHostRef = useRef(isHost);
@@ -182,7 +192,7 @@ export function useYjsContract(
       yjsPenaltiesRef.current = null;
       setIsConnected(false);
     };
-  }, [roomCode, enabled]);
+  }, [roomCode, enabled, debouncedEnabled]);
 
   const handleFocus = useCallback(
     (fieldKey: string, userId: string, nickname: string) => {

@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { getToken } from '@/lib/getToken';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 import { queryKeys } from '@/lib/queryKeys';
+import { clearAccessTokenCookie } from '@/lib/authToken';
 
 interface JwtPayload {
   sub: string;
@@ -72,8 +73,7 @@ export function useAuth() {
   });
 
   const logout = useCallback(() => {
-    document.cookie =
-      'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    clearAccessTokenCookie();
     queryClient.setQueryData(queryKeys.auth.me(), null);
   }, [queryClient]);
 

@@ -9,27 +9,19 @@ import { getTimerApi } from '@/api/generated/timer-api-타이머-및-세션-제�
 import { useRoom } from '@/contexts/RoomContext';
 import { useSocket } from '@/contexts/SocketContext';
 import { EscapeSummaryItem, useRoomStore } from '@/store/useRoomStore';
-import { Button } from '@/components/ui/button';
 import { MobileLayout } from '@/components/layout/mobileLayout';
-import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { TimerProgressBar } from '@/components/ui/timerprogressbar';
 import { TimerCircle } from '@/components/ui/timercircle';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDuration } from '@/lib/format';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
-import { getToken } from '@/lib/getToken';
+import { TimerHeader } from './TimerHeader';
+import { WakeLockAlert } from './WakeLockAlert';
+import { EscapeStatsCard } from './EscapeStatsCard';
+import { ForfeitDialog } from './ForfeitDialog';
+import { usePushSubscription } from './usePushSubscription';
+import { useFocusEscapeTracking } from './useFocusEscapeTracking';
 
 export default function Timer() {
   useBlockBrowserBack();
@@ -54,14 +46,11 @@ export default function Timer() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const isFocusRef = useRef(true);
   const isCheckingRoomPhaseRef = useRef(false);
-
-  const isEscapingRef = useRef(false);
 
   useEffect(() => {
     if (myMember?.gaveUpAt) {
-      toast.error('이미 중도 포기한 세션입니다.');
+      toast.error('이미 탈옥한 방이예요.');
       router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
   }, [myMember?.gaveUpAt, room.code, router]);
@@ -99,42 +88,8 @@ export default function Timer() {
       );
   }, [room.code, setEscapeSummary]);
 
-  useEffect(() => {
-    async function subscribeToPush() {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-      try {
-        if (Notification.permission !== 'granted') return;
-
-        const registration = await navigator.serviceWorker.ready;
-        let subscription = await registration.pushManager.getSubscription();
-
-        if (!subscription) {
-          const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-          if (!publicVapidKey) return;
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
-          });
-        }
-
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
-          {
-            subscription: subscription,
-            platform: 'web',
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${getToken() ?? ''}`,
-            },
-          },
-        );
-      } catch (error) {
-        console.error('푸시 알림 설정 실패:', error);
-      }
-    }
-    subscribeToPush();
-  }, [room.code]);
+  // 푸시 알림 권한 획득 및 서버 전송 훅 분리
+  usePushSubscription(room.code);
 
   const giveUpMutation = useMutation({
     mutationFn: async () => {
@@ -142,7 +97,7 @@ export default function Timer() {
       return res.data;
     },
     onSuccess: () => {
-      toast.info('중도 포기 처리되었습니다.');
+      toast.error('탈옥했어요.');
       setIsModalOpen(false);
 
       router.push(`/room/${room.code}/roulette?from=giveup`);
@@ -151,7 +106,7 @@ export default function Timer() {
       const message = axios.isAxiosError(error)
         ? (error.response?.data as { message?: string })?.message
         : undefined;
-      toast.error(message ?? '중도 포기 처리에 실패했습니다.');
+      toast.error(message ?? '탈옥에 실패했어요.');
     },
   });
 
@@ -189,21 +144,6 @@ export default function Timer() {
   const phaseTotalSec = Math.ceil(phaseTotalMs / 1000);
   const focusDurationSec = (sessionInfo?.focusMin ?? 0) * 60;
   const breakDurationSec = (sessionInfo?.breakMin ?? 0) * 60;
-
-  const lastEscapeStartRef = useRef<number>(0);
-
-  const emitEscapeStart = useCallback(() => {
-    const now = Date.now();
-    if (now - lastEscapeStartRef.current < 300) return;
-
-    lastEscapeStartRef.current = now;
-    isEscapingRef.current = true;
-    socket?.emit('escape:start');
-
-    toast.error('화면을 이탈했습니다! 이탈 시간이 누적됩니다.', {
-      duration: 3000,
-    });
-  }, [socket]);
 
   const syncEndedSessionRoute = useCallback(async () => {
     if (!sessionInfo || isCheckingRoomPhaseRef.current) return;
@@ -243,117 +183,43 @@ export default function Timer() {
     return () => clearInterval(intervalId);
   }, [isExpiredPhase, syncEndedSessionRoute]);
 
-  useEffect(() => {
-    if (!socket || !sessionInfo) return;
-
-    if (document.hidden) {
-      if (isFocus && !isEscapingRef.current) {
-        emitEscapeStart();
-      } else {
-        socket.emit('escape:end');
-      }
-    }
-    isFocusRef.current = isFocus;
-  }, [isFocus, socket, sessionInfo, emitEscapeStart]);
-
-  useEffect(() => {
-    if (!socket || !sessionInfo) return;
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        if (isFocusRef.current) {
-          emitEscapeStart();
-        }
-      } else {
-        isEscapingRef.current = false;
-        socket.emit('escape:end');
-        void syncEndedSessionRoute();
-      }
-    };
-    const handleBlur = () => {
-      if (isFocusRef.current) {
-        emitEscapeStart();
-      }
-    };
-
-    const handleFocus = () => {
-      socket.emit('escape:end');
-      void syncEndedSessionRoute();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [socket, sessionInfo, syncEndedSessionRoute, emitEscapeStart]);
+  // 포커스 이탈 감지 및 소켓 이벤트 발송 훅 분리
+  useFocusEscapeTracking({
+    socket,
+    sessionInfo,
+    isFocus,
+    onFocusReturn: syncEndedSessionRoute,
+  });
 
   if (!me) return null;
   if (!sessionInfo)
     return (
       <div className='flex items-center justify-center w-full h-screen text-white'>
-        로딩 중...
+        수감 준비 중...
       </div>
     );
 
   const theme = {
-    textColor: isFocus ? '' : 'text-success',
     strokeColor: isFocus ? 'stroke-primary' : 'stroke-success',
-    statusText: isFocus ? '집중 시간' : '휴식 시간',
     subStatusText: isFocus ? '집중 중' : '휴식 중',
   };
 
   return (
     <MobileLayout
       header={
-        <HeaderTitle align='center' className={theme.textColor}>
-          {theme.statusText} {round} / {isFocus ? totalRounds : Math.max(0, totalRounds - 1)}
-        </HeaderTitle>
+        <TimerHeader
+          isFocus={isFocus}
+          round={round}
+          totalRounds={totalRounds}
+        />
       }
       bottomButton={
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button
-              type='button'
-              className='w-full h-12 rounded-[14px] text-base font-bold bg-transparent border border-border text-muted-foreground hover:bg-muted/30 transition-colors'
-            >
-              중도 포기
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                포기하면 남은 시간이
-                <br />
-                모두 이탈 시간으로 처리돼요.
-              </DialogTitle>
-              <DialogDescription>
-                가장 많은 벌칙을 받게 됩니다.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                type='button'
-                onClick={handleForfeit}
-                disabled={giveUpMutation.isPending}
-                className='flex-1 h-12 rounded-lg bg-destructive hover:bg-destructive/80 text-white font-bold border-none'
-              >
-                {giveUpMutation.isPending ? '처리 중...' : '포기하기'}
-              </Button>
-              <Button
-                type='button'
-                variant='secondary'
-                onClick={() => setIsModalOpen(false)}
-                className='flex-1 h-12 rounded-lg'
-              >
-                취소
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ForfeitDialog
+          isOpen={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          onForfeit={handleForfeit}
+          isPending={giveUpMutation.isPending}
+        />
       }
     >
       <div className='flex flex-col items-center justify-center w-full py-6'>
@@ -374,47 +240,11 @@ export default function Timer() {
           subStatusText={theme.subStatusText}
         />
 
-        {!isWakeLockSupported && (
-          <div className='text-center mt-4 w-full max-w-sm px-4'>
-            <div className='flex items-start justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 text-xs text-destructive'>
-              <span>
-                현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.
-                <br />
-                원활한 집중을 위해 기기의 <b>자동 화면 꺼짐 시간</b>을
-                늘려주세요.
-              </span>
-            </div>
-          </div>
-        )}
+        <WakeLockAlert isSupported={isWakeLockSupported} />
 
-        {!isFocus && (
-          <div className='flex justify-center flex-col gap-2 text-center mt-10 w-full max-w-sm text-destructive'>
-            <div className='flex flex-col items-center justify-center bg-muted/20  rounded-[14px] px-4 py-3'>
-              <p className='text-xs mb-1'>총 이탈 시간</p>
-              <p className='text-2xl font-bold tracking-wider '>
-                {myEscapeMs > 0 ? formatDuration(myEscapeMs) : '0초'}
-              </p>
-            </div>
-
-            <div className='flex items-center justify-center gap-2 bg-muted/20  rounded-[14px] px-4 py-3 text-xs text-[#FACC15]'>
-              <svg
-                className='w-4 h-4 shrink-0'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
-                />
-              </svg>
-              <span>시작 1분 전에 알림이 갑니다.</span>
-            </div>
-          </div>
-        )}
+        <EscapeStatsCard isFocus={isFocus} myEscapeMs={myEscapeMs} />
       </div>
     </MobileLayout>
   );
 }
+

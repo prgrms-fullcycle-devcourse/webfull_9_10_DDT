@@ -11,7 +11,6 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -53,6 +52,10 @@ const emptyStats: UserStats = {
 
 const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+/**
+ * 마이페이지 메인 화면. 프로필, 누적 통계(참여 방 수·집중/이탈 시간), 최근 참여 기록 3건을 보여주고
+ * 방 복귀/생성 이동, 설정(프로필 수정·로그아웃) 진입을 제공한다.
+ */
 export const MyPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats>(emptyStats);
@@ -66,7 +69,7 @@ export const MyPage = () => {
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const { logout } = useAuth();
-  const activeRoom = useActiveRoom();
+  const { room: activeRoom } = useActiveRoom();
 
   // 진행 중인 방이 있으면 phase에 맞는 '방 복귀하기'로, 없으면 '새로운 방 만들기'(/room)로.
   const roomButtonHref = activeRoom ? getActiveRoomPath(activeRoom) : '/room';
@@ -82,7 +85,7 @@ export const MyPage = () => {
         const response = await usersApi.usersControllerGetMe();
         setProfile((response.data as UserProfile) ?? null);
       } catch {
-        setErrorMessage('내 정보를 불러오지 못했습니다.');
+        setErrorMessage('정보를 불러오지 못했어요.');
       } finally {
         setIsLoadingProfile(false);
       }
@@ -104,12 +107,13 @@ export const MyPage = () => {
         };
         setHistory(historyData?.sessions?.slice(0, 3) ?? []);
       } catch {
-        setErrorMessage('마이페이지 정보를 불러오지 못했습니다.');
+        setErrorMessage('통계 정보를 불러오지 못했어요.');
       } finally {
         setIsLoadingHistory(false);
       }
     };
 
+    // 프로필과 통계/기록을 독립 호출로 분리해, 한쪽이 실패해도 다른 쪽은 정상 표시되게 한다.
     void loadProfile();
     void loadStatsAndHistory();
   }, []);
@@ -280,7 +284,7 @@ export const MyPage = () => {
           history={history}
           isLoading={isLoadingHistory}
           errorMessage={errorMessage}
-          emptyMessage='최근 참여 기록이 없습니다.'
+          emptyMessage='최근 참여 기록이 없어요.'
           errorOnlyWhenEmpty
           chevronDirection='right'
           from='mypage'
@@ -291,9 +295,6 @@ export const MyPage = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>로그아웃 하시겠어요?</DialogTitle>
-            <DialogDescription>
-              로그아웃하면 다시 로그인해야 합니다.
-            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button

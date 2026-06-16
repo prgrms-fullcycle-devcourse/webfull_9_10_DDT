@@ -8,9 +8,19 @@ import {
 } from './penalty.util';
 import type { PenaltyItem } from '@prisma/client';
 
+/**
+ * 세션 종료·중도 포기 시 멤버별 이탈 시간을 집계해
+ * 벌칙 등급과 벌칙 목록을 산정·저장하는 서비스입니다.
+ */
 @Injectable()
 export class PenaltyService {
   constructor(private readonly prisma: PrismaService) {}
+  /**
+   * 서로 겹치는 이탈 시간 구간을 하나로 병합합니다. (중복 합산 방지)
+   *
+   * @param {{ start: number; end: number }[]} intervals - 병합할 시간 구간 배열
+   * @returns {{ start: number; end: number }[]} 겹침이 제거된 구간 배열
+   */
   private mergeIntervals(
     intervals: { start: number; end: number }[],
   ): { start: number; end: number }[] {
@@ -31,6 +41,14 @@ export class PenaltyService {
     return merged;
   }
 
+  /**
+   * 방의 모든 멤버에 대해 이탈 시간을 집계하고 벌칙 등급·목록을 산정·저장합니다.
+   * 세션 정상 종료 시 호출되며, 이미 산정된 멤버는 건너뜁니다(포기자는 재산정).
+   *
+   * @param {string} roomCode - 대상 방 코드
+   * @returns {Promise<void>}
+   * @throws 방 또는 계약서 정보가 없으면 NotFoundException
+   */
   async calculateAndSave(roomCode: string): Promise<void> {
     const room = await this.prisma.room.findUnique({
       where: { code: roomCode },
@@ -43,7 +61,7 @@ export class PenaltyService {
     });
 
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
-    if (!room.template) throw new NotFoundException('계약서 정보가 없습니다.');
+    if (!room.template) throw new NotFoundException('각서 정보가 없습니다.');
 
     const tiers = parseTierConfig(room.template.tierConfig);
     const { focusMin, breakMin, rounds } = room.template;
@@ -66,7 +84,12 @@ export class PenaltyService {
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
 
-    // 💡 전체 집중 시간을 계산합니다. (최대치 상한용)
+    // 탈옥자의 '남은시간'은 실제 종료가 아니라 '예정된 종료'까지로 산정한다.
+    // (마지막 인원이 탈옥하면 실제 종료시각이 탈옥시각과 같아져 남은시간이 0이 되는 문제 방지)
+    const plannedEndMs =
+      (room.startedAt?.getTime() ?? sessionStartMs) + plannedDurationMs;
+
+    // 전체 집중 시간을 계산합니다. (최대치 상한용)
     const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
     await this.prisma.$transaction(async (tx) => {
@@ -109,11 +132,11 @@ export class PenaltyService {
         if (member.gaveUpAt) {
           intervals.push({
             start: member.gaveUpAt.getTime(),
-            end: sessionEndedAt.getTime(),
+            end: plannedEndMs,
           });
         }
 
-        // 💡 1단계: 겹치는 이탈 시간 병합
+        // 1단계: 겹치는 이탈 시간 병합
         const mergedIntervals = this.mergeIntervals(intervals);
         let totalEscapeMs = 0;
 
@@ -128,7 +151,7 @@ export class PenaltyService {
           );
         }
 
-        // 💡 2단계: 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정
+        // 2단계: 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정
         totalEscapeMs = Math.min(totalEscapeMs, totalFocusMsConst);
 
         const existing = await tx.roomResult.findUnique({
@@ -203,6 +226,15 @@ export class PenaltyService {
     });
   }
 
+  /**
+   * 특정 멤버 한 명의 중도 포기(give-up) 결과를 산정해 저장합니다.
+   * 결과가 이미 존재하면 새로 생성하지 않습니다(멱등).
+   *
+   * @param {string} roomCode - 대상 방 코드
+   * @param {string} memberId - 산정할 멤버의 roomMember id
+   * @returns {Promise<void>}
+   * @throws 방·계약서·멤버 정보가 없으면 NotFoundException
+   */
   async calculateAndSaveForGiveUp(
     roomCode: string,
     memberId: string,
@@ -219,7 +251,7 @@ export class PenaltyService {
     });
 
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
-    if (!room.template) throw new NotFoundException('계약서 정보가 없습니다.');
+    if (!room.template) throw new NotFoundException('각서 정보가 없습니다.');
 
     const member = room.roomMembers[0];
     if (!member)
@@ -240,7 +272,11 @@ export class PenaltyService {
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
 
-    // 💡 전체 집중 시간을 계산합니다. (최대치 상한용)
+    // 탈옥자의 '남은시간'은 실제 종료가 아니라 '예정된 종료'까지로 산정한다.
+    const plannedEndMs =
+      (room.startedAt?.getTime() ?? sessionStartMs) + plannedDurationMs;
+
+    // 전체 집중 시간을 계산합니다. (최대치 상한용)
     const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
     await this.prisma.$transaction(async (tx) => {
@@ -279,7 +315,7 @@ export class PenaltyService {
       if (member.gaveUpAt) {
         intervals.push({
           start: member.gaveUpAt.getTime(),
-          end: sessionEndedAt.getTime(),
+          end: plannedEndMs,
         });
       }
 
@@ -297,7 +333,7 @@ export class PenaltyService {
         );
       }
 
-      // 💡 2단계: 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정
+      // 2단계: 총 이탈 시간이 전체 집중 시간을 초과하지 않도록 보정
       totalEscapeMs = Math.min(totalEscapeMs, totalFocusMsConst);
 
       const { penaltyTier } = calculatePenaltyTier(
@@ -307,7 +343,6 @@ export class PenaltyService {
         tiers,
       );
       const { penaltyCount } = resolveForfeitTier(tiers);
-      const isForceAll = true;
 
       const existing = await tx.roomResult.findUnique({
         where: { roomMemberId: member.id },
@@ -330,7 +365,7 @@ export class PenaltyService {
               roomMemberId: member.id,
               content,
               count,
-              isRevealed: isForceAll,
+              isRevealed: false,
             })),
             skipDuplicates: true,
           });
@@ -339,6 +374,14 @@ export class PenaltyService {
     });
   }
 
+  /**
+   * 벌칙 풀에서 지정 개수만큼 무작위로 뽑아 content별 개수로 집계합니다.
+   * 매 회 풀 전체에서 독립 추첨(복원추출)하므로 같은 벌칙이 중복될 수 있습니다.
+   *
+   * @param {PenaltyItem[]} pool - 계약서에 등록된 벌칙 후보 목록
+   * @param {number} count - 뽑을 벌칙 개수
+   * @returns {Record<string, number>} 벌칙 content → 선택된 횟수 맵
+   */
   private assignPenalties(
     pool: PenaltyItem[],
     count: number,

@@ -143,7 +143,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
       <CardHeader className='flex justify-between items-end'>
         <CardTitle>벌칙 목록</CardTitle>
         <CardDescription className='text-xs'>
-          벌칙은 중복될 수 있음
+          벌칙은 중복될 수 있어요.
         </CardDescription>
       </CardHeader>
       <Separator />

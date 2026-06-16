@@ -10,6 +10,9 @@ import { PenaltyService } from '../penalty/penalty.service';
 import { RoomGateway } from '../gateway/room/room.gateway';
 import type { Prisma } from '@prisma/client';
 
+/**
+ * 결과 가공용 Room 상세 타입 — template/penalties와 멤버별 result/penalties를 포함합니다.
+ */
 type RoomWithDetails = NonNullable<
   Prisma.RoomGetPayload<{
     include: {
@@ -23,9 +26,16 @@ type RoomWithDetails = NonNullable<
   }>
 >;
 
-// 결과/룰렛 체류 제한 시간. 화면상 10분으로 임시 지정
+/**
+ * 결과/룰렛 화면 체류 제한 시간(밀리초). 현재 10분은 임시값(정책 미확정).
+ * 결과 응답의 rouletteEndsAt 계산·만료 자동공개 기준으로 roulette 모듈에서도 사용합니다.
+ */
 export const ROULETTE_TIMEOUT_MS = 10 * 60 * 1000;
 
+/**
+ * 세션 종료 후 결과 화면 데이터를 조회·가공하는 서비스입니다.
+ * 미산정 멤버 fallback 재계산, 룰렛 만료 시 미공개 벌칙 자동 공개를 처리합니다.
+ */
 @Injectable()
 export class ResultService {
   constructor(
@@ -34,6 +44,12 @@ export class ResultService {
     private readonly roomGateway: RoomGateway,
   ) {}
 
+  /**
+   * 결과 가공에 필요한 방 정보를 조회합니다. (template/penalties + 멤버 result/penalties 포함)
+   *
+   * @param {string} roomCode - 방 코드
+   * @returns 상세 정보를 포함한 방(없으면 null)
+   */
   private async fetchRoom(roomCode: string) {
     return this.prisma.room.findUnique({
       where: { code: roomCode },
@@ -48,6 +64,13 @@ export class ResultService {
     });
   }
 
+  /**
+   * 방 상세 정보를 결과 화면 응답 형태로 가공합니다.
+   * 멤버별 이탈 시간·순위(동점 처리)·공개 벌칙·남은 스핀 수를 계산합니다.
+   *
+   * @param {RoomWithDetails} room - 상세 정보를 포함한 방
+   * @returns 결과 화면 응답 객체(멤버 목록·규칙·룰렛 종료 시각 등)
+   */
   private buildResponse(room: RoomWithDetails) {
     const totalSessionMs =
       room.startedAt && room.endedAt
@@ -143,7 +166,12 @@ export class ResultService {
     };
   }
 
-  /** 룰렛 제한 시간 경과 시 미공개 벌칙을 일괄 자동 공개. 실제 공개 여부를 반환. */
+  /**
+   * 룰렛 제한 시간 경과 시 미공개 벌칙을 일괄 자동 공개하고, 변경된 멤버에게 실시간 동기화합니다.
+   *
+   * @param {RoomWithDetails} room - 상세 정보를 포함한 방
+   * @returns {Promise<boolean>} 실제로 공개된 벌칙이 있었는지 여부
+   */
   private async revealExpiredPenalties(
     room: RoomWithDetails,
   ): Promise<boolean> {
@@ -183,6 +211,14 @@ export class ResultService {
     return count > 0;
   }
 
+  /**
+   * 결과 화면 데이터를 조회합니다.
+   * 접근 가능 여부 검증 → 미산정 멤버 fallback 재계산 → 룰렛 만료 자동 공개 → 응답 가공 순으로 처리합니다.
+   *
+   * @param {string} roomCode - 방 코드
+   * @returns 결과 화면 응답 객체
+   * @throws 방이 없으면 404, 결과 단계가 아니면 403, 재계산 실패 시 500
+   */
   async getResult(roomCode: string) {
     let room = await this.fetchRoom(roomCode);
 
@@ -194,7 +230,7 @@ export class ResultService {
       (room.phase === 'closed' && room.endedAt !== null);
     if (!isViewable)
       throw new ForbiddenException(
-        '세션이 종료된 후 결과를 확인할 수 있습니다.',
+        '수감이 종료된 후 결과를 확인할 수 있습니다.',
       );
 
     // [Fallback] 게스트 포함 멤버 중 ROOM_RESULT 미존재 시 재계산

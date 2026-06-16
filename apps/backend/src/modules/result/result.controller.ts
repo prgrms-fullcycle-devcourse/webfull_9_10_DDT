@@ -39,7 +39,7 @@ export class ResultController {
       statusCode: 200,
       timestamp: new Date().toISOString(),
       path: `/rooms/${roomCode}/result`,
-      message: '세션 결과를 조회했습니다.',
+      message: '수감 결과를 조회했습니다.',
       data,
       error: null,
     };

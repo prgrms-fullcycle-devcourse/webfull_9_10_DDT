@@ -2,14 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
-import Loading from '@/components/ui/loading';
+import { RoomLoading } from '@/components/room/RoomLoading';
 import { Button } from '@/components/ui/button';
-import { FormInput } from '@/components/ui/form-input';
-import { Label } from '@/components/ui/label';
+import { CountableInput } from '@/components/common/CountableInput';
+import { PasswordInput } from '@/components/common/PasswordInput';
 import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
 import {
   Dialog,
@@ -20,6 +19,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { toast } from 'sonner';
 import {
@@ -32,6 +32,7 @@ import { getErrorMessage } from '@/lib/error';
 import { useAuth } from '@/hooks/useAuth';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { queryKeys } from '@/lib/queryKeys';
+import { setAccessTokenCookie } from '@/lib/authToken';
 
 interface RoomInfo {
   title: string;
@@ -41,19 +42,25 @@ interface RoomInfo {
   isHost: boolean;
 }
 
+/**
+ * 방 코드(`/room/[code]`)로 진입한 사용자가 닉네임·프로필(·비밀번호)을 입력해 방에 입장하는 페이지 컴포넌트.
+ * 로그인/게스트 계정 선택, 방 상태별(timer/result/없거나 폭파된 방) 리다이렉트, 방장/참여자에 따른 비밀번호 요구 분기를 처리한다.
+ */
 export const JoinRoom = () => {
   const router = useRouter();
   const params = useParams();
   const code = params.code as string;
-  const { isLoggedIn, me, refetchMe } = useAuth();
+  const { isLoggedIn, me, refetchMe, isLoading: isAuthLoading } = useAuth();
 
   // 회원(로그인 사용자)이면 등록된 닉네임/프로필을 기본값으로 사용 (게스트는 빈 값)
   const isMember = isLoggedIn && me?.role === 'user';
   const defaultNickname = isMember ? (me?.nickname ?? '') : '';
 
-  // 게스트는 초기 프로필을 랜덤으로 1회만 부여한다. (재렌더마다 바뀌지 않게 useState 초기화)
-  const [guestRandomProfile] = useState(getRandomProfileIndex);
+  // 게스트는 초기 프로필을 랜덤으로 1회만 부여한다. (회원은 이 값을 쓰지 않음)
+  // 폼은 방 데이터 로딩 완료 후 렌더되므로 SSR/hydration 시점엔 노출되지 않아 mismatch가 없다.
+  const [guestRandomProfile] = useState(() => getRandomProfileIndex());
 
+  // 회원은 등록된 프로필을 기본 선택으로 맞추고, 매칭 실패 시 첫 번째(0)로 폴백한다.
   const defaultProfile = (() => {
     if (!isMember) return guestRandomProfile;
     const optionKey = getProfileImageOptionKey(me?.profileImage);
@@ -67,7 +74,6 @@ export const JoinRoom = () => {
   const [nicknameInput, setNicknameInput] = useState<string | null>(null);
   const [profileInput, setProfileInput] = useState<number | null>(null);
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [dialogDismissed, setDialogDismissed] = useState(false);
 
   const nickname = nicknameInput ?? defaultNickname;
@@ -105,32 +111,27 @@ export const JoinRoom = () => {
 
   const isHost = room?.isHost ?? false;
 
+  // 방장은 자기 방에 비밀번호 없이 입장하므로 닉네임만 검증한다. 참여자는 비밀번호(4~12자)까지 필요.
   const isValid =
     nickname.trim().length > 0 &&
-    (isHost || (password.length >= 4 && password.length <= 20));
+    (isHost || (password.length >= 4 && password.length <= 12));
 
-  // 진입 시 방 상태별 처리. 메시지는 백엔드 join 에러 문구에 맞춘다.
-  const enteredHandledRef = useRef(false);
+  // 방이 폭파되거나 없는 방이 된 경우 언제든지 메인으로 튕겨냄
   useEffect(() => {
-    if (enteredHandledRef.current) {
-      return;
-    }
-
-    // closed·없는 방은 find가 같은 404를 던져 구분 불가 → 통합 문구로 안내.
     if (isRoomInvalid) {
-      enteredHandledRef.current = true;
       toast.error('존재하지 않거나 종료된 방이에요.');
       router.replace('/');
-      return;
     }
+  }, [isRoomInvalid, router]);
 
-    if (!room) {
-      return;
-    }
+  // 진입 시 방 상태별 처리. 메시지는 백엔드 join 에러 문구에 맞춘다.
+  const initialCheckRef = useRef(false);
+  useEffect(() => {
+    if (initialCheckRef.current || !room) return;
 
     // result: 멤버 구분 불가(getMyActiveRoom이 제외) → 모두 차단.
     if (room.phase === 'result') {
-      enteredHandledRef.current = true;
+      initialCheckRef.current = true;
       toast.error('종료된 방입니다.');
       router.replace('/');
       return;
@@ -142,7 +143,7 @@ export const JoinRoom = () => {
       if (isLoggedIn && !isMyActiveFetched) {
         return;
       }
-      enteredHandledRef.current = true;
+      initialCheckRef.current = true;
       if (isLoggedIn && myActiveRoom?.code === code) {
         router.replace(`/room/${code}/timer`);
       } else {
@@ -150,15 +151,7 @@ export const JoinRoom = () => {
         router.replace('/');
       }
     }
-  }, [
-    isRoomInvalid,
-    room,
-    isLoggedIn,
-    myActiveRoom,
-    isMyActiveFetched,
-    code,
-    router,
-  ]);
+  }, [room, isLoggedIn, myActiveRoom, isMyActiveFetched, code, router]);
 
   const handleGoogleLogin = () => {
     startTermsAgreementLogin(router.push);
@@ -177,6 +170,11 @@ export const JoinRoom = () => {
       router.push(`/room/${code}/contract`);
     },
     onError: (err) => {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        toast.error('존재하지 않거나 폭파된 방이에요.');
+        router.replace('/');
+        return;
+      }
       toast.error(getErrorMessage(err, '입장 실패'));
     },
   });
@@ -186,10 +184,11 @@ export const JoinRoom = () => {
       const res = await getAuthApi().authControllerGuestLogin();
       const data = res.data as { accessToken: string; guestToken: string };
 
-      document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400`;
+      setAccessTokenCookie(data.accessToken);
 
       await refetchMe();
 
+      // 게스트 토큰 발급·me 갱신이 끝난 뒤 계정 선택 다이얼로그를 닫아 입장 폼으로 넘긴다.
       setDialogDismissed(true);
     } catch (error) {
       toast.error(getErrorMessage(error, '게스트 시작 실패'));
@@ -207,13 +206,15 @@ export const JoinRoom = () => {
   };
 
   // 로딩 중 또는 위 effect가 리다이렉트로 처리하는 방이면 폼 대신 로딩 UI를 보여준다.
+  // RoomLoading은 MobileLayout(헤더 유지) 안에 렌더되어, 로딩→입장 폼 전환 시 레이아웃 점프가 없다.
   if (
     isRoomLoading ||
     isRoomInvalid ||
+    isAuthLoading ||
     room?.phase === 'timer' ||
     room?.phase === 'result'
   ) {
-    return <Loading label='방 정보를 불러오는 중...' />;
+    return <RoomLoading />;
   }
 
   return (
@@ -223,7 +224,7 @@ export const JoinRoom = () => {
           <DialogHeader>
             <DialogTitle>어떤 계정으로 입장할까요?</DialogTitle>
             <DialogDescription>
-              로그인을 하면 집중 기록이 저장돼요.
+              로그인을 하면 집중 결과가 저장돼요.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -232,7 +233,7 @@ export const JoinRoom = () => {
               className='flex-1 h-12 rounded-lg'
               onClick={handleGuestStart}
             >
-              게스트로 시작
+              게스트로 시작하기
             </Button>
             <Button
               className='flex-1 h-12 rounded-lg font-bold'
@@ -271,57 +272,24 @@ export const JoinRoom = () => {
             handleSubmit();
           }}
         >
-          {/* 닉네임 */}
-          <div className='flex flex-col gap-2'>
-            <Label className='text-[15px] font-bold text-white/85'>
-              내 닉네임
-            </Label>
-            <FormInput
-              type='text'
-              placeholder='방에서 사용할 닉네임을 입력해주세요'
-              maxLength={10}
-              value={nickname}
-              onChange={(e) => setNicknameInput(e.target.value)}
-            />
-            <span className='text-xs text-[#6B7280] text-right'>
-              {nickname.length}/10
-            </span>
-          </div>
+          <CountableInput
+            label='내 닉네임'
+            placeholder='방에서 사용할 닉네임을 입력해주세요.'
+            maxLength={10}
+            value={nickname}
+            onChange={setNicknameInput}
+          />
 
           <ProfileImagePicker
             selectedProfile={selectedProfile}
             onSelectProfile={setProfileInput}
           />
 
-          {/* 비밀번호 */}
           {!isHost && (
-            <div className='flex flex-col gap-2'>
-              <Label className='text-[15px] font-bold text-white/85'>
-                방 비밀번호
-              </Label>
-              <div className='relative flex items-center'>
-                <FormInput
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder='비밀번호를 입력해주세요'
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className='pr-10'
-                />
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label='비밀번호 표시'
-                  className='absolute right-1 text-[#6B7280] hover:text-white/75 hover:bg-transparent'
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </Button>
-              </div>
-              <span className='text-xs text-[#6B7280] pl-0.5'>
-                · 비밀번호는 4~12자이어야 합니다.
-              </span>
-            </div>
+            <PasswordInput
+              value={password}
+              onChange={setPassword}
+            />
           )}
         </form>
       </MobileLayout>

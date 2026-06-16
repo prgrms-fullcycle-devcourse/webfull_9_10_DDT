@@ -41,6 +41,7 @@ export class AuthController {
     description:
       '프론트가 팝업으로 여는 진입점. 구글 동의 화면으로 리다이렉트됩니다.',
   })
+  /** 구글 동의 화면으로 리다이렉트하는 진입점. 실제 처리는 passport 가드가 수행한다. */
   @Get('google')
   @UseGuards(AuthGuard('google'))
   googleAuth(): void {}
@@ -50,6 +51,7 @@ export class AuthController {
     description:
       '구글 인증 완료 후 호출됩니다. 팝업을 닫고 postMessage(OAUTH_SUCCESS, token)로 프론트에 JWT를 전달합니다.',
   })
+  /** 구글 인증 콜백. 팝업으로 JWT를 전달하거나, 팝업이 없으면 콜백 URL로 이동시킨다. */
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(
@@ -61,6 +63,8 @@ export class AuthController {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const callbackUrl = `${frontendUrl}/auth/callback?token=${encodeURIComponent(token)}`;
 
+    // 팝업(window.opener)이 살아있으면 postMessage로 토큰 전달 후 닫고,
+    // 팝업이 닫혔으면 콜백 URL로 직접 이동시키는 폴백 처리
     res.send(`
       <html><body><script>
         if (window.opener && !window.opener.closed) {
@@ -89,6 +93,7 @@ export class AuthController {
       },
     },
   })
+  /** 로그인 없이 입장할 게스트에게 임시 JWT와 guestToken을 발급한다. */
   @Post('guest')
   guestLogin() {
     return {
@@ -111,6 +116,7 @@ export class AuthController {
     status: 409,
     description: '이미 약관 동의가 완료된 계정입니다.',
   })
+  /** 회원가입 필수 약관 동의를 처리한다. (JWT 인증 필요) */
   @UseGuards(AuthGuard('jwt'))
   @Post('terms')
   async agreeTerms(
@@ -129,6 +135,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: '로그아웃 성공' })
   @ApiResponse({ status: 401, description: '유효하지 않은 인증 토큰입니다.' })
+  /** 현재 JWT를 블랙리스트에 등록해 로그아웃 처리한다. (JWT 인증 필요) */
   @UseGuards(AuthGuard('jwt'))
   @Post('logout')
   async logout(@Req() req: AuthenticatedRequest) {

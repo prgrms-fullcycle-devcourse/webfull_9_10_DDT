@@ -156,6 +156,6 @@ export class RouletteController {
       isGuest ? null : req.user.id,
       isGuest ? req.user.id : null,
     );
-    return { message: '중도포기 결과를 조회했습니다.', data };
+    return { message: '탈옥 결과를 조회했습니다.', data };
   }
 }

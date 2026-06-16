@@ -32,7 +32,7 @@ const EditPermissionToggle = () => {
     <Card>
       <CardHeader>
         <div className='flex justify-between'>
-          <CardTitle>계약서 편집 권한</CardTitle>
+          <CardTitle>각서 편집 권한</CardTitle>
           <Switch
             checked={allCanEdit}
             onCheckedChange={handleToggle}

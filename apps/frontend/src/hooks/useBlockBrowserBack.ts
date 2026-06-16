@@ -2,12 +2,46 @@
 
 import { useEffect } from 'react';
 
-let blockActive = false;
-let guardPath = '';
-let savedNJTree: unknown = undefined;
-let redirectTarget: string | null = null;
+interface GuardInstance {
+  id: string;
+  redirectTo: string | null;
+}
 
-function buildGuardState() {
+interface GuardState {
+  stack: GuardInstance[];
+  guardPath: string;
+  savedNJTree: unknown;
+}
+
+declare global {
+  interface Window {
+    __ddt_back_guard?: GuardState;
+    __ddt_blockBackListener?: (event: PopStateEvent) => void;
+  }
+}
+
+function getGuard(): GuardState {
+  if (typeof window === 'undefined') {
+    return {
+      stack: [],
+      guardPath: '',
+      savedNJTree: undefined,
+    };
+  }
+  if (!window.__ddt_back_guard) {
+    window.__ddt_back_guard = {
+      stack: [],
+      guardPath: '',
+      savedNJTree: undefined,
+    };
+  }
+  if (!window.__ddt_back_guard.stack) {
+    window.__ddt_back_guard.stack = [];
+  }
+  return window.__ddt_back_guard;
+}
+
+function buildGuardState(savedNJTree: unknown) {
   const state: Record<string, unknown> = { __NA: true, ddtGuard: true };
   if (savedNJTree !== undefined) {
     state.__PRIVATE_NEXTJS_INTERNALS_TREE = savedNJTree;
@@ -16,14 +50,16 @@ function buildGuardState() {
 }
 
 function pushGuard() {
-  if (!guardPath) return;
+  const guard = getGuard();
+  if (!guard.guardPath) return;
   const currentState = window.history.state as Record<string, unknown> | null;
   if (currentState?.ddtGuard) return;
-  window.history.pushState(buildGuardState(), '', guardPath);
+  window.history.pushState(buildGuardState(guard.savedNJTree), '', guard.guardPath);
 }
 
 function handlePopState(event: PopStateEvent) {
-  if (!blockActive) return;
+  const guard = getGuard();
+  if (guard.stack.length === 0) return;
 
   const state = event.state as Record<string, unknown> | null;
   if (state && state.ddtGuard) {
@@ -33,8 +69,9 @@ function handlePopState(event: PopStateEvent) {
 
   event.stopImmediatePropagation();
 
-  if (redirectTarget) {
-    window.location.replace(redirectTarget);
+  const activeInstance = guard.stack[guard.stack.length - 1];
+  if (activeInstance && activeInstance.redirectTo) {
+    window.location.replace(activeInstance.redirectTo);
     return;
   }
 
@@ -42,11 +79,10 @@ function handlePopState(event: PopStateEvent) {
 }
 
 if (typeof window !== 'undefined') {
-  const w = window as Window & { __ddt_blockBackListener?: typeof handlePopState };
-  if (w.__ddt_blockBackListener) {
-    window.removeEventListener('popstate', w.__ddt_blockBackListener, true);
+  if (window.__ddt_blockBackListener) {
+    window.removeEventListener('popstate', window.__ddt_blockBackListener, true);
   }
-  w.__ddt_blockBackListener = handlePopState;
+  window.__ddt_blockBackListener = handlePopState;
   window.addEventListener('popstate', handlePopState, true);
 }
 
@@ -54,21 +90,24 @@ export function useBlockBrowserBack(options?: { redirectTo?: string; enabled?: b
   useEffect(() => {
     if (options?.enabled === false) return;
 
-    guardPath =
+    const id = Math.random().toString(36).substring(2, 9);
+    const redirectTo = options?.redirectTo ?? null;
+
+    const guard = getGuard();
+    guard.guardPath =
       window.location.pathname +
       window.location.search +
       window.location.hash;
 
-    savedNJTree = window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE;
-    redirectTarget = options?.redirectTo ?? null;
+    guard.savedNJTree = window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE;
+
+    guard.stack.push({ id, redirectTo });
 
     pushGuard();
 
-    blockActive = true;
-
     return () => {
-      blockActive = false;
-      redirectTarget = null;
+      const g = getGuard();
+      g.stack = g.stack.filter((item) => item.id !== id);
     };
   }, [options?.redirectTo, options?.enabled]);
 }

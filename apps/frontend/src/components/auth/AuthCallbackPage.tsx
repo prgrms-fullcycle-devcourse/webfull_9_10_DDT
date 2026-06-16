@@ -5,8 +5,6 @@ import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getAuthApi } from '@/api/generated/인증-auth-api/인증-auth-api';
-import { HeaderTitle } from '@/components/layout/HeaderTitle';
-import { MobileLayout } from '@/components/layout/mobileLayout';
 import Loading from '@/components/ui/loading';
 import {
   isCompleteTermsAgreement,
@@ -16,6 +14,7 @@ import {
   TERMS_OAUTH_STARTED_KEY,
 } from '@/lib/authTerms';
 import { queryKeys } from '@/lib/queryKeys';
+import { setAccessTokenCookie } from '@/lib/authToken';
 
 const getApiUrl = () =>
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -33,11 +32,11 @@ export const AuthCallbackPage = () => {
 
     const completeLogin = async () => {
       if (!token) {
-        setMessage('로그인 정보를 확인할 수 없습니다.');
+        setMessage('로그인 정보를 확인할 수 없어요.');
         return;
       }
 
-      document.cookie = `access_token=${token}; path=/; max-age=${60 * 60 * 24}`;
+      setAccessTokenCookie(token);
 
       if (isCompleteTermsAgreement(agreement)) {
         const authApi = getAuthApi(axios.create({ baseURL: getApiUrl() }));
@@ -63,16 +62,11 @@ export const AuthCallbackPage = () => {
 
     void completeLogin().catch((error) => {
       console.error('Mobile OAuth Callback Error:', error);
-      setMessage('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
+      setMessage(
+        '로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했어요.',
+      );
     });
   }, [queryClient, router, searchParams]);
 
-  return (
-    <MobileLayout header={<HeaderTitle>로그인</HeaderTitle>}>
-      <div className='flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center text-white/70'>
-        <Loading />
-        <p className='text-sm'>{message}</p>
-      </div>
-    </MobileLayout>
-  );
+  return <Loading label={message} />;
 };

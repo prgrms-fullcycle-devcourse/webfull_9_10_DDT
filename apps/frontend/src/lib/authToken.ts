@@ -1,6 +1,8 @@
 import { jwtDecode } from 'jwt-decode';
 import { getToken } from '@/lib/getToken';
 
+const ACCESS_TOKEN_MAX_AGE = 60 * 60 * 24;
+
 type JwtPayload = {
   role?: string;
 };
@@ -28,4 +30,8 @@ export const clearGuestAccessToken = () => {
 
   clearAccessTokenCookie();
   return true;
+};
+
+export const setAccessTokenCookie = (token: string) => {
+  document.cookie = `access_token=${token}; path=/; max-age=${ACCESS_TOKEN_MAX_AGE}`;
 };

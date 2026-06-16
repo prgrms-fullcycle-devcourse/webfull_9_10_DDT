@@ -57,7 +57,7 @@ export function ContractActions({
       }
 
       queryClient.invalidateQueries({ queryKey: ['saved-rules'] });
-      toast.success(`"${title}" 저장됨`);
+      toast.success(`"${title}" 저장 성공`);
     } catch {
       toast.error('저장 실패');
       throw new Error();
