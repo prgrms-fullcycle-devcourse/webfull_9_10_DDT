@@ -15,6 +15,10 @@ import { ROULETTE_TIMEOUT_MS } from '../result/result.service';
  * 결정적 셔플 — 같은 seed면 항상 같은 순열을 반환한다.
  * 룰렛 노출 순서를 '무작위처럼' 보이게 하되, 동일 spinIndex 재호출 시 결과가 흔들리지 않도록(멱등)
  * spinIndex ↔ 벌칙 1:1 대응을 보장한다. (FNV-1a 해시로 문자열 seed→32bit, mulberry32 PRNG로 Fisher-Yates)
+ *
+ * @param {T[]} arr - 섞을 원본 배열 (원본은 변경하지 않음)
+ * @param {string} seed - 순열을 결정하는 시드 문자열(보통 member.id)
+ * @returns {T[]} seed에 따라 결정적으로 섞인 새 배열
  */
 function seededShuffle<T>(arr: T[], seed: string): T[] {
   let h = 2166136261;
@@ -37,6 +41,10 @@ function seededShuffle<T>(arr: T[], seed: string): T[] {
   return out;
 }
 
+/**
+ * 벌칙 룰렛 도메인 서비스 — 스핀(개별 공개)·이탈(일괄 공개)·
+ * 중도포기자 결과 조회를 처리하고 결과를 방 전체에 브로드캐스트합니다.
+ */
 @Injectable()
 export class RouletteService {
   constructor(
@@ -45,6 +53,17 @@ export class RouletteService {
     private readonly penaltyService: PenaltyService,
   ) {}
 
+  /**
+   * 한 번의 스핀을 처리해 해당 순번(spinIndex)의 벌칙 하나를 공개합니다.
+   * 마지막 스핀에서 남은 벌칙을 전체 공개하고 방 전체에 브로드캐스트합니다.
+   *
+   * @param {string} roomCode - 방 코드
+   * @param {number} spinIndex - 전역 스핀 순번(1부터 총 벌칙 수까지)
+   * @param {string | null} userId - 회원 id (게스트면 null)
+   * @param {string | null} guestToken - 게스트 토큰 (회원이면 null)
+   * @returns 공개된 벌칙 정보와 남은 스핀 수·종료 여부
+   * @throws 룰렛 정보 없음/순번 범위 밖이면 400, 이미 완료면 409
+   */
   async spinRoulette(
     roomCode: string,
     spinIndex: number,
@@ -109,6 +128,16 @@ export class RouletteService {
     };
   }
 
+  /**
+   * 룰렛 도중 이탈(X 버튼/시간 만료) 시 남은 미공개 벌칙을 일괄 자동 공개합니다.
+   * 동시 호출은 트랜잭션으로 1회만 처리되며, 처리 후 방 전체에 브로드캐스트합니다.
+   *
+   * @param {string} roomCode - 방 코드
+   * @param {string | null} userId - 회원 id (게스트면 null)
+   * @param {string | null} guestToken - 게스트 토큰 (회원이면 null)
+   * @returns 이번에 자동 공개된 벌칙 목록
+   * @throws 멤버 없음/이미 전부 공개면 400
+   */
   async exitRoulette(
     roomCode: string,
     userId: string | null,
@@ -166,7 +195,16 @@ export class RouletteService {
     return { autoRevealed: true, revealedPenalties };
   }
 
-  /** 중도포기자 룰렛 화면 데이터 조회. 결과 미존재 시 fallback 재산정(멱등). */
+  /**
+   * 중도포기(give-up)한 본인의 룰렛 화면 데이터를 조회합니다.
+   * 결과가 아직 없으면 fallback으로 재산정 후 다시 조회합니다(멱등).
+   *
+   * @param {string} roomCode - 방 코드
+   * @param {string | null} userId - 회원 id (게스트면 null)
+   * @param {string | null} guestToken - 게스트 토큰 (회원이면 null)
+   * @returns 포기 시각·누적 이탈 시간·벌칙 풀·확정 벌칙·타이머 정보
+   * @throws 멤버 없음/포기자 아님이면 400, 재산정 실패 시 500
+   */
   async getGiveUpResult(
     roomCode: string,
     userId: string | null,
@@ -230,7 +268,12 @@ export class RouletteService {
     };
   }
 
-  /** 중도포기 조회용 멤버 로드 (result/penalties + template/penalties 포함) */
+  /**
+   * 중도포기 조회용 멤버를 로드합니다. (result/penalties + template/penalties 포함)
+   *
+   * @param {Prisma.RoomMemberWhereInput} where - 멤버 조회 조건
+   * @returns 조건에 맞는 멤버(없으면 null)
+   */
   private fetchGiveUpMember(where: Prisma.RoomMemberWhereInput) {
     return this.prisma.roomMember.findFirst({
       where,
@@ -243,7 +286,12 @@ export class RouletteService {
     });
   }
 
-  /** content → PENALTY_ITEM.id 매핑 테이블 생성 */
+  /**
+   * 벌칙 content를 PENALTY_ITEM.id로 매핑하는 테이블을 만듭니다. (휠 정지 위치 식별용)
+   *
+   * @param member - room.template.penalties를 포함한 멤버 객체
+   * @returns {Map<string, string>} content → PENALTY_ITEM.id 매핑
+   */
   private buildPenaltyItemMap(member: {
     room: { template: { penalties: { content: string; id: string }[] } | null };
   }): Map<string, string> {
@@ -257,7 +305,13 @@ export class RouletteService {
     return map;
   }
 
-  /** 룰렛 완료 시 방 전체에 공개 결과 브로드캐스트 */
+  /**
+   * 룰렛 완료 시 공개된 벌칙 결과를 방 전체에 소켓으로 브로드캐스트합니다.
+   *
+   * @param {string} roomCode - 방 코드(소켓 룸 식별자)
+   * @param member - 공개 주체 멤버(id·userId·nickname)
+   * @returns {Promise<void>}
+   */
   private async broadcastRevealed(
     roomCode: string,
     member: { id: string; userId: string | null; nickname: string },
