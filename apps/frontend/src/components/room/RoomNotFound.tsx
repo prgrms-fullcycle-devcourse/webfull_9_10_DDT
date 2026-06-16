@@ -39,7 +39,7 @@ export function RoomNotFound({
             background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%)',
           }}
         >
-          홈으로
+          홈으로 이동
         </Button>
       </div>
     </MobileLayout>

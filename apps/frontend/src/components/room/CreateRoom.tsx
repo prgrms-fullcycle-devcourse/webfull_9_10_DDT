@@ -48,10 +48,6 @@ function CreateRoomComplete({
 
   return (
     <div className='flex flex-col gap-5 pt-2'>
-      <p className='text-center text-base text-white/70'>
-        방이 성공적으로 생성되었어요!
-      </p>
-
       {/* 정보 카드 */}
       <div className='bg-card border border-border rounded-[16px] px-4 py-5 flex flex-col gap-4'>
         {/* 방 이름 & 최대 인원 */}
@@ -112,10 +108,10 @@ function CreateRoomComplete({
 
         <div className='border-t border-white/[0.08]' />
 
-        {/* 친구 초대 링크 */}
+        {/* 멤버 초대 링크 */}
         <div className='flex items-center justify-between gap-2'>
           <div className='flex min-w-0 flex-col gap-1'>
-            <span className='text-xs text-[#6B7280]'>친구 초대 링크</span>
+            <span className='text-xs text-[#6B7280]'>멤버 초대 링크</span>
             <span className='break-all text-xs text-ring'>{inviteLink}</span>
           </div>
           <Button
@@ -134,15 +130,12 @@ function CreateRoomComplete({
       {/* 안내 문구 */}
       <div className='flex items-center gap-2 text-xs text-muted-foreground leading-relaxed'>
         <Lightbulb size={14} className='text-[#FACC15] shrink-0 mt-0.5' />
-        <span>
-          링크와 비밀번호를 공유하여 <br />
-          같이 집중할 멤버들과 함께 입장해 시작해보세요!
-        </span>
+        <span>링크와 비밀번호를 공유하여 멤버들과 함께 집중해보세요!</span>
       </div>
 
       {/* 복사 버튼 */}
       <Button variant='outline' onClick={onCopyAll} size='main'>
-        초대 정보 공유
+        방 정보 공유하기
       </Button>
     </div>
   );
@@ -234,8 +227,8 @@ export const CreateRoom = () => {
     activeRoomPromptedRef.current = true;
     void (async () => {
       const ok = await confirm({
-        title: '이미 진행 중인 방이 있습니다',
-        description: `[${activeRoom.title}] 방으로 복귀하시겠습니까?`,
+        title: '수감 중인 방이 있어요.',
+        description: `[${activeRoom.title}] 방으로 복귀하시겠어요?`,
         confirmText: '방 복귀하기',
         cancelText: '홈으로',
       });
@@ -293,9 +286,9 @@ export const CreateRoom = () => {
 
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('초대 정보가 복사되었어요');
+      toast.success('방 정보가 복사되었어요.');
     } catch {
-      toast.error('초대 정보 복사에 실패했습니다.');
+      toast.error('방 정보 복사에 실패했어요.');
     }
   };
 
@@ -311,12 +304,7 @@ export const CreateRoom = () => {
       >
         <div className='flex flex-col items-center gap-3 pt-16 text-center'>
           <p className='text-base font-bold text-white'>
-            방을 만들려면 로그인이 필요해요.
-          </p>
-          <p className='text-sm text-white/50'>
-            게스트는 방을 만들 수 없어요.
-            <br />
-            회원으로 로그인 후 이용해주세요.
+            로그인 사용자만 생성 가능해요.
           </p>
           <Button
             onClick={handleOpenLogin}
@@ -340,7 +328,7 @@ export const CreateRoom = () => {
               <BackButton onClick={onBack} />
             )}
             <HeaderTitle align={step === 'complete' ? 'center' : 'left'}>
-              {step === 'complete' ? '방 생성 완료 🎉' : '방 만들기'}
+              {step === 'complete' ? '방 생성 완료' : '방 만들기'}
             </HeaderTitle>
           </>
         }
@@ -375,13 +363,13 @@ export const CreateRoom = () => {
             <p className='text-center text-[20px] font-normal text-white/50 leading-relaxed pb-6'>
               비밀방을 생성해
               <br />
-              같이 집중할 멤버를 초대하세요.
+              같이 참여할 멤버를 초대하세요.
             </p>
 
             <div className='flex justify-center mb-8'>
               <div className='inline-flex items-center gap-2.5 bg-card rounded-lg px-4 py-3 text-sm text-muted-foreground'>
                 <Users size={18} className='text-[#6B7280] shrink-0' />
-                최대 10명까지 입장 가능합니다.
+                최대 10명까지 입장 가능해요.
               </div>
             </div>
 
@@ -399,7 +387,7 @@ export const CreateRoom = () => {
                 </Label>
                 <FormInput
                   type='text'
-                  placeholder='방 이름을 입력해주세요'
+                  placeholder='방 이름을 입력해주세요.'
                   maxLength={20}
                   value={roomName}
                   onChange={(e) => setRoomName(e.target.value)}
@@ -416,7 +404,7 @@ export const CreateRoom = () => {
                 <div className='relative flex items-center'>
                   <FormInput
                     type={showPassword ? 'text' : 'password'}
-                    placeholder='비밀번호를 입력해주세요'
+                    placeholder='비밀번호를 입력해주세요.'
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className='pr-10'
@@ -433,7 +421,7 @@ export const CreateRoom = () => {
                   </Button>
                 </div>
                 <span className='text-xs text-[#6B7280] pl-0.5'>
-                  · 비밀번호는 4~12자이어야 합니다.
+                  · 비밀번호는 4~12자이어야 해요.
                 </span>
               </div>
             </form>

@@ -12,7 +12,7 @@ export const RouletteHistory = forwardRef<HTMLDivElement, RouletteHistoryProps>(
     return (
       <div ref={ref} className='flex flex-col gap-2'>
         <h3 className='mb-1 text-sm font-semibold text-muted-foreground'>
-          선택된 벌칙
+          결정된 벌칙
         </h3>
         {history.map((penalty, idx) => (
           <div

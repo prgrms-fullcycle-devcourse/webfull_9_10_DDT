@@ -68,7 +68,7 @@ export function RankingSection({
                     </span>
                     {member.gaveUpAt && !isNoDisruption ? (
                       <Badge className='h-5 shrink-0 border-none bg-destructive px-1.5 text-[10px] font-bold text-white hover:bg-destructive'>
-                        중도 포기
+                        탈옥
                       </Badge>
                     ) : null}
                   </div>

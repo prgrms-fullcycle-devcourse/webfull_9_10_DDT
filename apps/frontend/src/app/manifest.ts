@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: '감옥 - 디지털 디톡스 타이머',
+    name: '감옥 - 디지털 디톡스 스페이스',
     short_name: '감옥',
-    description: '남들이 딴짓할 때, 우리는 서로를 가두고 집중한다.',
+    description: '딴짓하는 순간, 당신은 실패입니다. 가장 치열한 집중을 위한 효율적인 디지털 디톡스 타이머.',
     start_url: '/',
     display: 'standalone', // 브라우저 UI 없이 앱처럼 전체화면으로 실행
     background_color: '#050816', // globals.css의 --background 색상

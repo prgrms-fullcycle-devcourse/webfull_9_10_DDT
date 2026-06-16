@@ -163,7 +163,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
   return (
     <Card>
       <CardHeader className='flex justify-between items-end'>
-        <CardTitle>타이머 설정</CardTitle>
+        <CardTitle>시간 설정</CardTitle>
         <CardDescription className='text-xs'>최대 10시간</CardDescription>
       </CardHeader>
       <Separator />
@@ -261,7 +261,7 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
         <div className='space-y-2'>
           <div className='flex items-center'>
             <Label htmlFor='rounds' className='text-xs'>
-              총 예상 시간
+              진행 예정 시간
             </Label>
           </div>
           <p className='w-full h-12 text-2xl p-1 items-start justify-center text-primary font-extrabold'>

@@ -29,7 +29,7 @@ export function PenaltySection({ members, me, isSolo }: PenaltySectionProps) {
   return (
     <section className='flex flex-col gap-2'>
       <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
-        멤버별 벌칙 결과
+        수감자 별 벌칙 결과
       </h3>
       <div className='overflow-hidden rounded-[14px] bg-[#1d1c31]'>
         {penaltyMembers.length > 0 ? (
@@ -75,7 +75,7 @@ export function PenaltySection({ members, me, isSolo }: PenaltySectionProps) {
                     className={`shrink-0 text-sm ${isPending ? 'text-white/45' : 'text-white/75'}`}
                   >
                     {isPending
-                      ? '벌칙 뽑는 중'
+                      ? '벌칙 결정 중'
                       : `벌칙 ${member.penalties.totalCount}개`}
                   </span>
                   <ChevronDown
@@ -86,7 +86,7 @@ export function PenaltySection({ members, me, isSolo }: PenaltySectionProps) {
                   <div className='bg-[#0f0f1a] px-4 py-3.5'>
                     {isPending ? (
                       <p className='text-center text-sm text-white/70'>
-                        벌칙을 뽑고 있어요.
+                        벌칙을 결정하고 있어요.
                       </p>
                     ) : (
                       <ul className='flex list-disc flex-col gap-2 pl-7 text-sm text-white/70 marker:text-white/70'>

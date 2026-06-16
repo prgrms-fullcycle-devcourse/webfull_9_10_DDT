@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -52,15 +52,6 @@ export function SemiResult() {
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
     : '-';
 
-  useEffect(() => {
-    if (isNoDisruption) {
-      setResultFrom('room');
-      router.replace(`/room/${params.code}/total-result`);
-    }
-  }, [isNoDisruption, params.code, router]);
-
-  if (isNoDisruption) return null;
-
   const handleNext = () => {
     if (!shouldShowRoulette) setResultFrom('room');
     router.push(
@@ -82,7 +73,7 @@ export function SemiResult() {
           {!canDecideNextRoute
             ? '확인 중...'
             : shouldShowRoulette
-              ? '룰렛 돌리기'
+              ? '벌칙 룰렛 돌리기'
               : '다음'}
         </Button>
       }
@@ -90,24 +81,38 @@ export function SemiResult() {
       <div className='flex min-w-0 flex-col gap-4 text-foreground'>
         {isLoading && (
           <div className='py-10 text-center text-sm text-muted-foreground'>
-            결과를 불러오는 중...
+            수감 결과를 불러오는 중...
           </div>
         )}
         {isError && (
           <div className='py-10 text-center text-sm text-destructive'>
-            결과를 불러오지 못했습니다.
+            수감 결과를 불러오지 못했어요.
           </div>
         )}
         {result && (
           <>
             <div className='space-y-1.5 py-4 text-center'>
-              <div className='mb-1 text-3xl animate-pulse'>🎉</div>
-              <h2 className='text-xl font-bold tracking-tight text-[#10B981]'>
-                집중시간이 종료되었습니다.
-              </h2>
-              <p className='mt-2 text-sm font-medium text-foreground/80'>
-                결과를 확인해 주세요.
-              </p>
+              {isNoDisruption ? (
+                <>
+                  <div className='mb-1 text-3xl animate-bounce'>👍</div>
+                  <h2 className='text-xl font-bold tracking-tight text-[#FBBF24]'>
+                    탈옥한 수감자가 아무도 없어요!
+                  </h2>
+                  <p className='mt-2 text-sm font-medium text-foreground/80'>
+                    오늘 집중력은 최고네요.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className='mb-1 text-3xl animate-pulse'>🎉</div>
+                  <h2 className='text-xl font-bold tracking-tight text-[#10B981]'>
+                    수감 시간이 종료되었어요.
+                  </h2>
+                  <p className='mt-2 text-sm font-medium text-foreground/80'>
+                    수감 결과를 확인해주세요.
+                  </p>
+                </>
+              )}
             </div>
             <StatsSummary
               totalTime={totalTime}

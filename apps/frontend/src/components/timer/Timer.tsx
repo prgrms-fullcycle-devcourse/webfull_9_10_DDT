@@ -61,7 +61,7 @@ export default function Timer() {
 
   useEffect(() => {
     if (myMember?.gaveUpAt) {
-      toast.error('이미 중도 포기한 세션입니다.');
+      toast.error('이미 탈옥한 방이예요.');
       router.replace(`/room/${room.code}/roulette?from=giveup`);
     }
   }, [myMember?.gaveUpAt, room.code, router]);
@@ -142,7 +142,7 @@ export default function Timer() {
       return res.data;
     },
     onSuccess: () => {
-      toast.info('중도 포기 처리되었습니다.');
+      toast.info('탈옥했어요.');
       setIsModalOpen(false);
 
       router.push(`/room/${room.code}/roulette?from=giveup`);
@@ -151,7 +151,7 @@ export default function Timer() {
       const message = axios.isAxiosError(error)
         ? (error.response?.data as { message?: string })?.message
         : undefined;
-      toast.error(message ?? '중도 포기 처리에 실패했습니다.');
+      toast.error(message ?? '탈옥에 실패했어요.');
     },
   });
 
@@ -200,7 +200,7 @@ export default function Timer() {
     isEscapingRef.current = true;
     socket?.emit('escape:start');
 
-    toast.error('화면을 이탈했습니다! 이탈 시간이 누적됩니다.', {
+    toast.error('방을 이탈했어요! 이탈 시간이 누적돼요.', {
       duration: 3000,
     });
   }, [socket]);
@@ -295,7 +295,7 @@ export default function Timer() {
   if (!sessionInfo)
     return (
       <div className='flex items-center justify-center w-full h-screen text-white'>
-        로딩 중...
+        수감 준비 중...
       </div>
     );
 
@@ -310,7 +310,8 @@ export default function Timer() {
     <MobileLayout
       header={
         <HeaderTitle align='center' className={theme.textColor}>
-          {theme.statusText} {round} / {isFocus ? totalRounds : Math.max(0, totalRounds - 1)}
+          {theme.statusText} {round} /{' '}
+          {isFocus ? totalRounds : Math.max(0, totalRounds - 1)}
         </HeaderTitle>
       }
       bottomButton={
@@ -320,18 +321,16 @@ export default function Timer() {
               type='button'
               className='w-full h-12 rounded-[14px] text-base font-bold bg-transparent border border-border text-muted-foreground hover:bg-muted/30 transition-colors'
             >
-              중도 포기
+              탈옥
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                포기하면 남은 시간이
+              <DialogTitle>탈옥하시겠어요?</DialogTitle>
+              <DialogDescription>
+                탈옥하면 남은 시간이
                 <br />
                 모두 이탈 시간으로 처리돼요.
-              </DialogTitle>
-              <DialogDescription>
-                가장 많은 벌칙을 받게 됩니다.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -341,7 +340,7 @@ export default function Timer() {
                 disabled={giveUpMutation.isPending}
                 className='flex-1 h-12 rounded-lg bg-destructive hover:bg-destructive/80 text-white font-bold border-none'
               >
-                {giveUpMutation.isPending ? '처리 중...' : '포기하기'}
+                {giveUpMutation.isPending ? '탈옥 하는 중...' : '탈옥하기'}
               </Button>
               <Button
                 type='button'
@@ -378,7 +377,7 @@ export default function Timer() {
           <div className='text-center mt-4 w-full max-w-sm px-4'>
             <div className='flex items-start justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 text-xs text-destructive'>
               <span>
-                현재 기기에서 화면 꺼짐 방지가 지원되지 않습니다.
+                현재 기기에서 화면 꺼짐 방지가 지원되지 않아요.
                 <br />
                 원활한 집중을 위해 기기의 <b>자동 화면 꺼짐 시간</b>을
                 늘려주세요.
@@ -410,7 +409,7 @@ export default function Timer() {
                   d='M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
                 />
               </svg>
-              <span>시작 1분 전에 알림이 갑니다.</span>
+              <span>시작 1분 전에 알림이 울려요.</span>
             </div>
           </div>
         )}

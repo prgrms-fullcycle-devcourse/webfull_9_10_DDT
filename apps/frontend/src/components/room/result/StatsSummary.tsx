@@ -10,10 +10,10 @@ export function StatsSummary({
   penaltyMemberCount,
 }: StatsSummaryProps) {
   const items = [
-    { label: '총 진행 시간', value: totalTime },
-    { label: '완료한 반복', value: completedSessions },
+    { label: '총 수감 시간', value: totalTime },
+    { label: '완료한 반복 횟수', value: completedSessions },
     {
-      label: '벌칙 수행자',
+      label: '벌칙 대상자',
       value: penaltyMemberCount === 0 ? '0명' : `${penaltyMemberCount}명`,
     },
   ];

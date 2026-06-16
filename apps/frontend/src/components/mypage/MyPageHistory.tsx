@@ -52,10 +52,10 @@ export function MyPageHistory() {
       if (nextPage === 1) {
         // 전체 실패: 목록을 비우고 전체 에러 표시
         setHistory([]);
-        setErrorMessage('참여 기록을 불러오지 못했습니다.');
+        setErrorMessage('불러오지 못했어요.');
       } else {
         // 부분 실패: 기존 목록은 유지하고, 추가 로드 에러만 표시
-        setLoadMoreError('추가 기록을 불러오지 못했습니다.');
+        setLoadMoreError('불러오지 못했어요.');
       }
     } finally {
       loadingRef.current = false;
@@ -104,7 +104,7 @@ export function MyPageHistory() {
           <>
             <BackButton />
             <HeaderTitle>
-                내 참여 기록
+                전체 참여 기록
             </HeaderTitle>
           </>
         }
@@ -114,7 +114,7 @@ export function MyPageHistory() {
           isLoading={isLoading}
           errorMessage={errorMessage}
           errorOnlyWhenEmpty
-          emptyMessage='참여 기록이 없습니다.'
+          emptyMessage='참여 기록이 없어요.'
           loadingMessage='불러오는 중...'
           from='mypage-history'
         />
@@ -130,7 +130,7 @@ export function MyPageHistory() {
                   className='border border-white/20'
                   onClick={loadMore}
                 >
-                  다시 시도
+                  재시도 하기
                 </Button>
               </div>
             ) : (

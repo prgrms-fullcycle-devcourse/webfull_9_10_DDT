@@ -25,7 +25,7 @@ const MAX_ROOM_MEMBERS = 10;
 
 const PHASE_LABEL: Record<string, string> = {
   lobby: '입장 전',
-  contract: '계약서 작성 중',
+  contract: '각서 작성 중',
   timer: '집중 중',
 };
 
@@ -159,13 +159,13 @@ export const MainPage = () => {
         <p className='mt-7 text-[26px] font-bold leading-snug'>
           남들이 딴짓할때
           <br />
-          우리는 서로를 가두고
+          우리는 서로를 감시하고
           <br />
           집중한다.
         </p>
 
         <span className='mt-5 inline-block w-fit rounded-md bg-white/10 px-3 py-2 text-sm font-medium text-white/75 '>
-          계약하고 집중하고 벌칙으로 완성한다
+          서명하고 집중하고 벌칙으로 마무리한다.
         </span>
 
         <div className='flex-1' />
@@ -225,12 +225,12 @@ export const MainPage = () => {
           <DialogHeader>
             <DialogTitle>방 코드로 입장</DialogTitle>
             <DialogDescription>
-              초대받은 방 코드를 입력해주세요.
+              입장하실 방 코드를 입력해주세요.
             </DialogDescription>
           </DialogHeader>
           <FormInput
             type='text'
-            placeholder='방 코드 8자리를 입력해주세요'
+            placeholder='코드 8자리를 입력해주세요'
             maxLength={8}
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value)}
@@ -260,7 +260,7 @@ export const MainPage = () => {
       <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>로그인이 필요합니다</DialogTitle>
+            <DialogTitle>회원만 생성할 수 있어요.</DialogTitle>
             <DialogDescription>
               방을 만들기 위해서는 로그인이 필요합니다.
               <br />
@@ -279,7 +279,7 @@ export const MainPage = () => {
               onClick={handleLoginForCreateRoom}
               className='flex-1 h-12 rounded-lg font-bold'
             >
-              로그인 하기
+              로그인
             </Button>
           </DialogFooter>
         </DialogContent>

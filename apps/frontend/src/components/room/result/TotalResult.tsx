@@ -97,9 +97,9 @@ export function TotalResult() {
         }
       }
       await navigator.clipboard.writeText(shareUrl);
-      toast.success('URL이 복사되었어요.');
+      toast.success('방 주소가 복사되었어요.');
     } catch {
-      toast.error('URL 복사에 실패했습니다.');
+      toast.error('방 주소 복사에 실패했어요.');
     } finally {
       isSharingRef.current = false;
     }
@@ -110,7 +110,7 @@ export function TotalResult() {
       <MobileLayout
         header={
           <>
-            <HeaderTitle align='center'>통합 결과</HeaderTitle>
+            <HeaderTitle align='center'>수감 결과</HeaderTitle>
             <CloseButton onClick={handleClose} />
           </>
         }
@@ -123,7 +123,7 @@ export function TotalResult() {
                 onClick={() => setIsContractDialogOpen(true)}
                 className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
               >
-                계약서 보기
+                각서 확인하기
               </Button>
               <div className='grid grid-cols-2 gap-2.5'>
                 <Button
@@ -132,7 +132,7 @@ export function TotalResult() {
                   onClick={handleShare}
                   className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
                 >
-                  공유하기
+                  수감 결과 공유하기
                 </Button>
                 <Button
                   type='button'
@@ -142,7 +142,7 @@ export function TotalResult() {
                   }
                   className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
                 >
-                  {isLoggedInUser ? '마이페이지' : '홈 화면으로 이동'}
+                  {isLoggedInUser ? '마이페이지' : '홈으로 이동'}
                 </Button>
               </div>
             </div>
@@ -153,12 +153,12 @@ export function TotalResult() {
         <div className='flex min-w-0 flex-col gap-4 text-foreground'>
           {isLoading && (
             <div className='py-10 text-center text-sm text-muted-foreground'>
-              통합 결과를 불러오는 중...
+              수감 결과 불러오는 중...
             </div>
           )}
           {isError && !result && (
             <div className='py-10 text-center text-sm text-destructive'>
-              통합 결과를 불러오지 못했습니다.
+              수감 결과를 불러오지 못했어요.
             </div>
           )}
           {result && (
@@ -171,7 +171,7 @@ export function TotalResult() {
                   모두 고생했어요!
                 </h2>
                 <p className='mt-2 text-sm font-medium text-foreground/80'>
-                  약속한 집중 시간을 완료했어요.
+                  약속한 수감 시간을 완료했어요.
                 </p>
               </section>
               <StatsSummary

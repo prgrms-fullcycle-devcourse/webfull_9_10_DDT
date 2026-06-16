@@ -44,7 +44,7 @@ export function ContractDialog({
           <div className='flex items-center'>
             <div className='flex min-w-0 items-center pr-5'>
               <DialogTitle className='truncate text-base font-medium text-white/85'>
-                {roomTitle}의 계약서
+                {roomTitle}의 각서
               </DialogTitle>
               <DialogDescription className='sr-only'>
                 완료된 집중 세션에서 사용한 계약서의 타이머, 벌칙 목록, 벌칙

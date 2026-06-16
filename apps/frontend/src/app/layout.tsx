@@ -17,9 +17,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: '감옥 - 디지털 디톡스 타이머',
+  title: '감옥 - 디지털 디톡스 스페이스',
   description:
-    '남들이 딴짓할 때, 우리는 서로를 가두고 집중합니다. 가장 효율적인 디지털 디톡스 타이머.',
+    '딴짓하는 순간, 당신은 실패입니다. 가장 치열한 집중을 위한 효율적인 디지털 디톡스 타이머.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

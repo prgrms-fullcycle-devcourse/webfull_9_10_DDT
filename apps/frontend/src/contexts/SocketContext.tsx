@@ -66,18 +66,18 @@ export function SocketProvider({
 
     s.on('force-disconnect', (data) => {
       if (data.reason === 'not-a-member') {
-        toast.error('방에 참여하지 않으셨습니다.');
+        toast.error('방에 참여하지 않았어요.');
         router.replace(`/room/${roomCode}`);
       } else if (data.reason === 'room-timer') {
-        toast.error('이미 집중 페이즈입니다.');
+        toast.error('이미 진행 중인 방이예요.');
         clearGuestSession();
         router.replace('/');
       } else if (data.reason === 'room-closed') {
-        toast.error('이미 종료된 방입니다.');
+        toast.error('이미 종료된 방이예요.');
         clearGuestSession();
         router.replace('/');
       } else if (data.reason === 'duplicate-connection') {
-        toast.error('다른 곳에서 접속했습니다.');
+        toast.error('다른 환경에서의 로그인이 감지되었어요.');
         s.io.opts.reconnection = false;
         sessionStorage.setItem('duplicate-kicked', roomCode);
         clearGuestSession();
@@ -86,7 +86,7 @@ export function SocketProvider({
     });
 
     s.on('room:closed', ({ reason }: { reason?: string }) => {
-      toast.error(reason ?? '방이 종료되었습니다.');
+      toast.error(reason ?? '방이 종료되었어요.');
       useRoomStore.getState().reset();
       clearGuestSession();
       router.replace('/');
@@ -116,7 +116,7 @@ export function SocketProvider({
     });
 
     s.on('kicked', () => {
-      toast.error('방장에 의해 강퇴되었습니다.');
+      toast.error('방장에 의해 강퇴되었어요.');
       clearGuestSession();
       router.replace('/');
     });

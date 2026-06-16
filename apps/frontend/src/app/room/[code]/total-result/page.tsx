@@ -8,17 +8,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { code } = await params;
   return {
-    title: `통합 결과 - ${code} | 감옥`,
-    description: '집중 세션 결과를 확인해보세요!',
+    title: `수감 결과 - ${code} | 감옥`,
+    description: '수감 결과를 확인해보세요!',
     openGraph: {
-      title: `통합 결과 - ${code} | 감옥`,
-      description: '집중 세션 결과를 확인해보세요!',
+      title: `수감 결과 - ${code} | 감옥`,
+      description: '수감 결과를 확인해보세요!',
       images: [
         {
           url: `/room/${code}/total-result/opengraph-image`,
           width: 1200,
           height: 630,
-          alt: '통합 결과 | 감옥',
+          alt: '수감 결과 | 감옥',
         },
       ],
     },

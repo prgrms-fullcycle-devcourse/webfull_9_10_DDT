@@ -121,12 +121,12 @@ export function LoadContractDialog({
 
     onLoad(applyData);
     onClose();
-    toast.success(`"${selected.title}" 불러왔어요.`);
+    toast.success(`"${selected.title}"을(를) 불러왔어요.`);
   };
 
   const handleDelete = async (ruleId: string, title: string) => {
     const ok = await confirm({
-      title: `${title}을 삭제하시겠습니까?`,
+      title: `${title}을 삭제하시겠어요?`,
       confirmText: '삭제',
       variant: 'destructive',
     });
@@ -140,7 +140,7 @@ export function LoadContractDialog({
       if (selectedId === ruleId) {
         setSelectedId(null);
       }
-      toast.success('삭제됨');
+      toast.success('삭제 성공');
     } catch {
       toast.error('삭제 실패');
     }
@@ -171,9 +171,11 @@ export function LoadContractDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className='max-h-[90dvh] flex flex-col'>
         <DialogHeader className='shrink-0'>
-          <DialogTitle>저장된 계약서 불러오기</DialogTitle>
+          <DialogTitle>저장된 각서 불러오기</DialogTitle>
           <DialogDescription className='text-xs'>
-            현재 작성된 내용이 덮어씌워지고, 다른 멤버에게도 즉시 반영됩니다.
+            현재 작성된 내용이 덮어씌워지고,
+            <br />
+            다른 멤버에게도 즉시 반영돼요.
           </DialogDescription>
         </DialogHeader>
 
@@ -182,7 +184,7 @@ export function LoadContractDialog({
 
           {!isLoading && list?.length === 0 && (
             <div className='py-8 text-center text-muted-foreground'>
-              저장된 계약서가 없어요.
+              저장된 각서가 없어요.
             </div>
           )}
 
@@ -236,8 +238,9 @@ export function LoadContractDialog({
                                 {item.title}
                               </p>
                               <DialogDescription className='mt-1 text-xs'>
-                                집중 {item.focusMin}분 · 휴식 {item.breakMin}분 ·{' '}
-                                {item.rounds}회 · 벌칙 {item.penalties.length}개
+                                집중 {item.focusMin}분 · 휴식 {item.breakMin}분
+                                · {item.rounds}회 · 벌칙 {item.penalties.length}
+                                개
                               </DialogDescription>
                             </div>
                           </AccordionTrigger>
@@ -296,7 +299,7 @@ export function LoadContractDialog({
                 onClick={() => setOptions((o) => ({ ...o, tiers: !o.tiers }))}
                 className={chipClass(options.tiers)}
               >
-                벌칙 강도
+                벌칙 단계
               </button>
               <button
                 type='button'
@@ -328,7 +331,7 @@ export function LoadContractDialog({
                   }
                   className={segClass(options.penaltyMode === 'replace')}
                 >
-                  기존 삭제 후 적용
+                  덮어쓰기
                 </button>
                 <button
                   type='button'
@@ -340,7 +343,7 @@ export function LoadContractDialog({
                   }
                   className={segClass(options.penaltyMode === 'append')}
                 >
-                  기존에 추가
+                  추가하기
                 </button>
               </div>
             </div>

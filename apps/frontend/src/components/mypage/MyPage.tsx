@@ -11,7 +11,6 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -82,7 +81,7 @@ export const MyPage = () => {
         const response = await usersApi.usersControllerGetMe();
         setProfile((response.data as UserProfile) ?? null);
       } catch {
-        setErrorMessage('내 정보를 불러오지 못했습니다.');
+        setErrorMessage('정보를 불러오지 못했어요.');
       } finally {
         setIsLoadingProfile(false);
       }
@@ -104,7 +103,7 @@ export const MyPage = () => {
         };
         setHistory(historyData?.sessions?.slice(0, 3) ?? []);
       } catch {
-        setErrorMessage('마이페이지 정보를 불러오지 못했습니다.');
+        setErrorMessage('통계 정보를 불러오지 못했어요.');
       } finally {
         setIsLoadingHistory(false);
       }
@@ -280,7 +279,7 @@ export const MyPage = () => {
           history={history}
           isLoading={isLoadingHistory}
           errorMessage={errorMessage}
-          emptyMessage='최근 참여 기록이 없습니다.'
+          emptyMessage='최근 참여 기록이 없어요.'
           errorOnlyWhenEmpty
           chevronDirection='right'
           from='mypage'
@@ -291,9 +290,6 @@ export const MyPage = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>로그아웃 하시겠어요?</DialogTitle>
-            <DialogDescription>
-              로그아웃하면 다시 로그인해야 합니다.
-            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
