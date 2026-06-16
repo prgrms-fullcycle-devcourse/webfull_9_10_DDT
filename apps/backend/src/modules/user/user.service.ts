@@ -183,6 +183,7 @@ export class UsersService {
       penaltyTier: m.result?.penaltyTier || 0,
       memberCount: m.room._count.roomMembers,
       endedAt: m.room.endedAt ?? m.gaveUpAt ?? new Date(),
+      gaveUp: m.gaveUpAt != null, // 탈옥 여부
     }));
 
     return {
