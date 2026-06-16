@@ -6,6 +6,10 @@ import { SESSION_QUEUE, SessionJob } from './timer.queue';
 import { TimerService } from './timer.service';
 import { TimerRepository } from './timer.repository';
 
+/**
+ * BullMQ 세션 큐의 잡을 처리하는 프로세서.
+ * 방이 이미 closed/result 상태이면 잡을 스킵합니다.
+ */
 @Processor(SESSION_QUEUE, { concurrency: 20 })
 export class SessionProcessor extends WorkerHost {
   private readonly logger = new Logger(SessionProcessor.name);
@@ -17,6 +21,13 @@ export class SessionProcessor extends WorkerHost {
     super();
   }
 
+  /**
+   * 잡 종류에 따라 분기 처리합니다.
+   * - end: 세션 종료
+   * - break-start: 이탈 통계 브로드캐스트
+   * - break-warning: 휴식 종료 알림
+   * - reveal-penalties: 벌칙 자동 공개 (멱등)
+   */
   async process(job: Job<SessionJob>): Promise<void> {
     const data = job.data;
     this.logger.log(

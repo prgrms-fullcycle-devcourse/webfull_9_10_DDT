@@ -12,6 +12,11 @@ interface RoomState {
   members?: Record<string, unknown>;
 }
 
+/**
+ * Yjs 실시간 협업 편집을 위한 WebSocket 게이트웨이.
+ * 계약서(각서) 공동 편집 시 y-websocket 프로토콜로 Y.Doc을 동기화합니다.
+ * HTTP 서버의 /yjs 경로로 들어오는 WebSocket upgrade 요청을 처리합니다.
+ */
 @Injectable()
 export class YjsGateway implements OnModuleDestroy {
   private wss: WebSocketServer | null = null;
@@ -23,6 +28,13 @@ export class YjsGateway implements OnModuleDestroy {
     private readonly jwtService: JwtService,
   ) {}
 
+  /**
+   * HTTP 서버에 WebSocket 업그레이드 핸들러를 등록합니다.
+   * /yjs 경로의 upgrade 요청만 y-websocket으로 라우팅합니다.
+   * NestJS 앱 부트스트랩 시 main.ts에서 호출됩니다.
+   *
+   * @param httpServer - NestJS HTTP 서버 인스턴스
+   */
   init(httpServer: Server) {
     this.wss = new WebSocketServer({
       noServer: true,
@@ -46,6 +58,15 @@ export class YjsGateway implements OnModuleDestroy {
     );
   }
 
+  /**
+   * WebSocket 연결을 처리합니다.
+   * 토큰 검증 → Redis 방 상태 확인 → 멤버 여부 확인 → 페이즈 확인 순으로 검증 후
+   * y-websocket 연결을 수립합니다.
+   * timer/result/closed 페이즈에서는 연결을 거부합니다 (계약서 편집 불필요).
+   *
+   * @param ws - WebSocket 클라이언트
+   * @param req - HTTP upgrade 요청 (roomCode, token 쿼리 파라미터 포함)
+   */
   private async handleConnection(
     ws: WebSocket,
     req: IncomingMessage,
@@ -109,6 +130,12 @@ export class YjsGateway implements OnModuleDestroy {
     setupYjsWSConnection(ws, req, { docName: roomCode });
   }
 
+  /**
+   * 특정 방에 연결된 모든 Yjs WebSocket 클라이언트를 종료하고 Y.Doc을 정리합니다.
+   * 타이머 시작 시 또는 room.closed 이벤트 수신 시 호출됩니다.
+   *
+   * @param roomCode - 정리할 방 코드
+   */
   destroyRoom(roomCode: string): void {
     if (!this.wss) return;
 
@@ -125,11 +152,21 @@ export class YjsGateway implements OnModuleDestroy {
     });
   }
 
+  /**
+   * 모듈 종료 시 WebSocket 서버를 정리합니다.
+   */
   onModuleDestroy() {
     this.wss?.close();
     this.wss = null;
   }
 
+  /**
+   * HTTP 요청 URL에서 roomCode 쿼리 파라미터를 추출합니다.
+   * 끝에 붙는 슬래시(/)를 제거하여 반환합니다.
+   *
+   * @param req - HTTP 요청
+   * @returns 방 코드 문자열 (없으면 빈 문자열)
+   */
   private getRoomCode(req: IncomingMessage): string {
     const url = new URL(req.url ?? '', 'http://localhost');
     const roomCode = url.searchParams.get('roomCode');

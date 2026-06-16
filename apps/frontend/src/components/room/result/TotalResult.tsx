@@ -25,6 +25,7 @@ import { PenaltySection } from './PenaltySection';
 import { ContractDialog } from './ContractDialog';
 import { formatSessionTime, getUnknownPenaltyCount } from './utils';
 import type { ResultResponse } from './types';
+import axios from 'axios';
 
 export function TotalResult() {
   const [closeTarget] = useState(getCloseTarget);
@@ -40,6 +41,7 @@ export function TotalResult() {
   const {
     data: result,
     isError,
+    error,
     isLoading,
   } = useQuery({
     queryKey: queryKeys.result.detail(params.code),
@@ -56,6 +58,10 @@ export function TotalResult() {
         ? 3000
         : false;
     },
+    retry: (failureCount, err) => {
+      if (axios.isAxiosError(err) && err.response?.status === 403) return false;
+      return failureCount < 3;
+    },
   });
 
   const rankedMembers = useMemo(
@@ -70,6 +76,9 @@ export function TotalResult() {
   const completedSessions = result?.rule
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
     : '-';
+
+  const isRoomInProgress =
+    isError && axios.isAxiosError(error) && error.response?.status === 403;
 
   const handleClose = () => {
     clearResultFrom();
@@ -155,7 +164,22 @@ export function TotalResult() {
               수감 결과 불러오는 중...
             </div>
           )}
-          {isError && !result && (
+          {isRoomInProgress && (
+            <div className='flex flex-col items-center justify-center gap-3 py-20'>
+              <p className='text-lg font-bold'>아직 방이 진행 중이에요</p>
+              <p className='text-sm text-muted-foreground'>
+                수감 시간이 종료되면 결과를 확인할 수 있어요
+              </p>
+              <Button
+                onClick={handleClose}
+                variant='secondary'
+                className='mt-2'
+              >
+                돌아가기
+              </Button>
+            </div>
+          )}
+          {isError && !isRoomInProgress && !result && (
             <div className='py-10 text-center text-sm text-destructive'>
               수감 결과를 불러오지 못했어요.
             </div>

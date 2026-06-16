@@ -13,6 +13,7 @@ import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { RoomService } from '../../room/room.service';
 import { EscapeService } from '../../escape/escape.service';
 
+/** Socket.IO 클라이언트에 저장되는 커스텀 데이터 */
 interface SocketData {
   roomCode: string;
   userId: string;
@@ -31,6 +32,11 @@ interface JwtPayload {
   role: string;
 }
 
+/**
+ * 방 실시간 통신을 담당하는 Socket.IO 게이트웨이.
+ * 멤버 연결/해제, 서명, 강퇴, 계약서 편집, 이탈 감지, heartbeat 등
+ * 방 내 모든 실시간 이벤트를 처리합니다.
+ */
 @WebSocketGateway({
   cors: {
     origin: [
@@ -58,6 +64,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private cleanupTimers = new Map<string, NodeJS.Timeout>();
   private readonly logger = new Logger(RoomGateway.name);
 
+  /**
+   * 클라이언트 연결 시 실행됩니다.
+   * JWT 검증 → 방 상태 확인 → 멤버 검증 → 중복 연결 처리 → 방 입장 순으로 진행합니다.
+   * timer 페이즈에서 재접속한 멤버에게는 세션 정보를 재전송합니다.
+   *
+   * @param client - 연결된 Socket.IO 클라이언트
+   */
   async handleConnection(client: RoomSocket): Promise<void> {
     const token =
       (client.handshake.auth.token as string) ??
@@ -163,6 +176,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /**
+   * 클라이언트 연결 해제 시 실행됩니다.
+   * heartbeat 정리 → 연결 상태 해제 → 이탈 로그 시작(timer 중이면) → 방 정리 타이머 등록.
+   * 모든 멤버가 나가면 10초 후 방을 자동 폭파합니다.
+   *
+   * @param client - 연결 해제된 Socket.IO 클라이언트
+   */
   async handleDisconnect(client: RoomSocket): Promise<void> {
     this.logger.log(`클라이언트 연결 끊김: ${client.id}`);
 
@@ -209,12 +229,24 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /**
+   * 프론트엔드 연결 확인용 ping/pong 핸들러.
+   *
+   * @param data - 클라이언트에서 보낸 데이터
+   * @returns pong 응답
+   */
   @SubscribeMessage('ping')
   handlePing(@MessageBody() data: unknown): { event: string; data: string } {
     this.logger.log(`프론트에서 온 메시지: ${String(data)}`);
     return { event: 'pong', data: '백엔드에서 답장 보냄!' };
   }
 
+  /**
+   * 멤버의 소켓 연결 상태를 Redis에 반영합니다.
+   *
+   * @param client - Socket.IO 클라이언트
+   * @param connected - 연결 여부
+   */
   private async updateMemberConnection(
     client: RoomSocket,
     connected: boolean,
@@ -229,6 +261,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  /**
+   * 모든 멤버가 나간 방의 정리를 처리합니다.
+   * timer 중이면 활성 멤버 유무를 확인하고, result 페이즈는 보호합니다.
+   * 정리 조건 충족 시 room:closed 이벤트 → deleteRoom → 소켓 전체 해제.
+   *
+   * @param roomCode - 정리할 방 코드
+   */
   private async handleRoomCleanup(roomCode: string): Promise<void> {
     const roomState = await this.roomService.getRoomState(roomCode);
 
@@ -264,6 +303,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /**
+   * 멤버 서명 토글 이벤트 핸들러.
+   * 서명 상태를 변경하고 전체 멤버에게 브로드캐스트합니다.
+   *
+   * @param client - 서명하는 클라이언트
+   * @param body - { signed: 서명 여부 }
+   */
   @SubscribeMessage('member:sign')
   async handleSign(
     @ConnectedSocket() client: RoomSocket,
@@ -290,6 +336,13 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /**
+   * 멤버 강퇴 이벤트 핸들러. (방장 전용)
+   * 대상 멤버를 DB/Redis에서 제거하고 소켓 연결을 해제합니다.
+   *
+   * @param client - 방장 클라이언트
+   * @param body - { targetId: 강퇴 대상 ID }
+   */
   @SubscribeMessage('member:kick')
   async handleKick(
     @ConnectedSocket() client: RoomSocket,
@@ -326,6 +379,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /**
+   * 계약서(각서) 편집 이벤트 핸들러.
+   * 계약서가 수정되면 전체 멤버의 서명을 초기화합니다.
+   *
+   * @param client - 편집한 클라이언트
+   */
   @SubscribeMessage('contract:edited')
   async handleContractEdited(@ConnectedSocket() client: RoomSocket) {
     const { userId, roomCode } = client.data;
@@ -341,6 +400,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /**
+   * 특정 멤버의 편집 권한 변경 이벤트 핸들러. (방장 전용)
+   *
+   * @param client - 방장 클라이언트
+   * @param body - { targetId: 대상 ID, canEdit: 편집 허용 여부 }
+   */
   @SubscribeMessage('edit:member')
   async handleEditMember(
     @ConnectedSocket() client: RoomSocket,
@@ -363,6 +428,12 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit('edit:updated', { targetId: body.targetId, canEdit: body.canEdit });
   }
 
+  /**
+   * 전체 멤버의 편집 권한 일괄 변경 이벤트 핸들러. (방장 전용)
+   *
+   * @param client - 방장 클라이언트
+   * @param body - { canEdit: 편집 허용 여부 }
+   */
   @SubscribeMessage('edit:all')
   async handleEditAll(
     @ConnectedSocket() client: RoomSocket,
@@ -384,24 +455,50 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit('edit:all-updated', { canEdit: body.canEdit });
   }
 
+  /**
+   * heartbeat 이벤트 핸들러.
+   * 클라이언트가 주기적으로 전송하며, Redis에 마지막 활동 시각을 기록합니다.
+   * 이탈 감지 서비스에서 heartbeat 만료를 기준으로 이탈을 판정합니다.
+   *
+   * @param client - heartbeat을 보낸 클라이언트
+   */
   @SubscribeMessage('heartbeat')
   async handleHeartbeat(@ConnectedSocket() client: RoomSocket) {
     const { roomCode, userId } = client.data;
     await this.escapeService.updateHeartbeat(roomCode, userId);
   }
 
+  /**
+   * 화면 이탈 시작 이벤트 핸들러.
+   * 클라이언트의 visibilitychange(hidden) 또는 blur 시 호출됩니다.
+   *
+   * @param client - 이탈한 클라이언트
+   */
   @SubscribeMessage('escape:start')
   async handleEscapeStart(@ConnectedSocket() client: RoomSocket) {
     const { roomCode, userId } = client.data;
     await this.escapeService.logEscapeStart(roomCode, userId);
   }
 
+  /**
+   * 화면 이탈 종료 이벤트 핸들러.
+   * 클라이언트가 앱으로 복귀하면 호출됩니다.
+   *
+   * @param client - 복귀한 클라이언트
+   */
   @SubscribeMessage('escape:end')
   async handleEscapeEnd(@ConnectedSocket() client: RoomSocket) {
     const { roomCode, userId } = client.data;
     await this.escapeService.logEscapeEnd(roomCode, userId);
   }
 
+  /**
+   * timer 페이즈에서 재접속한 클라이언트에게 세션 시작 정보를 전송합니다.
+   * 시작 시각, 타이머 설정, 서버 시간을 포함하여 클라이언트가 타이머를 복원할 수 있게 합니다.
+   *
+   * @param client - 재접속한 클라이언트
+   * @param roomCode - 방 코드
+   */
   private async emitSessionStartedIfTimer(
     client: RoomSocket,
     roomCode: string,

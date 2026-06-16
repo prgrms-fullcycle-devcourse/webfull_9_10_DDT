@@ -5,12 +5,26 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { HeaderTitle } from '../layout/HeaderTitle';
 import { BackButton } from '../layout/BackButton';
-import { MyPageHistoryList, HistoryItem } from '@/components/mypage/MyPageHistoryList';
+import {
+  MyPageHistoryList,
+  HistoryItem,
+} from '@/components/mypage/MyPageHistoryList';
 import { Button } from '@/components/ui/button';
 import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 
 const PAGE_SIZE = 10;
 
+const HISTORY_CACHE_KEY = 'mypage-history-cache';
+const RESTORE_FLAG_KEY = 'mypageHistoryScrollRestore';
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30분 지난 캐시는 무시
+
+type HistoryCache = {
+  history: HistoryItem[];
+  total: number;
+  page: number;
+  scrollY: number;
+  savedAt: number;
+};
 /**
  * 전체 참여 기록 화면. IntersectionObserver 기반 무한 스크롤로 기록을 페이지 단위(10건)로 누적 로드한다.
  * 전체(1페이지) 실패와 추가 페이지(부분) 실패를 분리해 처리하며, 추가 로드 실패 시 자동 재요청을 멈추고 재시도 버튼을 노출한다.
@@ -57,7 +71,9 @@ export function MyPageHistory() {
       const sessions = data?.sessions ?? [];
       setTotal(data?.total ?? 0);
       setPage(nextPage);
-      setHistory((prev) => (nextPage === 1 ? sessions : [...prev, ...sessions]));
+      setHistory((prev) =>
+        nextPage === 1 ? sessions : [...prev, ...sessions],
+      );
       setErrorMessage('');
       setLoadMoreError('');
     } catch {
@@ -197,9 +213,7 @@ export function MyPageHistory() {
         header={
           <>
             <BackButton />
-            <HeaderTitle>
-                전체 참여 기록
-            </HeaderTitle>
+            <HeaderTitle>전체 참여 기록</HeaderTitle>
           </>
         }
       >
@@ -229,7 +243,9 @@ export function MyPageHistory() {
               </div>
             ) : (
               // 센티넬: 에러가 없을 때만 화면에 두어 자동 로드를 트리거한다.
-              <div ref={sentinelRef}>{isLoadingMore ? '불러오는 중...' : ''}</div>
+              <div ref={sentinelRef}>
+                {isLoadingMore ? '불러오는 중...' : ''}
+              </div>
             )}
           </div>
         )}

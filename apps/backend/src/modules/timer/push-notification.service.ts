@@ -26,6 +26,9 @@ function isWebPushError(err: unknown): err is WebPushError {
   );
 }
 
+/**
+ * Web Push(webpush) 및 Android Push(SNS)를 관리하는 서비스.
+ */
 @Injectable()
 export class PushNotificationService {
   private readonly logger = new Logger(PushNotificationService.name);
@@ -49,6 +52,15 @@ export class PushNotificationService {
     }
   }
 
+  /**
+   * 사용자의 푸시 구독 정보를 Redis에 저장합니다.
+   * 플랫폼(web/android)에 따라 데이터 형식이 다릅니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 유저 ID
+   * @param platform - 플랫폼 ('web' | 'android')
+   * @param subscription - 구독 데이터 (web: PushSubscription, android: SNS endpoint)
+   */
   async saveSubscription(
     roomCode: string,
     userId: string,
@@ -77,6 +89,14 @@ export class PushNotificationService {
     );
   }
 
+  /**
+   * 방의 활성 멤버 전체에게 푸시 알림을 전송합니다.
+   * 중도포기(gaveUpAt) 멤버는 제외합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param title - 알림 제목
+   * @param body - 알림 본문
+   */
   async sendToRoom(
     roomCode: string,
     title: string,
@@ -87,14 +107,18 @@ export class PushNotificationService {
     const raw = await this.timerRepository.getRoomStateRaw(roomCode);
     if (!raw) return;
 
-    const state = JSON.parse(raw) as { members?: Record<string, unknown> };
+    const state = JSON.parse(raw) as {
+      members?: Record<string, { gaveUpAt?: string | null }>;
+    };
     if (!state.members) return;
 
-    const userIds = Object.keys(state.members);
+    const activeUserIds = Object.entries(state.members)
+      .filter(([, m]) => !m.gaveUpAt)
+      .map(([id]) => id);
     const payload = JSON.stringify({ title, body });
 
     await Promise.all(
-      userIds.map(async (userId) => {
+      activeUserIds.map(async (userId) => {
         const subRaw = await this.timerRepository.getPushSubscription(
           roomCode,
           userId,
@@ -126,6 +150,14 @@ export class PushNotificationService {
     );
   }
 
+  /**
+   * 특정 사용자에게 푸시 알림을 전송합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 대상 유저 ID
+   * @param title - 알림 제목
+   * @param body - 알림 본문
+   */
   async sendToUser(
     roomCode: string,
     userId: string,
