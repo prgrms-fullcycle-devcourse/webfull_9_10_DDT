@@ -421,8 +421,6 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
       handleSkip,
       moveToFinishTarget,
     },
-    refs: {
-      selectedPenaltyRef,
-    },
+    selectedPenaltyRef,
   };
 }

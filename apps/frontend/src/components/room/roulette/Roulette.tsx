@@ -18,7 +18,7 @@ export function Roulette() {
   const searchParams = useSearchParams();
   const isGiveUpRoulette = searchParams.get('from') === 'giveup';
 
-  const { data, state, actions, refs } = useRouletteLogic(
+  const { data, state, actions, selectedPenaltyRef } = useRouletteLogic(
     params.code,
     isGiveUpRoulette,
   );
@@ -95,7 +95,7 @@ export function Roulette() {
           errors={state.errors}
         />
         <RouletteHistory
-          ref={refs.selectedPenaltyRef}
+          ref={selectedPenaltyRef}
           history={state.history}
         />
       </div>
