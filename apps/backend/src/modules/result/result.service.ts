@@ -194,7 +194,7 @@ export class ResultService {
       (room.phase === 'closed' && room.endedAt !== null);
     if (!isViewable)
       throw new ForbiddenException(
-        '세션이 종료된 후 결과를 확인할 수 있습니다.',
+        '수감이 종료된 후 결과를 확인할 수 있습니다.',
       );
 
     // [Fallback] 게스트 포함 멤버 중 ROOM_RESULT 미존재 시 재계산

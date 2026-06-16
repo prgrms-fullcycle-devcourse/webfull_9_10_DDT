@@ -47,7 +47,7 @@ export class RuleController {
   @ApiResponse({ status: 201, description: '계약서 확정 성공' })
   @ApiResponse({
     status: 400,
-    description: '벌칙 티어 구간이 연속적이지 않습니다.',
+    description: '벌칙 단계 구간이 연속적이지 않습니다.',
   })
   @ApiResponse({ status: 403, description: '방장 권한이 필요합니다.' })
   @ApiResponse({ status: 404, description: '방을 찾을 수 없습니다.' })
@@ -62,7 +62,7 @@ export class RuleController {
       req.user!.id,
       dto,
     );
-    return { message: '계약서가 확정되었습니다.', data };
+    return { message: '각서가 확정되었습니다.', data };
   }
 
   @ApiOperation({
@@ -73,7 +73,7 @@ export class RuleController {
   @Get('rules/saved')
   async getSavedRules(@Req() req: AuthenticatedRequest) {
     const data = await this.ruleService.getSavedRules(req.user!.id);
-    return { message: '계약서를 조회했습니다.', data };
+    return { message: '각서를 조회했습니다.', data };
   }
 
   @ApiOperation({
@@ -84,11 +84,11 @@ export class RuleController {
   @ApiResponse({ status: 201, description: '저장 성공' })
   @ApiResponse({
     status: 400,
-    description: '벌칙 티어 구간이 연속적이지 않습니다.',
+    description: '벌칙 단계 구간이 연속적이지 않습니다.',
   })
   @ApiResponse({
     status: 409,
-    description: '같은 이름의 계약서가 이미 존재합니다.',
+    description: '같은 이름의 각서가 이미 존재합니다.',
   })
   @Post('rules/saved')
   async saveRuleTemplate(
@@ -96,7 +96,7 @@ export class RuleController {
     @Req() req: AuthenticatedRequest,
   ) {
     const data = await this.ruleService.saveRuleTemplate(req.user!.id, dto);
-    return { message: '계약서가 저장되었습니다.', data };
+    return { message: '각서가 저장되었습니다.', data };
   }
 
   @ApiOperation({
@@ -110,10 +110,10 @@ export class RuleController {
   })
   @ApiBody({ type: SaveRuleTemplateDto })
   @ApiResponse({ status: 200, description: '수정 성공' })
-  @ApiResponse({ status: 403, description: '수정 권한이 없는 계약서입니다.' })
+  @ApiResponse({ status: 403, description: '수정 권한이 없는 각서입니다.' })
   @ApiResponse({
     status: 409,
-    description: '같은 이름의 계약서가 이미 존재합니다.',
+    description: '같은 이름의 각서가 이미 존재합니다.',
   })
   @Put('rules/saved/:ruleId')
   async updateRuleTemplate(
@@ -126,7 +126,7 @@ export class RuleController {
       ruleId,
       dto,
     );
-    return { message: '계약서가 수정되었습니다.', data };
+    return { message: '각서가 수정되었습니다.', data };
   }
 
   @ApiOperation({
@@ -140,7 +140,7 @@ export class RuleController {
     example: 'uuid',
   })
   @ApiResponse({ status: 200, description: '삭제 성공' })
-  @ApiResponse({ status: 403, description: '삭제 권한이 없는 계약서입니다.' })
+  @ApiResponse({ status: 403, description: '삭제 권한이 없는 각서입니다.' })
   @ApiResponse({
     status: 409,
     description: '진행 중인 방에서 사용 중인 계약서는 삭제할 수 없습니다.',
@@ -151,6 +151,6 @@ export class RuleController {
     @Req() req: AuthenticatedRequest,
   ) {
     await this.ruleService.deleteRuleTemplate(req.user!.id, ruleId);
-    return { message: '계약서가 삭제되었습니다.', data: null };
+    return { message: '각서가 삭제되었습니다.', data: null };
   }
 }

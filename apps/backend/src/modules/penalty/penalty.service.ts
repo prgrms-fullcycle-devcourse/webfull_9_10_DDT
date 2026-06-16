@@ -43,7 +43,7 @@ export class PenaltyService {
     });
 
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
-    if (!room.template) throw new NotFoundException('계약서 정보가 없습니다.');
+    if (!room.template) throw new NotFoundException('각서 정보가 없습니다.');
 
     const tiers = parseTierConfig(room.template.tierConfig);
     const { focusMin, breakMin, rounds } = room.template;
@@ -219,7 +219,7 @@ export class PenaltyService {
     });
 
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
-    if (!room.template) throw new NotFoundException('계약서 정보가 없습니다.');
+    if (!room.template) throw new NotFoundException('각서 정보가 없습니다.');
 
     const member = room.roomMembers[0];
     if (!member)

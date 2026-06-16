@@ -100,7 +100,7 @@ export class TimerService implements OnModuleInit {
   private ensureContractPhase(phase: string) {
     if (phase !== 'contract') {
       throw new HttpException(
-        { message: '계약서 단계에서만 시작할 수 있습니다.', error: 'LOCKED' },
+        { message: '각서 단계에서만 시작할 수 있습니다.', error: 'LOCKED' },
         HttpStatus.LOCKED,
       );
     }
@@ -196,9 +196,9 @@ export class TimerService implements OnModuleInit {
     if (!member)
       throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
     if (member.room.phase !== 'timer')
-      throw new ConflictException('집중 진행 중에만 중도 포기할 수 있습니다.');
+      throw new ConflictException('집중 진행 중에만 탈옥할 수 있습니다.');
     if (member.gaveUpAt)
-      throw new ConflictException('이미 중도 포기한 상태입니다.');
+      throw new ConflictException('이미 탈옥한 상태입니다.');
 
     const now = new Date();
     await this.timerRepository.giveUpTransaction(member.id, now);
@@ -379,7 +379,7 @@ export class TimerService implements OnModuleInit {
 
   private async loadRoomTemplate(roomCode: string) {
     const room = await this.timerRepository.findRoomWithTemplate(roomCode);
-    if (!room?.template) throw new NotFoundException('계약서가 없습니다.');
+    if (!room?.template) throw new NotFoundException('각서가 없습니다.');
     return room.template;
   }
 

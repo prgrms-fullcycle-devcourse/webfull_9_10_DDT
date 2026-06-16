@@ -31,7 +31,7 @@ export class RuleService {
   ) {
     for (let i = 0; i < tiers.length - 1; i++) {
       if (tiers[i].maxPct !== tiers[i + 1].minPct) {
-        throw new BadRequestException('벌칙 티어 구간이 연속적이지 않습니다.');
+        throw new BadRequestException('벌칙 단계 구간이 연속적이지 않습니다.');
       }
     }
   }
@@ -121,7 +121,7 @@ export class RuleService {
       where: { userId_title: { userId, title: dto.title } },
     });
     if (existing)
-      throw new ConflictException('같은 이름의 계약서가 이미 존재합니다.');
+      throw new ConflictException('같은 이름의 각서가 이미 존재합니다.');
 
     const rule = await this.prisma.ruleTemplate.create({
       data: {
@@ -155,13 +155,13 @@ export class RuleService {
       where: { id: ruleId },
     });
     if (!rule || rule.userId !== userId)
-      throw new ForbiddenException('수정 권한이 없는 계약서입니다.');
+      throw new ForbiddenException('수정 권한이 없는 각서입니다.');
 
     const duplicateTitle = await this.prisma.ruleTemplate.findFirst({
       where: { userId, title: dto.title, id: { not: ruleId } },
     });
     if (duplicateTitle)
-      throw new ConflictException('같은 이름의 계약서가 이미 존재합니다.');
+      throw new ConflictException('같은 이름의 각서가 이미 존재합니다.');
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.penaltyItem.deleteMany({ where: { templateId: ruleId } });
@@ -195,7 +195,7 @@ export class RuleService {
       where: { id: ruleId },
     });
     if (!rule || rule.userId !== userId)
-      throw new ForbiddenException('삭제 권한이 없는 계약서입니다.');
+      throw new ForbiddenException('삭제 권한이 없는 각서입니다.');
 
     const activeRoom = await this.prisma.room.findFirst({
       where: {

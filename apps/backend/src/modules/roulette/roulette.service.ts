@@ -140,7 +140,7 @@ export class RouletteService {
         });
         throw new BadRequestException(
           result
-            ? '룰렛 처리가 이미 완료되었습니다.'
+            ? '벌칙 룰렛이 이미 완료되었습니다.'
             : '아직 결과가 산정되지 않았습니다. 잠시 후 다시 시도해주세요.',
         );
       }
@@ -149,7 +149,7 @@ export class RouletteService {
         data: { isRevealed: true },
       });
       if (count === 0) {
-        throw new BadRequestException('룰렛 처리가 이미 완료되었습니다.');
+        throw new BadRequestException('벌칙 룰렛이 이미 완료되었습니다.');
       }
       return rows;
     });
@@ -183,7 +183,7 @@ export class RouletteService {
     if (!member) throw new BadRequestException('멤버 정보를 찾을 수 없습니다.');
     // 포기자 전용 — gaveUpAt 없으면 차단(일반 유저는 GET /result 사용)
     if (!member.gaveUpAt)
-      throw new BadRequestException('중도포기한 유저만 조회할 수 있습니다.');
+      throw new BadRequestException('탈옥한 유저만 조회할 수 있습니다.');
 
     // fallback: give-up 시점 산정 실패로 result 미존재 시 재산정 후 재조회.
     if (!member.result) {

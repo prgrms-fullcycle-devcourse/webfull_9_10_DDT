@@ -38,7 +38,7 @@ export class TimerController {
     schema: {
       example: {
         statusCode: 201,
-        message: '세션이 시작되었습니다.',
+        message: '수감이 시작되었습니다.',
         data: {
           startedAt: '2026-05-29T01:00:00.000Z',
           currentPhase: 'focus',
@@ -68,7 +68,7 @@ export class TimerController {
     @Req() req: AuthenticatedRequest,
   ) {
     const data = await this.timerService.startTimer(roomCode, req.user!.id);
-    return { message: '세션이 시작되었습니다.', data };
+    return { message: '수감이 시작되었습니다.', data };
   }
 
   @ApiBearerAuth()
@@ -87,7 +87,7 @@ export class TimerController {
     schema: {
       example: {
         statusCode: 201,
-        message: '세션이 강제 시작되었습니다.',
+        message: '수감이 강제 시작되었습니다.',
         data: {
           kickedMemberIds: ['guest_abcd'],
           startedAt: '2026-05-29T01:00:00.000Z',
@@ -117,7 +117,7 @@ export class TimerController {
       roomCode,
       req.user!.id,
     );
-    return { message: '세션이 강제 시작되었습니다.', data };
+    return { message: '수감이 강제 시작되었습니다.', data };
   }
 
   @ApiBearerAuth()
@@ -137,7 +137,7 @@ export class TimerController {
     schema: {
       example: {
         statusCode: 201,
-        message: '세션 중도 포기가 완료되었습니다.',
+        message: '탈옥이 완료되었습니다.',
         data: { userId: 'uuid', gaveUpAt: '2026-05-29T01:10:00.000Z' },
         error: null,
       },
@@ -159,7 +159,7 @@ export class TimerController {
     @Req() req: AuthenticatedRequest,
   ) {
     const data = await this.timerService.giveUp(roomCode, req.user!.id);
-    return { message: '세션 중도 포기가 완료되었습니다.', data };
+    return { message: '탈옥이 완료되었습니다.', data };
   }
   @ApiBearerAuth()
   @ApiOperation({ summary: '푸시 알림 구독 정보 저장 (SNS 연동)' })

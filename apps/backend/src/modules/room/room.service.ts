@@ -100,7 +100,7 @@ export class RoomService {
       const alreadyInTimerRoom =
         await this.roomRepository.findMemberInTimerRoom(userId);
       if (alreadyInTimerRoom)
-        throw new ConflictException('이미 다른 방에서 집중(timer) 중입니다.');
+        throw new ConflictException('이미 다른 방에서 수감 중입니다.');
     }
 
     const room = await this.roomRepository.findByCode(code);
@@ -111,7 +111,7 @@ export class RoomService {
 
     const targetId = userId ?? guestToken!;
     const isBanned = await this.roomRepository.isBanned(code, targetId);
-    if (isBanned) throw new ForbiddenException('강퇴된 방입니다.');
+    if (isBanned) throw new ForbiddenException('강퇴당한 방입니다.');
 
     const returningMember = await this.getMemberRecord(
       room.code,
@@ -119,9 +119,9 @@ export class RoomService {
       guestToken,
     );
     if (returningMember?.gaveUpAt)
-      throw new ForbiddenException('이미 중도 포기하여 재입장 불가합니다.');
+      throw new ForbiddenException('이미 탈옥하여 재입장 불가합니다.');
     if (room.phase === 'timer' && !returningMember)
-      throw new ForbiddenException('이미 집중 세션이 시작된 방입니다.');
+      throw new ForbiddenException('이미 수감이 시작된 방입니다.');
 
     const isHost = userId === room.hostId;
     if (
@@ -153,7 +153,7 @@ export class RoomService {
     const room = await this.roomRepository.findByCode(roomCode);
     if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
     if (!['lobby', 'contract'].includes(room.phase))
-      throw new ForbiddenException('타이머 진행 중/종료된 방은 퇴장 불가.');
+      throw new ForbiddenException('수감 진행 중/종료된 방은 퇴장 불가.');
 
     // 방장은 생성만 하고 입장하지 않았어도(멤버 레코드가 없어도) 방을 폭파할 수 있다.
     if (room.hostId === userId) {
