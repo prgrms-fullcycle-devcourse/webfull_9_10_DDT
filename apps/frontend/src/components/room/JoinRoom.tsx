@@ -13,7 +13,6 @@ import { PasswordInput } from '@/components/common/PasswordInput';
 import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
 import { ProfileImagePicker } from '@/components/common/ProfileImagePicker';
-import { RoomNotFound } from '@/components/room/RoomNotFound';
 import {
   Dialog,
   DialogContent,
@@ -79,7 +78,6 @@ export const JoinRoom = () => {
   const [profileInput, setProfileInput] = useState<number | null>(null);
   const [password, setPassword] = useState('');
   const [dialogDismissed, setDialogDismissed] = useState(false);
-  const [isForceInvalid, setIsForceInvalid] = useState(false);
 
   const nickname = nicknameInput ?? defaultNickname;
   const selectedProfile = profileInput ?? defaultProfile;
@@ -120,17 +118,42 @@ export const JoinRoom = () => {
     nickname.trim().length > 0 &&
     (isHost || (password.length >= 4 && password.length <= 12));
 
-  // 타이머 진행 중인 방일 때, 내가 참여 중인 멤버라면 타이머 화면으로 바로 보냄
+  // 방이 폭파되거나 없는 방이 된 경우 언제든지 메인으로 튕겨냄
   useEffect(() => {
-    if (
-      room?.phase === 'timer' &&
-      isLoggedIn &&
-      isMyActiveFetched &&
-      myActiveRoom?.code === code
-    ) {
-      router.replace(`/room/${code}/timer`);
+    if (isRoomInvalid) {
+      toast.error('존재하지 않거나 종료된 방이에요.');
+      router.replace('/');
     }
-  }, [room, isLoggedIn, isMyActiveFetched, myActiveRoom, code, router]);
+  }, [isRoomInvalid, router]);
+
+  // 진입 시 방 상태별 처리. 메시지는 백엔드 join 에러 문구에 맞춘다.
+  const initialCheckRef = useRef(false);
+  useEffect(() => {
+    if (initialCheckRef.current || !room) return;
+
+    // result: 멤버 구분 불가(getMyActiveRoom이 제외) → 모두 차단.
+    if (room.phase === 'result') {
+      initialCheckRef.current = true;
+      toast.error('종료된 방입니다.');
+      router.replace('/');
+      return;
+    }
+
+    // timer: 참여 중인 멤버는 타이머로, 비멤버는 차단.
+    if (room.phase === 'timer') {
+      // 멤버 여부 판단을 위해 활성 방 조회 완료까지 대기.
+      if (isLoggedIn && !isMyActiveFetched) {
+        return;
+      }
+      initialCheckRef.current = true;
+      if (isLoggedIn && myActiveRoom?.code === code) {
+        router.replace(`/room/${code}/timer`);
+      } else {
+        toast.error('이미 집중 세션이 시작된 방입니다.');
+        router.replace('/');
+      }
+    }
+  }, [room, isLoggedIn, myActiveRoom, isMyActiveFetched, code, router]);
 
   const handleGoogleLogin = () => {
     startTermsAgreementLogin(router.push);
@@ -150,7 +173,8 @@ export const JoinRoom = () => {
     },
     onError: (err) => {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
-        setIsForceInvalid(true);
+        toast.error('존재하지 않거나 폭파된 방이에요.');
+        router.replace('/');
         return;
       }
       toast.error(getErrorMessage(err, '입장 실패'));
@@ -182,24 +206,14 @@ export const JoinRoom = () => {
     });
   };
 
-  if (isRoomInvalid || isForceInvalid || room?.phase === 'result') {
-    return <RoomNotFound />;
-  }
-
-  if (room?.phase === 'timer') {
-    if (isLoggedIn && isMyActiveFetched && myActiveRoom?.code === code) {
-      return <Loading label='방 복귀 중...' />;
-    }
-    return (
-      <RoomNotFound
-        primaryMessage='이미 집중 세션이 시작된 방입니다.'
-        description='타이머가 진행 중인 방에는 입장할 수 없어요.'
-      />
-    );
-  }
-
-  // 방 정보 정상 조회 중이거나 인증 로딩 중일 때
-  if (isRoomLoading || isAuthLoading || !room) {
+  // 로딩 중 또는 위 effect가 리다이렉트로 처리하는 방이면 폼 대신 로딩 UI를 보여준다.
+  if (
+    isRoomLoading ||
+    isRoomInvalid ||
+    isAuthLoading ||
+    room?.phase === 'timer' ||
+    room?.phase === 'result'
+  ) {
     return <Loading label='방 정보를 불러오는 중...' />;
   }
 
