@@ -3,14 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Users, Lightbulb, Copy } from 'lucide-react';
+import { Users, Lightbulb, Copy } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { CloseButton } from '@/components/layout/CloseButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
-import { FormInput } from '@/components/ui/form-input';
-import { Label } from '@/components/ui/label';
 import { CountableInput } from '@/components/common/CountableInput';
 import { PasswordInput } from '@/components/common/PasswordInput';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -412,10 +410,7 @@ export const CreateRoom = () => {
                 onChange={setRoomName}
               />
 
-              <PasswordInput
-                value={password}
-                onChange={setPassword}
-              />
+              <PasswordInput value={password} onChange={setPassword} />
             </form>
           </>
         )}

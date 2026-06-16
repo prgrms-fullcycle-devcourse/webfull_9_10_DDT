@@ -192,10 +192,10 @@ export class RoomService {
     guestToken: string | null,
   ) {
     const targetId = userId ?? guestToken;
-    if (!targetId) throw new UnauthorizedException('인증 정보가 없습니다.');
+    if (!targetId) throw new UnauthorizedException('인증 정보가 없어요.');
 
     const room = await this.roomRepository.findByCode(roomCode);
-    if (!room) throw new NotFoundException('방을 찾을 수 없습니다.');
+    if (!room) throw new NotFoundException('방을 찾을 수 없어요.');
     if (!['lobby', 'contract'].includes(room.phase))
       throw new ForbiddenException('수감 진행 중/종료된 방은 퇴장 불가.');
 
@@ -204,7 +204,7 @@ export class RoomService {
       await this.deleteRoom(roomCode);
       this.roomGateway.server
         .to(roomCode)
-        .emit('room:closed', { reason: '방장이 퇴장했습니다.' });
+        .emit('room:closed', { reason: '방장이 퇴장했어요.' });
       this.roomGateway.server.in(roomCode).disconnectSockets();
       return { isHost: true, targetId };
     }
@@ -216,7 +216,7 @@ export class RoomService {
       guestToken,
     );
     if (!memberRecord)
-      throw new NotFoundException('참여 정보를 찾을 수 없습니다.');
+      throw new NotFoundException('참여 정보를 찾을 수 없어요.');
 
     await this.roomRepository.deleteMemberById(memberRecord.id);
     const state = await this.roomRepository.getState(roomCode);
@@ -241,7 +241,7 @@ export class RoomService {
   async find(code: string, userId?: string) {
     const room = await this.roomRepository.findByCodeWithTitle(code);
     if (!room || room.phase === 'closed')
-      throw new NotFoundException('방을 찾을 수 없습니다.');
+      throw new NotFoundException('방을 찾을 수 없어요.');
     return {
       title: room.title,
       id: room.code,

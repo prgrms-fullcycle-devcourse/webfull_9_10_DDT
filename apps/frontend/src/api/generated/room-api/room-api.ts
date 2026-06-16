@@ -6,87 +6,75 @@
  * OpenAPI spec version: 1.0
  */
 import axios from 'axios';
-import type {
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse
-} from 'axios';
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-import type {
-  CreateRoomDto,
-  JoinRoomDto
-} from '../models';
+import type { CreateRoomDto, JoinRoomDto } from '../models';
 
-
-
-
-  export const getRoomApi = (axiosInstance: AxiosInstance = axios) => {
-/**
- * 로그인 유저가 새 방을 생성합니다. 방의 식별자는 8자리 `code`이며, 코드가 중복되면 서버가 최대 5회까지 자동 재발급을 재시도합니다. 게스트는 생성할 수 없습니다.
- * @summary 방 생성 (로그인 유저 전용)
- */
-const roomControllerCreate = (
-    createRoomDto: CreateRoomDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
-    return axiosInstance.post(
-      `/rooms`,
-      createRoomDto,options
-    );
-  }
-/**
- * 타이머 시작 전 방에서 퇴장합니다. 방장이 퇴장하면 방이 폐쇄됩니다.
- * @summary 방 퇴장
- */
-const roomControllerLeaveRoom = (
-    roomCode: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.post(
-      `/rooms/${roomCode}/leave`,
-      undefined,options
-    );
-  }
-/**
- * 방 코드로 방 기본 정보를 조회합니다. 종료된 방(result/closed)은 조회할 수 없습니다.
- * @summary 방 코드로 방 정보 조회
- */
-const roomControllerFindById = (
-    roomCode: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
-    return axiosInstance.get(
-      `/rooms/${roomCode}`,options
-    );
-  }
-/**
- * 방 코드로 입장합니다. 비밀번호가 일치해야 하며, 재입장이 아닌 경우 정원(10명)과 진행 상태(timer)를 검사합니다.
- * @summary 방 코드로 방 입장
- */
-const roomControllerJoinById = (
+export const getRoomApi = (axiosInstance: AxiosInstance = axios) => {
+  /**
+   * 로그인 유저가 새 방을 생성합니다. 방의 식별자는 8자리 `code`이며, 코드가 중복되면 서버가 최대 5회까지 자동 재발급을 재시도합니다. 게스트는 생성할 수 없습니다.
+   * @summary 방 생성 (로그인 유저 전용)
+   */
+  const roomControllerCreate = (
+    createRoomDto: CreateRoomDto,
+    options?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<unknown>> => {
+    return axiosInstance.post(`/rooms`, createRoomDto, options);
+  };
+  /**
+   * 타이머 시작 전 방에서 퇴장합니다. 방장이 퇴장하면 방이 폐쇄됩니다.
+   * @summary 방 퇴장
+   */
+  const roomControllerLeaveRoom = (
     roomCode: string,
-    joinRoomDto: JoinRoomDto, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<unknown>> => {
-    return axiosInstance.post(
-      `/rooms/${roomCode}`,
-      joinRoomDto,options
-    );
-  }
-const roomControllerGetMyActiveRoom = (
-     options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.get(
-      `/rooms/me/active`,options
-    );
-  }
-const roomControllerGetEscapeSummary = (
-    code: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    return axiosInstance.get(
-      `/rooms/${code}/escape-summary`,options
-    );
-  }
-return {roomControllerCreate,roomControllerLeaveRoom,roomControllerFindById,roomControllerJoinById,roomControllerGetMyActiveRoom,roomControllerGetEscapeSummary}};
-export type RoomControllerCreateResult = AxiosResponse<unknown>
-export type RoomControllerLeaveRoomResult = AxiosResponse<void>
-export type RoomControllerFindByIdResult = AxiosResponse<unknown>
-export type RoomControllerJoinByIdResult = AxiosResponse<unknown>
-export type RoomControllerGetMyActiveRoomResult = AxiosResponse<void>
-export type RoomControllerGetEscapeSummaryResult = AxiosResponse<void>
+    options?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.post(`/rooms/${roomCode}/leave`, undefined, options);
+  };
+  /**
+   * 방 코드로 방 기본 정보를 조회합니다. 종료된 방(result/closed)은 조회할 수 없습니다.
+   * @summary 방 코드로 방 정보 조회
+   */
+  const roomControllerFindById = (
+    roomCode: string,
+    options?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<unknown>> => {
+    return axiosInstance.get(`/rooms/${roomCode}`, options);
+  };
+  /**
+   * 방 코드로 입장합니다. 비밀번호가 일치해야 하며, 재입장이 아닌 경우 정원(10명)과 진행 상태(timer)를 검사합니다.
+   * @summary 방 코드로 방 입장
+   */
+  const roomControllerJoinById = (
+    roomCode: string,
+    joinRoomDto: JoinRoomDto,
+    options?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<unknown>> => {
+    return axiosInstance.post(`/rooms/${roomCode}`, joinRoomDto, options);
+  };
+  const roomControllerGetMyActiveRoom = (
+    options?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.get(`/rooms/me/active`, options);
+  };
+  const roomControllerGetEscapeSummary = (
+    code: string,
+    options?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<void>> => {
+    return axiosInstance.get(`/rooms/${code}/escape-summary`, options);
+  };
+  return {
+    roomControllerCreate,
+    roomControllerLeaveRoom,
+    roomControllerFindById,
+    roomControllerJoinById,
+    roomControllerGetMyActiveRoom,
+    roomControllerGetEscapeSummary,
+  };
+};
+export type RoomControllerCreateResult = AxiosResponse<unknown>;
+export type RoomControllerLeaveRoomResult = AxiosResponse<void>;
+export type RoomControllerFindByIdResult = AxiosResponse<unknown>;
+export type RoomControllerJoinByIdResult = AxiosResponse<unknown>;
+export type RoomControllerGetMyActiveRoomResult = AxiosResponse<void>;
+export type RoomControllerGetEscapeSummaryResult = AxiosResponse<void>;
