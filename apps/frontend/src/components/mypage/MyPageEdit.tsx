@@ -65,7 +65,7 @@ export function MyPageEdit() {
         const data = response.data as UserProfile | undefined;
 
         if (!data) {
-          throw new Error('프로필을 불러오지 못했습니다.');
+          throw new Error('프로필을 불러오지 못했어요.');
         }
 
         setNickname(data.nickname ?? '');
@@ -77,7 +77,7 @@ export function MyPageEdit() {
         setSelectedProfile(index >= 0 ? index : 0);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : '불러오기에 실패했습니다.',
+          err instanceof Error ? err.message : '불러오기에 실패했어요.',
         );
       } finally {
         setIsLoading(false);
@@ -112,7 +112,7 @@ export function MyPageEdit() {
       // 전역 me(헤더 등 다른 화면의 닉네임·프로필)도 최신화한다.
       await refetchMe();
 
-      toast.success('프로필이 저장되었습니다.');
+      toast.success('프로필이 저장되었어요.');
       router.push('/mypage');
     } catch (err) {
       const message = getErrorMessage(err, '저장에 실패했습니다.');
@@ -137,7 +137,7 @@ export function MyPageEdit() {
       logout();
       router.push('/');
     } catch (err) {
-      const message = getErrorMessage(err, '회원 탈퇴에 실패했습니다.');
+      const message = getErrorMessage(err, '회원 탈퇴에 실패했어요.');
       toast.error(message);
       setError(message);
     } finally {
@@ -184,7 +184,7 @@ export function MyPageEdit() {
             </Label>
             <FormInput
               type='text'
-              placeholder='닉네임을 입력해주세요'
+              placeholder='새로운 닉네임을 입력해주세요.'
               maxLength={NICKNAME_MAX_LENGTH}
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
@@ -219,7 +219,7 @@ export function MyPageEdit() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              회원 탈퇴하면 <br /> 집중했던 데이터가 사라집니다.
+              회원 탈퇴하면 <br /> 데이터가 사라져요.
             </DialogTitle>
             <DialogDescription>정말로 탈퇴하시겠어요?</DialogDescription>
           </DialogHeader>

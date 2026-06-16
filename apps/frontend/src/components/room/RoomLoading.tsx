@@ -9,7 +9,7 @@ interface RoomLoadingProps {
 
 export function RoomLoading({
   title = '방 입장하기',
-  message = '방 정보를 불러오는 중...',
+  message = '방 정보 불러오는 중...',
 }: RoomLoadingProps) {
   return (
     <MobileLayout

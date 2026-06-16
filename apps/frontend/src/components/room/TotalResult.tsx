@@ -80,6 +80,13 @@ type JwtPayload = {
   role?: string;
 };
 
+const getMemberLabel = (isMe: boolean, isHost: boolean) => {
+  const tags: string[] = [];
+  if (isMe) tags.push('나');
+  if (isHost) tags.push('방장');
+  return tags.length ? ` (${tags.join(', ')})` : '';
+};
+
 const formatSessionTime = (totalMs: number | null) => {
   if (totalMs === null) return '-';
 
@@ -211,9 +218,9 @@ export function TotalResult() {
       }
 
       await navigator.clipboard.writeText(shareUrl);
-      toast.success('URL이 복사되었어요.');
+      toast.success('방 주소가 복사되었어요.');
     } catch {
-      toast.error('URL 복사에 실패했습니다.');
+      toast.error('방 주소 복사에 실패했어요.');
     } finally {
       isSharingRef.current = false;
     }
@@ -221,7 +228,7 @@ export function TotalResult() {
 
   const HeaderComponent = (
     <>
-      <HeaderTitle align='center'>통합 결과</HeaderTitle>
+      <HeaderTitle align='center'>수감 결과</HeaderTitle>
       <CloseButton
         onClick={() => {
           sessionStorage.removeItem('totalResultFrom');
@@ -243,7 +250,7 @@ export function TotalResult() {
         onClick={() => setIsContractDialogOpen(true)}
         className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
       >
-        계약서 보기
+        각서 확인하기
       </Button>
       <div className='grid grid-cols-2 gap-2.5'>
         <Button
@@ -252,7 +259,7 @@ export function TotalResult() {
           onClick={handleShare}
           className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
         >
-          공유하기
+          수감 결과 공유하기
         </Button>
         <Button
           type='button'
@@ -260,7 +267,7 @@ export function TotalResult() {
           onClick={() => router.replace(isLoggedInUser ? '/mypage' : '/')}
           className='h-12 rounded-[14px] border border-white/10 bg-[#1A1F31] text-base font-bold text-white/85'
         >
-          {isLoggedInUser ? '마이페이지' : '홈 화면으로 이동'}
+          {isLoggedInUser ? '마이페이지' : '홈으로 이동'}
         </Button>
       </div>
     </div>
@@ -276,12 +283,12 @@ export function TotalResult() {
         <div className='flex min-w-0 flex-col gap-4 text-foreground'>
           {isLoading ? (
             <div className='py-10 text-center text-sm text-muted-foreground'>
-              통합 결과를 불러오는 중...
+              수감 결과 불러오는 중...
             </div>
           ) : null}
           {isError && !result ? (
             <div className='py-10 text-center text-sm text-destructive'>
-              통합 결과를 불러오지 못했습니다.
+              수감 결과를 불러오지 못했어요.
             </div>
           ) : null}
           {result ? (
@@ -294,25 +301,25 @@ export function TotalResult() {
                   모두 고생했어요!
                 </h2>
                 <p className='mt-2 text-sm font-medium text-foreground/80'>
-                  약속한 집중 시간을 완료했어요.
+                  약속한 수감 시간을 완료했어요.
                 </p>
               </section>
 
               <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1d1c31] text-center text-[11px] text-white/50'>
                 <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
-                  <span>총 진행 시간</span>
+                  <span>총 수감 시간</span>
                   <strong className='text-base text-white/85'>
                     {totalTime}
                   </strong>
                 </div>
                 <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
-                  <span>완료한 반복</span>
+                  <span>완료한 반복 횟수</span>
                   <strong className='text-base text-white/85'>
                     {completedSessions}
                   </strong>
                 </div>
                 <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
-                  <span>벌칙 수행자</span>
+                  <span>벌칙 대상자</span>
                   <strong className='text-base text-white/85'>
                     {(result.penaltyMemberCount ?? 0) === 0
                       ? '0명'
@@ -362,12 +369,11 @@ export function TotalResult() {
                             <div className='flex min-w-0 items-center gap-1.5'>
                               <span className='truncate text-sm font-semibold text-slate-100'>
                                 {member.nickname}
-                                {member.isHost ? ' (방장)' : ''}
-                                {isMe && !isSolo ? ' (나)' : ''}
+                                {getMemberLabel(isMe && !isSolo, member.isHost)}
                               </span>
                               {member.gaveUpAt ? (
                                 <Badge className='h-5 shrink-0 border-none bg-destructive px-1.5 text-[10px] font-bold text-white hover:bg-destructive'>
-                                  중도 포기
+                                  탈옥
                                 </Badge>
                               ) : null}
                             </div>
@@ -384,7 +390,7 @@ export function TotalResult() {
 
               <section className='flex flex-col gap-2'>
                 <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
-                  멤버별 벌칙 결과
+                  수감자 별 벌칙 결과
                 </h3>
                 <div className='overflow-hidden rounded-[14px] bg-[#1d1c31]'>
                   {penaltyMembers.length > 0 ? (
@@ -430,8 +436,7 @@ export function TotalResult() {
                             <div className='min-w-0 flex-1'>
                               <span className='block truncate text-sm font-medium text-white/85'>
                                 {member.nickname}
-                                {member.isHost ? ' (방장)' : ''}
-                                {isMe && !isSolo ? ' (본인)' : ''}
+                                {getMemberLabel(isMe && !isSolo, member.isHost)}
                               </span>
                             </div>
                             <span
@@ -442,7 +447,7 @@ export function TotalResult() {
                               }`}
                             >
                               {isRoulettePending
-                                ? '벌칙 뽑는 중'
+                                ? '벌칙 결정 중'
                                 : `벌칙 ${member.penalties.totalCount}개`}
                             </span>
                             <ChevronDown
@@ -458,7 +463,7 @@ export function TotalResult() {
                             >
                               {isRoulettePending ? (
                                 <p className='text-center text-sm text-white/70'>
-                                  벌칙을 뽑고 있어요.
+                                  벌칙을 결정하고 있어요.
                                 </p>
                               ) : (
                                 <ul className='flex list-disc flex-col gap-2 pl-7 text-sm text-white/70 marker:text-white/70'>
@@ -514,17 +519,17 @@ export function TotalResult() {
             <div className='flex items-center'>
               <div className='flex min-w-0 items-center pr-5'>
                 <DialogTitle className='truncate text-base font-medium text-white/85'>
-                  {result?.roomTitle ?? params.code}의 계약서
+                  {result?.roomTitle ?? params.code}의 각서
                 </DialogTitle>
                 <DialogDescription className='sr-only'>
-                  완료된 집중 세션에서 사용한 계약서의 타이머, 벌칙 목록, 벌칙
-                  강도 설정을 확인할 수 있습니다.
+                  완료된 집중 세션에서 사용한 계약서의 시간 설정, 벌칙 목록,
+                  벌칙 단계 설정을 확인할 수 있습니다.
                 </DialogDescription>
               </div>
             </div>
 
             <section className='flex flex-col gap-3'>
-              <h3 className='text-sm font-medium text-white/45'>타이머</h3>
+              <h3 className='text-sm font-medium text-white/45'>시간 설정</h3>
               <div className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1A1F31] text-center text-[11px] text-white/40'>
                 <div className='flex h-[61px] flex-col items-center justify-center gap-1 border-r border-white/10 px-[9px]'>
                   <span>집중 시간</span>
@@ -562,14 +567,14 @@ export function TotalResult() {
                 ))}
                 {result?.rule?.penalties.length === 0 ? (
                   <div className='flex min-h-[46px] items-center px-4 py-3.5 text-white/50'>
-                    벌칙 목록이 없습니다.
+                    벌칙 목록이 없어요.
                   </div>
                 ) : null}
               </div>
             </section>
 
             <section className='flex flex-col gap-3'>
-              <h3 className='text-sm font-medium text-white/45'>벌칙 강도</h3>
+              <h3 className='text-sm font-medium text-white/45'>벌칙 단계</h3>
               <div className='overflow-hidden rounded-[14px] bg-[#1A1F31] text-sm font-medium text-white/85'>
                 {tiers.map((tier, index) => (
                   <div
@@ -591,7 +596,7 @@ export function TotalResult() {
                 ))}
                 {tiers.length === 0 ? (
                   <div className='flex min-h-[46px] items-center px-4 py-3.5 text-white/50'>
-                    벌칙 강도 설정이 없습니다.
+                    벌칙 단계가 설정되지 않았어요.
                   </div>
                 ) : null}
               </div>

@@ -46,6 +46,13 @@ type ResultResponse = {
   } | null;
 };
 
+const getMemberLabel = (isMe: boolean, isHost: boolean) => {
+  const tags: string[] = [];
+  if (isMe) tags.push('나');
+  if (isHost) tags.push('방장');
+  return tags.length ? ` (${tags.join(', ')})` : '';
+};
+
 const formatSessionTime = (totalMs: number | null) => {
   if (totalMs === null) return '-';
 
@@ -103,9 +110,7 @@ export function SemiResult() {
 
   if (isNoDisruption) return null;
 
-  const HeaderComponent = (
-    <HeaderTitle align='center'>결과</HeaderTitle>
-  );
+  const HeaderComponent = <HeaderTitle align='center'>결과</HeaderTitle>;
 
   const BottomButtonComponent = (
     <Button
@@ -125,151 +130,145 @@ export function SemiResult() {
       {!canDecideNextRoute
         ? '확인 중...'
         : shouldShowRoulette
-          ? '룰렛 돌리기'
+          ? '벌칙 룰렛 돌리기'
           : '다음'}
     </Button>
   );
 
   return (
-    <MobileLayout
-      header={HeaderComponent}
-      bottomButton={BottomButtonComponent}
-    >
+    <MobileLayout header={HeaderComponent} bottomButton={BottomButtonComponent}>
       <div className='flex min-w-0 flex-col gap-4 text-foreground'>
-          {isLoading ? (
-            <div className='py-10 text-center text-sm text-muted-foreground'>
-              결과를 불러오는 중...
+        {isLoading ? (
+          <div className='py-10 text-center text-sm text-muted-foreground'>
+            수감 결과를 불러오는 중...
+          </div>
+        ) : null}
+        {isError ? (
+          <div className='py-10 text-center text-sm text-destructive'>
+            수감 결과를 불러오지 못했어요.
+          </div>
+        ) : null}
+        {result ? (
+          <>
+            <div className='space-y-1.5 py-4 text-center'>
+              {isNoDisruption ? (
+                <>
+                  <div className='mb-1 text-3xl animate-bounce'>👍</div>
+                  <h2 className='text-xl font-bold tracking-tight text-[#FBBF24]'>
+                    탈옥한 수감자가 아무도 없어요!
+                  </h2>
+                  <p className='mt-2 text-sm font-medium text-foreground/80'>
+                    오늘 집중력은 최고네요.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className='mb-1 text-3xl animate-pulse'>🎉</div>
+                  <h2 className='text-xl font-bold tracking-tight text-[#10B981]'>
+                    수감 시간이 종료되었어요.
+                  </h2>
+                  <p className='mt-2 text-sm font-medium text-foreground/80'>
+                    수감 결과를 확인해 주세요.
+                  </p>
+                </>
+              )}
             </div>
-          ) : null}
-          {isError ? (
-            <div className='py-10 text-center text-sm text-destructive'>
-              결과를 불러오지 못했습니다.
-            </div>
-          ) : null}
-          {result ? (
-            <>
-              <div className='space-y-1.5 py-4 text-center'>
-                {isNoDisruption ? (
-                  <>
-                    <div className='mb-1 text-3xl animate-bounce'>👍</div>
-                    <h2 className='text-xl font-bold tracking-tight text-[#FBBF24]'>
-                      이탈 유저가 아무도 없어요!
-                    </h2>
-                    <p className='mt-2 text-sm font-medium text-foreground/80'>
-                      오늘 집중력은 최고네요.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className='mb-1 text-3xl animate-pulse'>🎉</div>
-                    <h2 className='text-xl font-bold tracking-tight text-[#10B981]'>
-                      집중시간이 종료되었습니다.
-                    </h2>
-                    <p className='mt-2 text-sm font-medium text-foreground/80'>
-                      결과를 확인해 주세요.
-                    </p>
-                  </>
-                )}
+
+            <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1d1c31] text-center text-[11px] text-white/50'>
+              <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
+                <span>총 수감 시간</span>
+                <strong className='text-base text-white/85'>{totalTime}</strong>
               </div>
+              <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
+                <span>완료한 반복 횟수</span>
+                <strong className='text-base text-white/85'>
+                  {completedSessions}
+                </strong>
+              </div>
+              <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
+                <span>벌칙 대상자</span>
+                <strong className='text-base text-white/85'>
+                  {isNoDisruption ? '0명' : `${result.penaltyMemberCount}명`}
+                </strong>
+              </div>
+            </section>
 
-              <section className='grid grid-cols-3 overflow-hidden rounded-[14px] bg-[#1d1c31] text-center text-[11px] text-white/50'>
-                <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
-                  <span>총 진행 시간</span>
-                  <strong className='text-base text-white/85'>
-                    {totalTime}
-                  </strong>
-                </div>
-                <div className='flex min-w-0 flex-col items-center gap-1 border-r border-white/10 px-2.5 py-3'>
-                  <span>완료한 반복</span>
-                  <strong className='text-base text-white/85'>
-                    {completedSessions}
-                  </strong>
-                </div>
-                <div className='flex min-w-0 flex-col items-center gap-1 px-2.5 py-3'>
-                  <span>벌칙 수행자</span>
-                  <strong className='text-base text-white/85'>
-                    {isNoDisruption ? '0명' : `${result.penaltyMemberCount}명`}
-                  </strong>
-                </div>
-              </section>
+            <section className='flex flex-col gap-2'>
+              <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
+                {isNoDisruption ? '참여 수감자' : '이탈 시간 순위'}
+              </h3>
 
-              <section className='flex flex-col gap-2'>
-                <h3 className='px-1 text-xs font-semibold text-muted-foreground'>
-                  {isNoDisruption ? '참여 멤버' : '이탈 시간 순위'}
-                </h3>
+              <div className='overflow-hidden rounded-[14px] bg-[#1d1c31]'>
+                {rankedMembers.map((member) => {
+                  const isMe = me
+                    ? (me.role === 'user' && member.userId === me.id) ||
+                      (me.role === 'guest' && member.guestToken === me.id)
+                    : false;
+                  const profileImageSrc = getProfileImageSrc(
+                    member.profileImage,
+                  );
 
-                <div className='overflow-hidden rounded-2xl bg-[#1d1c31]'>
-                  {rankedMembers.map((member) => {
-                    const isMe = me
-                      ? (me.role === 'user' && member.userId === me.id) ||
-                        (me.role === 'guest' && member.guestToken === me.id)
-                      : false;
-                    const profileImageSrc = getProfileImageSrc(
-                      member.profileImage,
-                    );
+                  return (
+                    <div
+                      key={member.memberId}
+                      className='flex items-center justify-between border-b border-slate-800/50 px-4 py-3 last:border-b-0'
+                    >
+                      <div className='flex min-w-0 items-center gap-3'>
+                        {member.isAllClear || isNoDisruption ? (
+                          <ThumbsUp className='h-4 w-7 shrink-0 text-[#FBBF24]' />
+                        ) : (
+                          <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-xs font-bold text-destructive'>
+                            {member.rank}
+                          </div>
+                        )}
 
-                    return (
-                      <div
-                        key={member.memberId}
-                        className='flex items-center justify-between border-b border-slate-800/50 px-4 py-3 last:border-b-0'
-                      >
-                        <div className='flex min-w-0 items-center gap-3'>
-                          {member.isAllClear || isNoDisruption ? (
-                            <ThumbsUp className='h-4 w-7 shrink-0 text-[#FBBF24]' />
-                          ) : (
-                            <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-xs font-bold text-destructive'>
-                              {member.rank}
-                            </div>
-                          )}
+                        <Avatar className='h-9 w-9 border border-slate-700 bg-[#22293F]'>
+                          {profileImageSrc ? (
+                            <AvatarImage
+                              src={profileImageSrc}
+                              alt={`${member.nickname} 프로필 이미지`}
+                            />
+                          ) : null}
+                          <AvatarFallback className='bg-transparent text-xs text-slate-300'>
+                            {member.nickname.slice(0, 1)}
+                          </AvatarFallback>
+                        </Avatar>
 
-                          <Avatar className='h-9 w-9 border border-slate-700 bg-[#22293F]'>
-                            {profileImageSrc ? (
-                              <AvatarImage
-                                src={profileImageSrc}
-                                alt={`${member.nickname} 프로필 이미지`}
-                              />
+                        <div className='min-w-0'>
+                          <div className='flex min-w-0 items-center gap-1.5'>
+                            <span
+                              className={`truncate text-sm font-semibold ${
+                                member.gaveUpAt
+                                  ? 'text-destructive'
+                                  : 'text-slate-100'
+                              }`}
+                            >
+                              {member.nickname}
+                              {getMemberLabel(isMe, member.isHost)}
+                            </span>
+
+                            {member.gaveUpAt && !isNoDisruption ? (
+                              <Badge className='h-5 shrink-0 border-none bg-destructive px-1.5 text-[10px] font-bold text-white hover:bg-destructive'>
+                                탈옥
+                              </Badge>
                             ) : null}
-                            <AvatarFallback className='bg-transparent text-xs text-slate-300'>
-                              {member.nickname.slice(0, 1)}
-                            </AvatarFallback>
-                          </Avatar>
-
-                          <div className='min-w-0'>
-                            <div className='flex min-w-0 items-center gap-1.5'>
-                              <span
-                                className={`truncate text-sm font-semibold ${
-                                  member.gaveUpAt
-                                    ? 'text-destructive'
-                                    : 'text-slate-100'
-                                }`}
-                              >
-                                {member.nickname}
-                                {member.isHost && ' (방장)'}
-                                {isMe && ' (나)'}
-                              </span>
-
-                              {member.gaveUpAt && !isNoDisruption ? (
-                                <Badge className='h-5 shrink-0 border-none bg-destructive px-1.5 text-[10px] font-bold text-white hover:bg-destructive'>
-                                  중도 포기
-                                </Badge>
-                              ) : null}
-                            </div>
                           </div>
                         </div>
-
-                        <span className='shrink-0 text-xs font-medium text-slate-400'>
-                          {!isNoDisruption && member.penalties.totalCount > 0
-                            ? `벌칙 ${member.penalties.totalCount}개`
-                            : '-'}
-                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
-            </>
-          ) : null}
-        </div>
+
+                      <span className='shrink-0 text-xs font-medium text-slate-400'>
+                        {!isNoDisruption && member.penalties.totalCount > 0
+                          ? `벌칙 ${member.penalties.totalCount}개`
+                          : '-'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </>
+        ) : null}
+      </div>
     </MobileLayout>
   );
 }

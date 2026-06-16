@@ -151,7 +151,7 @@ export function Roulette() {
           ? data.giveUpSpinResults[pickedSpins]
           : await data.spinMutation.mutateAsync(nextSpinIndex);
         if (skipInitiatedRef.current || !spinResult) {
-          if (!spinResult) setSpinErrorMessage('룰렛 결과를 찾을 수 없습니다.');
+          if (!spinResult) setSpinErrorMessage('벌칙 룰렛 결과를 찾을 수 없어요.');
           return;
         }
         const idx = data.rouletteItems.findIndex(
@@ -175,7 +175,7 @@ export function Roulette() {
           return;
         }
         setSpinErrorMessage(
-          err instanceof Error ? err.message : '룰렛 실행에 실패했습니다.',
+          err instanceof Error ? err.message : '벌칙 룰렛 결정에 실패했어요.',
         );
       }
     },
@@ -300,7 +300,7 @@ export function Roulette() {
     }
     if (autoDrawStartedRef.current) return;
     autoDrawStartedRef.current = true;
-    toast.error('시간이 초과되었습니다');
+    toast.error('시간이 초과됐어요.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [isAutoDraw]);
 
@@ -375,7 +375,7 @@ export function Roulette() {
       return;
     if (data.giveUpResult && data.giveUpSpinResults.length === 0) {
       if (!hasShownNoPenaltyToastRef.current) {
-        toast.info('뽑을 벌칙이 없어요');
+        toast.info('받을 벌칙이 없어요.');
         hasShownNoPenaltyToastRef.current = true;
       }
       data.clearGuestSession();
@@ -386,14 +386,14 @@ export function Roulette() {
   // ── Error messages ──
   const errors: string[] = [];
   if (isGiveUpRoulette ? data.isGiveUpResultError : data.isResultError)
-    errors.push('룰렛 목록을 불러오지 못했습니다.');
+    errors.push('벌칙 목록을 찾지 못했어요.');
   if (
     !(isGiveUpRoulette ? data.isGiveUpResultLoading : data.isResultLoading) &&
     !data.hasRouletteItems
   )
-    errors.push('룰렛에 사용할 벌칙 목록이 없습니다.');
+    errors.push('벌칙 룰렛에 사용할 목록이 없어요.');
   if (!isGiveUpRoulette && !data.isResultLoading && !data.myResult)
-    errors.push('내 룰렛 정보를 찾을 수 없습니다.');
+    errors.push('벌칙 룰렛 정보를 찾을 수 없어요.');
   if (currentSpinResult && targetIndex < 0)
     errors.push('서버에서 받은 당첨 벌칙이 룰렛 목록에 없습니다.');
   if (spinErrorMessage) errors.push(spinErrorMessage);
@@ -401,20 +401,20 @@ export function Roulette() {
   const buttonLabel = (
     isGiveUpRoulette ? data.isGiveUpResultLoading : data.isResultLoading
   )
-    ? '룰렛 준비 중...'
+    ? '벌칙 룰렛 준비 중...'
     : isAutoDraw
-      ? `자동으로 뽑는중 (${remainingChances}/${totalChances})`
+      ? `자동으로 결정 중... (${remainingChances}/${totalChances})`
       : data.spinMutation.isPending
-        ? '당첨 벌칙 확인 중...'
+        ? '결정된 벌칙 확인 중...'
         : isSpinning
-          ? '룰렛 돌리는 중...'
+          ? '벌칙 결정 중...'
           : isCompleted
             ? isGiveUpRoulette
-              ? '홈 화면으로 이동'
+              ? '홈으로 이동'
               : data.isSoloMember
-                ? '최종 결과 확인'
-                : '다른 멤버 벌칙 보기'
-            : `룰렛 돌리기 (${Math.max(0, remainingChances)}/${totalChances})`;
+                ? '수감 결과 확인하기'
+                : '다른 수감자 벌칙 보기'
+            : `벌칙 룰렛 돌리기 (${Math.max(0, remainingChances)}/${totalChances})`;
 
   return (
     <MobileLayout
@@ -491,7 +491,7 @@ export function Roulette() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>룰렛 횟수가 아직 남았어요.</DialogTitle>
+            <DialogTitle>결정할 벌칙이 아직 남았어요.</DialogTitle>
             <DialogDescription>벌칙이 자동으로 결정돼요.</DialogDescription>
           </DialogHeader>
           <DialogFooter>

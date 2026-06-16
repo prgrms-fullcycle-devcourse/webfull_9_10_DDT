@@ -167,7 +167,7 @@ const ContractForm = () => {
   const handleLeaveRoom = async () => {
     const ok = await confirm({
       title: isHost
-        ? `방장이 나가면 방이 폭파됩니다.\n정말 나가시겠어요?`
+        ? `방장이 나가면 방이 폭파돼요.\n정말 나가시겠어요?`
         : '정말 방에서 나가시겠어요?',
       confirmText: '나가기',
       variant: 'destructive',
@@ -183,7 +183,7 @@ const ContractForm = () => {
       }
       router.replace('/');
     } catch {
-      toast.error('퇴장 처리에 실패했습니다.');
+      toast.error('퇴장 처리에 실패했어요.');
     }
   };
 
@@ -196,8 +196,8 @@ const ContractForm = () => {
       return;
     }
     const ok = await confirm({
-      title: `강제로 시작하시겠습니까?`,
-      description: '서명하지 않은 유저는 자동으로 강퇴됩니다.',
+      title: `강제로 시작하시겠어요?`,
+      description: '서명하지 않은 멤버는 자동으로 강퇴돼요.',
       confirmText: '시작하기',
       cancelText: '아니요',
       variant: 'destructive',
@@ -224,7 +224,7 @@ const ContractForm = () => {
       header={
         <>
           <BackButton onClick={handleLeaveRoom} />
-          <HeaderTitle>계약서</HeaderTitle>
+          <HeaderTitle>각서</HeaderTitle>
           <div className='absolute right-4 flex gap-1'>
             <ContractActions
               fields={fields}
@@ -284,7 +284,7 @@ const ContractForm = () => {
         <div className='flex flex-col gap-5  rounded-xl mb-10'>
           <div className='flex flex-col mt-10 mb-5 items-center'>
             <p className='text-xl text-success'>모든 멤버가 서명해야</p>
-            <p className='text-xl text-success'>타이머를 시작할 수 있어요!</p>
+            <p className='text-xl text-success'>감금이 시작돼요!</p>
           </div>
           <MemberSignList />
         </div>
@@ -330,7 +330,7 @@ const ContractForm = () => {
                   'opacity-50 pointer-events-auto hover:cursor-auto active:scale-100',
               )}
             >
-              {startTimerMutation.isPending ? '시작 중...' : '집중 시작'}
+              {startTimerMutation.isPending ? '시작 중...' : '감금 시작'}
             </Button>
           )}
         </div>

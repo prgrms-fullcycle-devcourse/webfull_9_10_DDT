@@ -71,11 +71,11 @@ export function SaveContractDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className='flex flex-col gap-4'>
         <DialogHeader>
-          <DialogTitle>계약서 저장</DialogTitle>
+          <DialogTitle>각서 저장</DialogTitle>
         </DialogHeader>
 
         <Input
-          placeholder='계약서 이름을 입력해주세요'
+          placeholder='각서의 제목을 입력해주세요.'
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className='bg-background! h-12 w-full border border-white/20 rounded-sm!'
@@ -87,8 +87,8 @@ export function SaveContractDialog({
           )}
         >
           {willOverwrite
-            ? '같은 제목의 저장본이 있어요. 덮어쓰시겠습니까?'
-            : '이름을 입력하고 저장하면 새 계약서로 저장되요.'}
+            ? '같은 제목의 각서가 있어요. 덮어쓰시겠어요?'
+            : '제목을 입력하고 저장하면 새 각서로 저장돼요.'}
         </DialogDescription>
 
         <DialogFooter className='w-full flex'>

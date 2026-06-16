@@ -91,7 +91,7 @@ export function OAuthMessageHandler() {
           }
         } catch (error) {
           console.error('Terms Agreement Error:', error);
-          alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.');
+          alert('로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했어요.');
         }
       })();
     };

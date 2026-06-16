@@ -211,7 +211,7 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>벌칙 강도</CardTitle>
+        <CardTitle>벌칙 단계</CardTitle>
       </CardHeader>
       <Separator />
       <CardContent>
@@ -277,7 +277,7 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
                     <Button
                       variant='ghost'
                       size='icon'
-                      aria-label={`${tier.tier}단계 벌칙 강도 삭제`}
+                      aria-label={`${tier.tier}단계 벌칙 단계 삭제`}
                       className='flex-1'
                       type='button'
                       onClick={() => removeTier(i)}
@@ -296,7 +296,7 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
             <>
               {!canAddTier && (
                 <CardDescription className='text-xs'>
-                  더 이상 추가할 수 없습니다. 입력값을 확인해주세요
+                  더 이상 추가할 수 없어요. 입력값을 확인해주세요.
                 </CardDescription>
               )}
               <Button

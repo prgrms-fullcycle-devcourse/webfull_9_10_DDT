@@ -191,7 +191,7 @@ const RoulettePreview = React.memo(function RoulettePreview({
     <div className='mb-5 flex h-10 w-full min-w-0 items-center overflow-hidden rounded-[14px] bg-[var(--roulette-panel)] px-3'>
       {!hasSpun ? (
         <p className='w-full text-center text-xs text-muted-foreground'>
-          {isDrawDone ? '벌칙 뽑기 완료' : '뽑기 대기 중…'}
+          {isDrawDone ? '벌칙 결정 완료' : '뽑기 대기 중…'}
         </p>
       ) : (
         <p className='w-full truncate text-center text-base font-bold text-foreground'>
@@ -494,7 +494,7 @@ export const PenaltyRoulette = React.memo(function PenaltyRoulette({
 
           <div className='pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)] shadow-md'>
             <Image
-              src='/icons/icon-192x192.png'
+              src='/icons/icon-1024x1024.png'
               alt='앱 아이콘'
               width={44}
               height={44}

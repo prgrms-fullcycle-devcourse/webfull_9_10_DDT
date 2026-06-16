@@ -34,7 +34,7 @@ export const AuthCallbackPage = () => {
 
     const completeLogin = async () => {
       if (!token) {
-        setMessage('로그인 정보를 확인할 수 없습니다.');
+        setMessage('로그인 정보를 확인할 수 없어요.');
         return;
       }
 
@@ -65,7 +65,7 @@ export const AuthCallbackPage = () => {
     void completeLogin().catch((error) => {
       console.error('Mobile OAuth Callback Error:', error);
       setMessage(
-        '로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했습니다.',
+        '로그인은 완료되었으나 약관 동의 처리 중 오류가 발생했어요.',
       );
     });
   }, [queryClient, router, searchParams]);

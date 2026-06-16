@@ -23,7 +23,7 @@ export default function RoomTitle({
         </div>
         <CardDescription className='text-xs'>
           <p>방 코드: {code}</p>
-          <p>함께 규칙을 정하고 서명하세요.</p>
+          <p>함께 각서를 쓰고 서명하세요.</p>
         </CardDescription>
       </CardHeader>
     </Card>

@@ -32,11 +32,11 @@ export function RouletteTimer({
     <div className='rounded-[14px] border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] p-4 text-center'>
       {isDrawDone ? (
         <div className='text-sm font-bold text-foreground'>
-          벌칙을 다 뽑았어요
+          벌칙을 다 뽑았어요.
         </div>
       ) : isAutoDraw ? (
         <div className='text-sm font-bold text-foreground'>
-          시간 초과되어 자동으로 벌칙을 뽑습니다
+          시간이 초과되어 벌칙이 자동으로 결정돼요.
         </div>
       ) : (
         <div className='text-sm text-muted-foreground'>

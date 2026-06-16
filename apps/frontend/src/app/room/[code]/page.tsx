@@ -9,10 +9,10 @@ export async function generateMetadata({
   const { code } = await params;
   return {
     title: `방 입장하기 - ${code} | 감옥`,
-    description: '초대받은 방에 입장해서 함께 집중해보세요!',
+    description: '초대받은 방에서 함께 집중해보세요!',
     openGraph: {
       title: `방 입장하기 - ${code} | 감옥`,
-      description: '초대받은 방에 입장해서 함께 집중해보세요!',
+      description: '초대받은 방에서 함께 집중해보세요!',
       images: [
         {
           url: '/icons/icon-512x512.png',

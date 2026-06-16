@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = '통합 결과 | 감옥';
+export const alt = '수감 결과 | 감옥';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -69,10 +69,10 @@ export default async function Image({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px' }}>
           <div style={{ fontSize: '60px', marginBottom: '10px' }}>{isNoDisruption ? '👍' : '🏆'}</div>
           <h2 style={{ fontSize: '48px', fontWeight: 'bold', color: '#FBBF24', margin: 0 }}>
-            {resultData?.roomTitle ? `[${resultData.roomTitle}] 통합 결과` : '모두 고생했어요!'}
+            {resultData?.roomTitle ? `[${resultData.roomTitle}] 수감 결과` : '모두 고생했어요!'}
           </h2>
           <p style={{ fontSize: '24px', color: '#A5A3AF', marginTop: '10px' }}>
-            {isNoDisruption ? '이탈 유저가 아무도 없어요! 최고네요.' : '약속한 집중 시간을 완료했어요.'}
+            {isNoDisruption ? '이탈한 수감자가 아무도 없네요! 최고에요!' : '약속한 수감 시간을 완료했어요.'}
           </p>
         </div>
 
@@ -90,17 +90,17 @@ export default async function Image({
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-            <span style={{ fontSize: '20px', color: '#9CA3AF', marginBottom: '10px' }}>총 진행 시간</span>
+            <span style={{ fontSize: '20px', color: '#9CA3AF', marginBottom: '10px' }}>총 수감 기간</span>
             <strong style={{ fontSize: '32px', color: 'white' }}>{totalTime}</strong>
           </div>
           <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', height: '100%' }} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-            <span style={{ fontSize: '20px', color: '#9CA3AF', marginBottom: '10px' }}>완료한 반복</span>
+            <span style={{ fontSize: '20px', color: '#9CA3AF', marginBottom: '10px' }}>완료한 반복 횟수</span>
             <strong style={{ fontSize: '32px', color: 'white' }}>{completedSessions}</strong>
           </div>
           <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', height: '100%' }} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-            <span style={{ fontSize: '20px', color: '#9CA3AF', marginBottom: '10px' }}>벌칙 수행자</span>
+            <span style={{ fontSize: '20px', color: '#9CA3AF', marginBottom: '10px' }}>벌칙 대상자</span>
             <strong style={{ fontSize: '32px', color: 'white' }}>{penaltyCount}명</strong>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default async function Image({
                       )}
                     </div>
                     <span style={{ fontSize: '28px', color: member.gaveUpAt ? '#F85A5A' : 'white', marginLeft: '16px', fontWeight: 'bold' }}>
-                      {member.nickname} {member.gaveUpAt ? '(포기)' : ''}
+                      {member.nickname} {member.gaveUpAt ? '(탈옥)' : ''}
                     </span>
                   </div>
                   <span style={{ fontSize: '24px', color: '#9CA3AF' }}>

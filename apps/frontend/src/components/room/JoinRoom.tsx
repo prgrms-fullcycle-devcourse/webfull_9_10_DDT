@@ -224,7 +224,7 @@ export const JoinRoom = () => {
           <DialogHeader>
             <DialogTitle>어떤 계정으로 입장할까요?</DialogTitle>
             <DialogDescription>
-              로그인을 하면 집중 기록이 저장돼요.
+              로그인을 하면 집중 결과가 저장돼요.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -233,7 +233,7 @@ export const JoinRoom = () => {
               className='flex-1 h-12 rounded-lg'
               onClick={handleGuestStart}
             >
-              게스트로 시작
+              게스트로 시작하기
             </Button>
             <Button
               className='flex-1 h-12 rounded-lg font-bold'
@@ -279,7 +279,7 @@ export const JoinRoom = () => {
             </Label>
             <FormInput
               type='text'
-              placeholder='방에서 사용할 닉네임을 입력해주세요'
+              placeholder='방에서 사용할 닉네임을 입력해주세요.'
               maxLength={10}
               value={nickname}
               onChange={(e) => setNicknameInput(e.target.value)}
@@ -303,7 +303,7 @@ export const JoinRoom = () => {
               <div className='relative flex items-center'>
                 <FormInput
                   type={showPassword ? 'text' : 'password'}
-                  placeholder='비밀번호를 입력해주세요'
+                  placeholder='비밀번호를 입력해주세요.'
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className='pr-10'
@@ -320,7 +320,7 @@ export const JoinRoom = () => {
                 </Button>
               </div>
               <span className='text-xs text-[#6B7280] pl-0.5'>
-                · 비밀번호는 4~12자이어야 합니다.
+                · 비밀번호는 4~12자이어야 해요.
               </span>
             </div>
           )}

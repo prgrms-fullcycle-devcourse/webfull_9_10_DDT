@@ -59,9 +59,9 @@ export default function MemberSignList() {
       return;
     }
     const ok = await confirm({
-      title: `${members[targetId].nickname} 님을 강제 퇴장 하시겠어요?`,
-      description: '강퇴당한 멤버는 재입장이 안됩니다.',
-      confirmText: '퇴장시키기',
+      title: `${members[targetId].nickname} 님을 강제 퇴장시키겠어요?`,
+      description: '강제 퇴장된 멤버는 재입장이 안돼요.',
+      confirmText: '강제 퇴장시키기',
       cancelText: '아니요',
       variant: 'destructive',
     });
@@ -112,7 +112,7 @@ export default function MemberSignList() {
                 )}
               </div>
               <div className='flex gap-1 items-end'>
-                <span>나</span>
+                <span>(나)</span>
                 {isHost && (
                   <span className='text-xs text-muted-foreground'>(방장)</span>
                 )}
@@ -230,7 +230,7 @@ export default function MemberSignList() {
           <p className='text-success'>
             {signedCount} / {memberCount}명 서명 완료
           </p>
-          <CardDescription>서명하지 않으면 강퇴되요</CardDescription>
+          <CardDescription>서명하지 않으면 강퇴돼요.</CardDescription>
         </div>
       </div>
       <ConfirmDialog {...confirmProps} />
