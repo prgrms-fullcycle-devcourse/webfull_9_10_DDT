@@ -11,6 +11,8 @@ import { MobileLayout } from '@/components/layout/mobileLayout';
 import { Button } from '@/components/ui/button';
 import { FormInput } from '@/components/ui/form-input';
 import { Label } from '@/components/ui/label';
+import { CountableInput } from '@/components/common/CountableInput';
+import { PasswordInput } from '@/components/common/PasswordInput';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useConfirm } from '@/hooks/useConfirm';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
@@ -23,7 +25,17 @@ import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { useBlockBrowserBack } from '@/hooks/useBlockBrowserBack';
 
 type Step = 'form' | 'complete';
+
 /* ── 완료 화면 ── */
+/**
+ * 방 생성 완료 후 방 이름·비밀번호·방 코드·초대 링크를 카드로 보여주고 개별/일괄 복사를 제공하는 화면.
+ *
+ * @param roomName - 생성된 방 이름
+ * @param password - 방 비밀번호 (방장이 멤버에게 공유)
+ * @param roomCode - 서버가 발급한 방 코드
+ * @param inviteLink - 방 입장용 전체 URL
+ * @param onCopyAll - "방 정보 공유하기" 버튼 핸들러 (네이티브 공유/클립보드 폴백)
+ */
 function CreateRoomComplete({
   roomName,
   password,
@@ -142,12 +154,20 @@ function CreateRoomComplete({
 }
 
 /* ── 메인 컴포넌트 ── */
+/**
+ * 로그인 회원이 방 이름·비밀번호로 방을 생성하는 페이지 컴포넌트.
+ * 입력 폼(`form`)과 생성 완료(`complete`) 두 단계를 가지며, 게스트 차단·중복 활성 방 안내·
+ * 완료 화면에서의 방 폭파(나가기) 흐름을 처리한다.
+ */
 export const CreateRoom = () => {
   const router = useRouter();
   const { me, refetchMe } = useAuth();
   const isGuest = me?.role === 'guest';
 
+  // 로그인 직후 이 화면으로 리다이렉트된 경우, 뒤로가기로 로그인/약관 화면에 되돌아가지 않도록 차단 플래그를 1회만 켠다.
+  // (플래그는 읽는 즉시 제거해 새로고침·재진입 시 영향이 남지 않게 함. SSR에서는 sessionStorage가 없으므로 false)
   const [shouldBlockBack] = useState(() => {
+    if (typeof window === 'undefined') return false;
     const flag = sessionStorage.getItem('justLoggedIn');
     if (flag === 'true') {
       sessionStorage.removeItem('justLoggedIn');
@@ -177,10 +197,10 @@ export const CreateRoom = () => {
   const [roomName, setRoomName] = useState('');
   const [password, setPassword] = useState('');
   const [roomCode, setRoomCode] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const { confirm, confirmProps } = useConfirm();
-  const activeRoom = useActiveRoom();
+  const { room: activeRoom } = useActiveRoom();
 
+  // 방 이름은 필수, 비밀번호는 4~12자. (입장 화면의 비밀번호 검증 범위와 동일하게 맞춤)
   const isValid =
     roomName.trim().length > 0 && password.length >= 4 && password.length <= 12;
 
@@ -191,6 +211,7 @@ export const CreateRoom = () => {
     },
     onSuccess: (data) => {
       setRoomCode(data.code);
+      // 방장 여부와 비밀번호를 방 코드별로 저장해, 입장 화면에서 방장은 비밀번호 입력 없이 들어가게 한다.
       sessionStorage.setItem(`isHost:${data.code}`, 'true');
       sessionStorage.setItem(`hostPassword:${data.code}`, password);
       setStep('complete');
@@ -219,9 +240,11 @@ export const CreateRoom = () => {
 
   // 방 만들기 화면 진입 시 이미 진행 중인 방이 있으면 복귀/홈으로 유도 모달을 띄운다.
   // (참여 중인 방이 있으면 새 방 생성 화면에 머무를 수 없게 함)
+  // 단, 완료(complete) 단계에서는 막는다: 방금 만든 방이 곧 '내 활성 방'이 되므로,
+  // 공유 시트에서 복귀해 activeRoom이 리페치되면 자기 방을 두고 이 모달이 잘못 뜬다.
   const activeRoomPromptedRef = useRef(false);
   useEffect(() => {
-    if (!activeRoom || activeRoomPromptedRef.current) {
+    if (step !== 'form' || !activeRoom || activeRoomPromptedRef.current) {
       return;
     }
     activeRoomPromptedRef.current = true;
@@ -234,7 +257,7 @@ export const CreateRoom = () => {
       });
       router.push(ok ? getActiveRoomPath(activeRoom) : '/');
     })();
-  }, [activeRoom, confirm, router]);
+  }, [step, activeRoom, confirm, router]);
 
   // 생성완료 화면에서 나가기(X) → 폭파 확인 다이얼로그 → 확인 시 방 폭파
   const handleExit = async () => {
@@ -381,49 +404,18 @@ export const CreateRoom = () => {
                 handleSubmit();
               }}
             >
-              <div className='flex flex-col gap-2'>
-                <Label className='text-[15px] font-bold text-white/85'>
-                  방 이름
-                </Label>
-                <FormInput
-                  type='text'
-                  placeholder='방 이름을 입력해주세요.'
-                  maxLength={20}
-                  value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
-                />
-                <span className='text-xs text-[#6B7280] text-right'>
-                  {roomName.length}/20
-                </span>
-              </div>
+              <CountableInput
+                label='방 이름'
+                placeholder='방 이름을 입력해주세요.'
+                maxLength={20}
+                value={roomName}
+                onChange={setRoomName}
+              />
 
-              <div className='flex flex-col gap-2'>
-                <Label className='text-[15px] font-bold text-white/85'>
-                  비밀번호
-                </Label>
-                <div className='relative flex items-center'>
-                  <FormInput
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder='비밀번호를 입력해주세요.'
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className='pr-10'
-                  />
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label='비밀번호 표시'
-                    className='absolute right-1 text-[#6B7280] hover:text-white/75 hover:bg-transparent'
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </Button>
-                </div>
-                <span className='text-xs text-[#6B7280] pl-0.5'>
-                  · 비밀번호는 4~12자이어야 해요.
-                </span>
-              </div>
+              <PasswordInput
+                value={password}
+                onChange={setPassword}
+              />
             </form>
           </>
         )}

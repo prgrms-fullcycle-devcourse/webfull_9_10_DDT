@@ -11,6 +11,10 @@ import { getUsers } from '@/api/generated/users-사용자/users-사용자';
 
 const PAGE_SIZE = 10;
 
+/**
+ * 전체 참여 기록 화면. IntersectionObserver 기반 무한 스크롤로 기록을 페이지 단위(10건)로 누적 로드한다.
+ * 전체(1페이지) 실패와 추가 페이지(부분) 실패를 분리해 처리하며, 추가 로드 실패 시 자동 재요청을 멈추고 재시도 버튼을 노출한다.
+ */
 export function MyPageHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [total, setTotal] = useState(0);

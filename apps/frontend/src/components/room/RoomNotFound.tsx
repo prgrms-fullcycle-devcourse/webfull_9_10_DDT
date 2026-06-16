@@ -13,6 +13,13 @@ interface RoomNotFoundProps {
   primaryMessage?: string;
 }
 
+/**
+ * 존재하지 않거나 종료된 방에 접근했을 때 보여주는 안내 화면. '홈으로 이동' 버튼을 제공한다.
+ *
+ * @param title - 헤더 제목 (기본 '방 입장하기')
+ * @param primaryMessage - 본문 강조 문구 (기본 '존재하지 않거나 종료된 방이에요.')
+ * @param description - 보조 설명 문구 (기본 '방 코드를 다시 확인해주세요.')
+ */
 export function RoomNotFound({
   title = '방 입장하기',
   primaryMessage = '존재하지 않거나 종료된 방이에요.',

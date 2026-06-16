@@ -33,6 +33,13 @@ const PHASE_LABEL: Record<string, string> = {
   timer: '집중 중',
 };
 
+/**
+ * 진행 중인 방 정보를 보여주는 라벨/값 카드.
+ *
+ * @param label - 카드 상단 항목명 (예: '참여 중 방 이름')
+ * @param value - 카드 본문에 표시할 값
+ * @param truncate - true면 긴 값을 한 줄로 자르고 말줄임 처리
+ */
 function StatBox({
   label,
   value,
@@ -57,13 +64,17 @@ function StatBox({
   );
 }
 
+/**
+ * 서비스 진입 메인 화면. 로그인 상태(회원/게스트/비로그인)별 우상단 버튼을 보여주고,
+ * 진행 중인 방이 있으면 방 정보 카드와 복귀 버튼을, 없으면 방 코드 입장/방 만들기를 제공한다.
+ */
 export const MainPage = () => {
   const router = useRouter();
   const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
-  const activeRoom = useActiveRoom();
+  const { room: activeRoom } = useActiveRoom();
 
   const handleRestore = () => {
     if (!activeRoom) return;
@@ -74,6 +85,7 @@ export const MainPage = () => {
     startTermsAgreementLogin(router.push);
   };
 
+  // 비로그인 상태에서 방 만들기를 시도했을 때: 로그인 후 곧바로 방 만들기(/room)로 이어지도록 복귀 경로를 넘긴다.
   const handleLoginForCreateRoom = () => {
     startTermsAgreementLogin(router.push, '/room');
     setShowLoginDialog(false);
@@ -84,7 +96,9 @@ export const MainPage = () => {
   };
 
   const handleCreateRoom = () => {
+    // 인증 상태 확정 전 클릭은 무시한다. (로딩 중 잘못된 분기 방지)
     if (isLoading) return;
+    // 방 생성은 회원 전용이므로 비로그인 시 로그인 유도 다이얼로그를 띄운다.
     if (!isLoggedIn) {
       setShowLoginDialog(true);
       return;
@@ -92,6 +106,7 @@ export const MainPage = () => {
     router.push('/room');
   };
 
+  // 방 코드는 nanoid(8) 8자리 → 8자가 채워져야 입장 버튼을 활성화한다.
   const isCodeValid = roomCode.trim().length === 8;
 
   const handleEnterByCode = () => {
@@ -233,6 +248,7 @@ export const MainPage = () => {
             </DialogDescription>
           </DialogHeader>
           <div className='flex flex-col gap-2 py-2'>
+            {/* 방 코드는 nanoid(8) 기본 알파벳(대소문자·숫자·-·_)을 사용하므로 대소문자를 구분하고 허용 문자에 -, _를 포함한다. */}
             <InputOTP
               maxLength={8}
               pattern='^[A-Za-z0-9_-]*$'
