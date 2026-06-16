@@ -2,11 +2,6 @@
 
 import { Button } from '@/components/ui/button';
 import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from '@/components/ui/input-otp';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -14,14 +9,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { RoomCodeDialog } from '@/components/main/RoomCodeDialog';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
-import { getRoomApi } from '@/api/generated/room-api/room-api';
-import { getErrorMessage } from '@/lib/error';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { startTermsAgreementLogin } from '@/lib/authNavigation';
 import { useActiveRoom, getActiveRoomPath } from '@/hooks/useActiveRoom';
@@ -77,53 +69,7 @@ export const MainPage = () => {
   const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const [roomCode, setRoomCode] = useState('');
-  const [codeError, setCodeError] = useState('');
-  // 입장 검증 응답을 아직 기다리는 중인지. 닫힌 뒤 늦게 도착한 응답을 무시하기 위한 플래그.
-  const pendingEnterRef = useRef(false);
-  // OTP 입력 엘리먼트. 에러로 입력값을 비운 뒤에도 포커스를 되돌리기 위해 참조한다.
-  const otpInputRef = useRef<HTMLInputElement>(null);
   const { room: activeRoom, isLoading: isRoomLoading } = useActiveRoom();
-
-  // 다이얼로그를 닫을 때 입력값과 에러를 초기화한다. (다음에 다시 열 때 깨끗한 상태)
-  const handleCodeDialogChange = (open: boolean) => {
-    setShowCodeDialog(open);
-    if (!open) {
-      pendingEnterRef.current = false; // 닫는 순간 진행 중이던 검증 결과는 무시
-      setRoomCode('');
-      setCodeError('');
-    }
-  };
-
-  // 입장 전 해당 코드의 방이 실제로 존재하는지 먼저 확인한다.
-  // 없는/잘못된 코드면 페이지 이동 없이 다이얼로그를 유지하고 입력칸 아래에 에러를 보여준다.
-  const validateRoomMutation = useMutation({
-    mutationFn: async (code: string) => {
-      await getRoomApi().roomControllerFindById(code);
-    },
-    onSuccess: (_data, code) => {
-      if (!pendingEnterRef.current) return; // 이미 닫혔으면 이동하지 않음
-      pendingEnterRef.current = false;
-      setShowCodeDialog(false);
-      setRoomCode('');
-      router.push(`/room/${code}`);
-    },
-    onError: (err) => {
-      if (!pendingEnterRef.current) return; // 이미 닫혔으면 무시
-      pendingEnterRef.current = false;
-      setRoomCode(''); // 실패 시 입력칸을 비워 다시 입력하도록 유도
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        setCodeError('존재하지 않거나 종료된 방이에요.');
-      } else {
-        setCodeError(
-          getErrorMessage(err, '입장에 실패했어요. 잠시 후 다시 시도해주세요.'),
-        );
-      }
-      // 값이 비워지고 버튼이 비활성화되면서 포커스가 풀리므로, 입력칸으로 포커스를 되돌린다.
-      // 리렌더 커밋 이후 실행되도록 다음 틱으로 미룬다.
-      setTimeout(() => otpInputRef.current?.focus(), 0);
-    },
-  });
 
   const handleRestore = () => {
     if (!activeRoom) return;
@@ -153,17 +99,6 @@ export const MainPage = () => {
       return;
     }
     router.push('/room');
-  };
-
-  // 방 코드는 nanoid(8) 8자리 → 8자가 채워져야 입장 버튼을 활성화한다.
-  const isCodeValid = roomCode.trim().length === 8;
-
-  const handleEnterByCode = () => {
-    const code = roomCode.trim();
-    if (code.length !== 8 || validateRoomMutation.isPending) return;
-    pendingEnterRef.current = true;
-    setCodeError('');
-    validateRoomMutation.mutate(code);
   };
 
   return (
@@ -296,63 +231,7 @@ export const MainPage = () => {
         )}
       </div>
 
-      <Dialog open={showCodeDialog} onOpenChange={handleCodeDialogChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>방 코드로 입장</DialogTitle>
-            <DialogDescription>
-              입장하실 방 코드를 입력해주세요.
-            </DialogDescription>
-          </DialogHeader>
-          <div className='flex flex-col gap-2 py-2'>
-            {/* 방 코드는 nanoid(8) 기본 알파벳(대소문자·숫자·-·_)을 사용하므로 대소문자를 구분하고 허용 문자에 -, _를 포함한다. */}
-            <InputOTP
-              ref={otpInputRef}
-              maxLength={8}
-              pattern='^[A-Za-z0-9_-]*$'
-              value={roomCode}
-              onChange={(value) => {
-                setRoomCode(value);
-                if (codeError) setCodeError(''); // 다시 입력하면 에러 즉시 해제
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleEnterByCode();
-              }}
-              containerClassName='w-full'
-            >
-              <InputOTPGroup className='w-full justify-between gap-1.5'>
-                {Array.from({ length: 8 }, (_, i) => (
-                  <InputOTPSlot
-                    key={i}
-                    index={i}
-                    className='h-12 flex-1 rounded-md border border-white/15 bg-black/40 shadow-none first:rounded-l-md last:rounded-r-md data-[active=true]:ring-2 data-[active=true]:ring-ring/30 dark:bg-black/40'
-                  />
-                ))}
-              </InputOTPGroup>
-            </InputOTP>
-            {/* 입력칸 아래 인라인 에러 텍스트 (없는/잘못된 코드일 때 표시) */}
-            {codeError && (
-              <p className='text-xs text-destructive'>{codeError}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant='secondary'
-              className='flex-1 h-12 rounded-lg'
-              onClick={() => handleCodeDialogChange(false)}
-            >
-              취소
-            </Button>
-            <Button
-              disabled={!isCodeValid || validateRoomMutation.isPending}
-              onClick={handleEnterByCode}
-              className='flex-1 h-12 rounded-lg font-bold'
-            >
-              {validateRoomMutation.isPending ? '확인 중...' : '입장하기'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RoomCodeDialog open={showCodeDialog} onOpenChange={setShowCodeDialog} />
 
       <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
         <DialogContent>
