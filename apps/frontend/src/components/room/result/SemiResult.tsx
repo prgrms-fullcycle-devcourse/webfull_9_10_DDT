@@ -45,7 +45,9 @@ export function SemiResult() {
   const myResult = me ? rankedMembers.find((m) => isMeMember(me, m)) : null;
   const shouldShowRoulette = (myResult?.remainingSpins ?? 0) > 0;
   const canDecideNextRoute = !!result && !!me && !!myResult;
-  const isNoDisruption = !!result && (result.penaltyMemberCount ?? 0) === 0;
+  // '전체 축하' 분기는 '이탈 0명 AND 벌칙 0명'일 때만. 둘 중 하나라도 있으면 순위/벌칙을 표시한다.
+  const isNoDisruption =
+    !!result && result.allClear && (result.penaltyMemberCount ?? 0) === 0;
   const totalTime = formatSessionTime(result?.totalSessionMs ?? null);
   const completedSessions = result?.rule
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
