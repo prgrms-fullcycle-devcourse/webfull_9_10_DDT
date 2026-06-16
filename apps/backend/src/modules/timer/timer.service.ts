@@ -55,6 +55,10 @@ function extractUnsignedSummary(rawState: string | null): UnsignedSummary {
   };
 }
 
+/**
+ * 타이머 세션 관리 서비스.
+ * 세션 시작/종료, 중도포기, BullMQ 잡 스케줄링, 푸시 알림을 담당합니다.
+ */
 @Injectable()
 export class TimerService implements OnModuleInit {
   private readonly logger = new Logger(TimerService.name);
@@ -122,6 +126,13 @@ export class TimerService implements OnModuleInit {
     throw lastErr;
   }
 
+  /**
+   * 타이머를 시작합니다 (전원 서명 완료 시).
+   * 미서명 멤버가 있으면 BadRequestException을 던집니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 시작을 요청한 호스트 ID
+   */
   async startTimer(roomCode: string, userId: string) {
     const room = await this.verifyHost(roomCode, userId);
     this.ensureContractPhase(room.phase);
@@ -132,6 +143,13 @@ export class TimerService implements OnModuleInit {
     return this.beginSession(roomCode, template);
   }
 
+  /**
+   * 타이머를 강제 시작합니다 (방장 전용).
+   * 미서명 멤버를 자동 강퇴한 후 세션을 시작합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 방장 ID
+   */
   async forceStartTimer(roomCode: string, userId: string) {
     const room = await this.verifyHost(roomCode, userId);
     this.ensureContractPhase(room.phase);
@@ -185,6 +203,16 @@ export class TimerService implements OnModuleInit {
     return this.beginSession(roomCode, template, { kickedMemberIds });
   }
 
+  /**
+   * 중도포기(탈옥) 처리.
+   * 벌칙 산정 → 자동공개 잡 등록(10분) → Redis 상태 업데이트 → 소켓 연결 해제 순으로 진행합니다.
+   * 마지막 활성 멤버가 포기하면 세션을 자동 종료합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 포기하는 유저 ID
+   * @returns { userId, gaveUpAt }
+   * @throws ConflictException 이미 포기한 상태이거나 timer 페이즈가 아닌 경우
+   */
   async giveUp(roomCode: string, userId: string) {
     const isGuest = userId.startsWith('guest_');
     const member = await this.timerRepository.findMemberForGiveUp(
@@ -197,8 +225,7 @@ export class TimerService implements OnModuleInit {
       throw new NotFoundException('방 참여 정보를 찾을 수 없습니다.');
     if (member.room.phase !== 'timer')
       throw new ConflictException('집중 진행 중에만 탈옥할 수 있습니다.');
-    if (member.gaveUpAt)
-      throw new ConflictException('이미 탈옥한 상태입니다.');
+    if (member.gaveUpAt) throw new ConflictException('이미 탈옥한 상태입니다.');
 
     const now = new Date();
     await this.timerRepository.giveUpTransaction(member.id, now);
@@ -244,10 +271,24 @@ export class TimerService implements OnModuleInit {
     return responseData;
   }
 
+  /**
+   * 특정 멤버의 미공개 벌칙을 전부 공개합니다.
+   * BullMQ reveal-penalties 잡에서 호출되며, 이미 공개된 경우 0건을 반환합니다 (멱등).
+   *
+   * @param memberId - RoomMember ID
+   * @returns { count } 공개된 벌칙 수
+   */
   async revealPenalties(memberId: string): Promise<{ count: number }> {
     return this.timerRepository.revealUnrevealedPenalties(memberId);
   }
 
+  /**
+   * 세션 종료 후 모든 멤버에 대해 벌칙 자동공개 잡을 등록합니다.
+   * 10분(ROULETTE_TIMEOUT_MS) 후 미공개 벌칙이 자동 공개됩니다.
+   * 멤버가 룰렛을 완료하면 해당 잡은 0건 업데이트(no-op)로 처리됩니다.
+   *
+   * @param roomCode - 방 코드
+   */
   private async scheduleRevealJobs(roomCode: string): Promise<void> {
     const memberIds = await this.timerRepository.findRoomMemberIds(roomCode);
     await Promise.all(
@@ -273,6 +314,11 @@ export class TimerService implements OnModuleInit {
     );
   }
 
+  /**
+   * 세션을 종료합니다. DB 업데이트 → 벌칙 산정 → BullMQ 잡 정리 → reveal 잡 등록 순으로 처리합니다.
+   *
+   * @param roomCode - 방 코드
+   */
   async endSession(roomCode: string): Promise<void> {
     const room = await this.timerRepository.findRoomPhase(roomCode);
     if (!room || room.phase === 'result' || room.phase === 'closed') return;
@@ -293,6 +339,10 @@ export class TimerService implements OnModuleInit {
     await this.scheduleRevealJobs(roomCode);
   }
 
+  /**
+   * 서버 재시작 시 진행 중인 방의 BullMQ 잡을 복구합니다.
+   * end, break-warning, break-start 잡의 남은 지연 시간을 재계산하여 등록합니다.
+   */
   async onModuleInit(): Promise<void> {
     const running = await this.timerRepository.findTimerRooms().catch(() => []);
     for (const room of running) {
@@ -357,6 +407,11 @@ export class TimerService implements OnModuleInit {
     }
   }
 
+  /**
+   * 휴식 종료 1분 전 푸시 알림 + Socket.IO 이벤트를 전송합니다.
+   *
+   * @param roomCode - 방 코드
+   */
   async sendBreakWarning(roomCode: string): Promise<void> {
     await this.pushService.sendToRoom(
       roomCode,
@@ -423,6 +478,15 @@ export class TimerService implements OnModuleInit {
     }
   }
 
+  /**
+   * BullMQ 잡으로 등록할 세션 관련 잡을 스케줄링합니다.
+   * end(세션 종료), break-warning(휴식 알림), break-start(이탈 통계)를 등록합니다.
+   * break-warning과 break-start는 독립적으로 판단하여 등록합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param template - 세션 템플릿 (focusMin, breakMin, rounds)
+   * @param totalDurationMs - 총 세션 시간 (밀리초)
+   */
   private async scheduleSessionJobs(
     roomCode: string,
     template: SessionTemplate,
@@ -478,6 +542,12 @@ export class TimerService implements OnModuleInit {
     }
   }
 
+  /**
+   * 세션 잡(end, break-warning, break-start, reveal)을 일괄 취소합니다.
+   * 방 삭제 또는 세션 종료 시 호출됩니다.
+   *
+   * @param roomCode - 방 코드
+   */
   async cancelSessionJobs(roomCode: string): Promise<void> {
     const room = await this.timerRepository.findRoomRounds(roomCode);
     const rounds = room?.template?.rounds ?? MAX_ROUNDS_FALLBACK;
@@ -497,6 +567,12 @@ export class TimerService implements OnModuleInit {
     );
   }
 
+  /**
+   * 방의 이탈 통계를 계산하여 Socket.IO로 브로드캐스트합니다.
+   * break-start 잡에서 호출됩니다.
+   *
+   * @param roomCode - 방 코드
+   */
   async emitEscapeSummary(roomCode: string): Promise<void> {
     const summary = await this.escapeService.getCurrentSummary(roomCode);
     this.roomGateway.server

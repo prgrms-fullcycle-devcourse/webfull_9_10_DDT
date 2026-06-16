@@ -5,6 +5,9 @@ import { RedisService } from '../../common/redis/redis.service';
 
 const ROOM_STATE_TTL = 86400;
 
+/**
+ * 타이머 관련 DB(Prisma) + Redis 접근을 담당하는 리포지토리.
+ */
 @Injectable()
 export class TimerRepository {
   constructor(
@@ -116,6 +119,13 @@ export class TimerRepository {
     return this.redis.instance.get(`room:state:${roomCode}`);
   }
 
+  /**
+   * 중도포기 상태를 Redis에 반영합니다. (state.members[userId].gaveUpAt 설정)
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 포기한 유저 ID
+   * @param gaveUpAt - 포기 시각 (ISO 문자열)
+   */
   async saveGiveUpState(
     roomCode: string,
     userId: string,
@@ -157,6 +167,12 @@ export class TimerRepository {
     return this.redis.instance.get(`push_sub:${roomCode}:${userId}`);
   }
 
+  /**
+   * 중도포기 시 DB 트랜잭션: gaveUpAt 설정 + 열린 이탈 로그 종료.
+   *
+   * @param memberId - RoomMember ID
+   * @param now - 포기 시각
+   */
   async giveUpTransaction(memberId: string, now: Date): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await this.closeOpenEscapeLogs(memberId, now, tx);
@@ -164,6 +180,13 @@ export class TimerRepository {
     });
   }
 
+  /**
+   * 특정 멤버의 미공개 벌칙을 전부 isRevealed: true로 업데이트합니다.
+   * 이미 전부 공개된 경우 count: 0을 반환합니다 (멱등).
+   *
+   * @param memberId - RoomMember ID
+   * @returns { count } 업데이트된 레코드 수
+   */
   async revealUnrevealedPenalties(
     memberId: string,
   ): Promise<{ count: number }> {
@@ -173,6 +196,13 @@ export class TimerRepository {
     });
   }
 
+  /**
+   * 방의 모든 멤버 ID 목록을 반환합니다.
+   * scheduleRevealJobs에서 멤버별 자동공개 잡을 등록할 때 사용합니다.
+   *
+   * @param roomCode - 방 코드
+   * @returns RoomMember ID 배열
+   */
   async findRoomMemberIds(roomCode: string): Promise<string[]> {
     const members = await this.prisma.roomMember.findMany({
       where: { roomCode },

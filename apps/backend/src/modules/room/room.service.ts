@@ -26,6 +26,10 @@ interface SignedStatus {
   totalCount: number;
 }
 
+/**
+ * 방 생성, 입장, 퇴장, 멤버 관리 등 방의 생명주기를 담당하는 서비스.
+ * Redis에 방 상태를 캐싱하고, DB와 동기화합니다.
+ */
 export interface CreateRoomResult {
   code: string;
   url: string;
@@ -41,6 +45,12 @@ export class RoomService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  /**
+   * Redis 방 상태를 저장하고 Socket.IO로 전체 멤버에게 브로드캐스트합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param state - 저장할 상태 객체
+   */
   public async saveRedisState(roomCode: string, state: RoomState) {
     await this.roomRepository.saveState(roomCode, state);
   }
@@ -53,6 +63,14 @@ export class RoomService {
     return this.roomRepository.findMember(roomCode, userId, guestToken);
   }
 
+  /**
+   * 새 방을 생성합니다. 호스트를 자동으로 멤버에 추가합니다.
+   *
+   * @param dto - 방 생성 DTO (title, password, maxMembers)
+   * @param userId - 방장의 userId (로그인 유저)
+   * @param guestToken - 방장의 guestToken (게스트)
+   * @returns 생성된 방 정보
+   */
   async create(
     createRoomDto: CreateRoomDto,
     hostId: string,
@@ -90,6 +108,18 @@ export class RoomService {
     };
   }
 
+  /**
+   * 방에 입장합니다. 비밀번호, 강퇴 여부, 정원, 중복 입장 등을 검증합니다.
+   * 게스트는 새 토큰 발급, 기존 멤버는 재입장(isReturning) 처리합니다.
+   *
+   * @param code - 방 코드
+   * @param dto - 입장 DTO (nickname, password, profileImage)
+   * @param userId - 로그인 유저 ID
+   * @param guestToken - 게스트 토큰
+   * @returns 방 정보 + accessToken (게스트인 경우)
+   * @throws ConflictException 다른 방에서 진행 중인 경우
+   * @throws ForbiddenException 강퇴/중도포기/세션 시작 후 입장 시도
+   */
   async join(
     code: string,
     joinRoomDto: JoinRoomDto,
@@ -142,6 +172,15 @@ export class RoomService {
     return { id: room.code, isReturning: !!returningMember };
   }
 
+  /**
+   * 방에서 퇴장합니다.
+   * 방장이 나가면 방 전체가 삭제(폭파)됩니다.
+   * 일반 멤버는 DB + Redis에서 제거됩니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 퇴장할 유저 ID
+   * @param guestToken - 퇴장할 게스트 토큰
+   */
   async leaveRoom(
     roomCode: string,
     userId: string | null,
@@ -202,6 +241,12 @@ export class RoomService {
   public getRoomState(roomCode: string): Promise<RoomState | null> {
     return this.roomRepository.getState(roomCode);
   }
+
+  /**
+   * 방 상태를 lobby → contract 페이즈로 전환합니다.
+   *
+   * @param roomCode - 방 코드
+   */
   public async transitionToContract(
     roomCode: string,
   ): Promise<RoomState | null> {
@@ -233,6 +278,13 @@ export class RoomService {
     }
   }
 
+  /**
+   * 특정 멤버를 강퇴합니다.
+   * Redis에서 멤버를 제거하고 강퇴 목록(ban)에 추가합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param targetId - 강퇴 대상 userId 또는 guestToken
+   */
   async kickMember(roomCode: string, targetId: string) {
     await this.roomRepository.deleteMember(roomCode, targetId);
     const state = await this.roomRepository.getState(roomCode);
@@ -243,6 +295,14 @@ export class RoomService {
     await this.roomRepository.setBan(roomCode, targetId);
   }
 
+  /**
+   * 멤버의 서명 상태를 변경합니다.
+   * 서명이 변경되면 Socket.IO로 전체 멤버에게 브로드캐스트합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param userId - 서명할 유저 ID
+   * @param signed - 서명 여부
+   */
   async setSigned(
     roomCode: string,
     userId: string,
@@ -305,6 +365,10 @@ export class RoomService {
     return false;
   }
 
+  /**
+   * 새 멤버를 Redis 상태에 추가하거나, 재입장 멤버의 정보를 갱신합니다.
+   * 호스트의 편집 권한 설정(editPermission)에 따라 canEdit이 결정됩니다.
+   */
   private async handleMemberUpsert(
     room: PartialRoom,
     dto: JoinRoomDto,
@@ -339,6 +403,12 @@ export class RoomService {
     }
   }
 
+  /**
+   * 방을 삭제하고 'room.closed' 이벤트를 발행합니다.
+   * TimerService에서 이벤트를 수신하여 BullMQ 잡 취소 + Y.Doc 정리를 수행합니다.
+   *
+   * @param roomCode - 삭제할 방 코드
+   */
   async deleteRoom(roomCode: string) {
     await Promise.all([
       this.roomRepository.deleteState(roomCode),

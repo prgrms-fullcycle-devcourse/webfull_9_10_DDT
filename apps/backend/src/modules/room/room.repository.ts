@@ -135,6 +135,14 @@ export class RoomRepository {
     });
   }
 
+  /**
+   * 중복되지 않는 방 코드를 생성하여 방을 DB에 저장합니다.
+   * nanoid(8)로 코드를 생성하며, 중복 시 최대 5회 재시도합니다.
+   *
+   * @param data - 방 생성 데이터 (title, password, maxMembers 등)
+   * @returns 생성된 Room 엔티티
+   * @throws InternalServerErrorException 5회 재시도 후에도 중복 발생 시
+   */
   async createWithUniqueCode(data: {
     title: string;
     hostId: string;
@@ -218,11 +226,24 @@ export class RoomRepository {
     });
   }
 
+  /**
+   * Redis에서 방 상태를 조회합니다.
+   * 방 상태에는 멤버 목록, 서명 상태, 편집 권한 등이 포함됩니다.
+   *
+   * @param roomCode - 방 코드
+   * @returns 방 상태 객체 또는 null (방이 없거나 만료된 경우)
+   */
   async getState(roomCode: string): Promise<RoomState | null> {
     const raw = await this.redis.instance.get(`room:state:${roomCode}`);
     return raw ? (JSON.parse(raw) as RoomState) : null;
   }
 
+  /**
+   * Redis에 방 상태를 저장합니다. TTL은 ROOM_STATE_TTL(24시간)입니다.
+   *
+   * @param roomCode - 방 코드
+   * @param state - 저장할 방 상태 객체
+   */
   async saveState(roomCode: string, state: RoomState): Promise<void> {
     await this.redis.instance.set(
       `room:state:${roomCode}`,
@@ -235,6 +256,14 @@ export class RoomRepository {
   async deleteState(roomCode: string): Promise<void> {
     await this.redis.instance.del(`room:state:${roomCode}`);
   }
+
+  /**
+   * 특정 멤버가 방에서 강퇴(ban) 상태인지 확인합니다.
+   *
+   * @param roomCode - 방 코드
+   * @param targetId - 확인할 userId 또는 guestToken
+   * @returns 강퇴 상태이면 true
+   */
   async isBanned(roomCode: string, targetId: string): Promise<boolean> {
     const result = await this.redis.instance.get(
       `room:ban:${roomCode}:${targetId}`,
