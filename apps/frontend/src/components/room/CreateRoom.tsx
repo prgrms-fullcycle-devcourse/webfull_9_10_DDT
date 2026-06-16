@@ -179,7 +179,7 @@ export const CreateRoom = () => {
   const [roomCode, setRoomCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { confirm, confirmProps } = useConfirm();
-  const activeRoom = useActiveRoom();
+  const { room: activeRoom } = useActiveRoom();
 
   const isValid =
     roomName.trim().length > 0 && password.length >= 4 && password.length <= 12;
