@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react';
 
 interface LoadingProps {
   label?: string;
+  variant?: 'overlay' | 'contained';
 }
 
 function useIsClient() {
@@ -37,11 +38,27 @@ function PingSpinner() {
   );
 }
 
-export default function Loading({ label = '불러오는 중...' }: LoadingProps) {
+function LoadingContent({ label }: { label: string }) {
+  return (
+    <>
+      <PingSpinner />
+      <span className='text-[13px] tracking-widest text-white/50 font-light animate-[textFade_2s_ease-in-out_infinite]'>
+        {label}
+      </span>
+    </>
+  );
+}
+
+export default function Loading({
+  label = '불러오는 중...',
+  variant = 'overlay',
+}: LoadingProps) {
   const isClient = useIsClient();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (variant !== 'overlay') return;
+
     const overlay = overlayRef.current;
     if (!overlay) return;
 
@@ -54,7 +71,19 @@ export default function Loading({ label = '불러오는 중...' }: LoadingProps)
     return () => {
       siblings.forEach((el) => el.removeAttribute('inert'));
     };
-  }, []);
+  }, [variant]);
+
+  if (variant === 'contained') {
+    return (
+      <div
+        className='absolute inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-black/80'
+        aria-live='polite'
+        aria-label={label}
+      >
+        <LoadingContent label={label} />
+      </div>
+    );
+  }
 
   if (!isClient) return null;
 
@@ -66,10 +95,7 @@ export default function Loading({ label = '불러오는 중...' }: LoadingProps)
       aria-live='polite'
       aria-label={label}
     >
-      <PingSpinner />
-      <span className='text-[13px] tracking-widest text-white/50 font-light animate-[textFade_2s_ease-in-out_infinite]'>
-        {label}
-      </span>
+      <LoadingContent label={label} />
     </div>,
     document.body,
   );
