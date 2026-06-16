@@ -14,6 +14,7 @@ import type {
   ResultResponseDto,
   SpinRouletteResponseDto,
 } from '@/api/generated/models';
+import { isMeMember } from '@/lib/member';
 
 type RoulettePenalty = { id: string; label: string };
 type RouletteRulePenalty = { itemId: string; content: string };
@@ -133,11 +134,7 @@ export function useRouletteData(roomCode: string, isGiveUpRoulette: boolean) {
 
   const myResult = useMemo(() => {
     if (!result || !me) return null;
-    if (me.role === 'user')
-      return result.members.find((m) => m.userId === me.id) ?? null;
-    if (me.role === 'guest')
-      return result.members.find((m) => m.guestToken === me.id) ?? null;
-    return null;
+    return result.members.find((m) => isMeMember(me, m)) ?? null;
   }, [me, result]);
 
   const giveUpSpinResults = useMemo(() => {

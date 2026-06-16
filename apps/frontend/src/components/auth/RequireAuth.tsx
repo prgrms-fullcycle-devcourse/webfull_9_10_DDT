@@ -13,12 +13,14 @@ interface RequireAuthProps {
   children: ReactNode;
   redirectTo?: string;
   message?: string;
+  loadingVariant?: 'overlay' | 'contained';
 }
 
 export function RequireAuth({
   children,
   redirectTo = '/',
   message = '로그인이 필요해요.',
+  loadingVariant = 'overlay',
 }: RequireAuthProps) {
   const router = useRouter();
   const { isLoggedIn, isLoading } = useAuth();
@@ -48,7 +50,8 @@ export function RequireAuth({
     return () => window.clearTimeout(redirectTimer);
   }, [isLoading, isLoggedIn, message, redirectTo, router]);
 
-  if (isLoading || !isLoggedIn) return isLoading ? <Loading /> : null;
+  if (isLoading || !isLoggedIn)
+    return isLoading ? <Loading variant={loadingVariant} /> : null;
 
   return <>{children}</>;
 }
