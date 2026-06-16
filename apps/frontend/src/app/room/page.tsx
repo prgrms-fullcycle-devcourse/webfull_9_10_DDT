@@ -4,7 +4,7 @@ import { CreateRoom } from '@/components/room/CreateRoom';
 export default function CreateRoomPage() {
 
   return (
-    <RequireAuth>
+    <RequireAuth loadingVariant='contained'>
       <CreateRoom />
     </RequireAuth>
   );
