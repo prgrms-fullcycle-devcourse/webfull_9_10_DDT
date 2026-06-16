@@ -65,7 +65,7 @@ export const MyPage = () => {
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const { logout } = useAuth();
-  const activeRoom = useActiveRoom();
+  const { room: activeRoom } = useActiveRoom();
 
   // 진행 중인 방이 있으면 phase에 맞는 '방 복귀하기'로, 없으면 '새로운 방 만들기'(/room)로.
   const roomButtonHref = activeRoom ? getActiveRoomPath(activeRoom) : '/room';

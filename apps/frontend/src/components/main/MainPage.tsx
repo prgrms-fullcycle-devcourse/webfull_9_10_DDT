@@ -63,7 +63,7 @@ export const MainPage = () => {
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [roomCode, setRoomCode] = useState('');
-  const activeRoom = useActiveRoom();
+  const { room: activeRoom, isLoading: isRoomLoading } = useActiveRoom();
 
   const handleRestore = () => {
     if (!activeRoom) return;
@@ -85,7 +85,7 @@ export const MainPage = () => {
 
   const handleCreateRoom = () => {
     if (isLoading) return;
-    if (!isLoggedIn) {
+    if (!isLoggedIn || me?.role === 'guest') {
       setShowLoginDialog(true);
       return;
     }
@@ -174,7 +174,13 @@ export const MainPage = () => {
 
         <div className='flex-1' />
 
-        {activeRoom ? (
+        {isLoading || isRoomLoading ? (
+          <div className='flex w-full flex-col gap-3'>
+            <div className='flex items-center justify-center h-[140px]'>
+              <div className='size-8 animate-spin rounded-full border-4 border-white/20 border-t-white' />
+            </div>
+          </div>
+        ) : activeRoom ? (
           <div className='flex w-full flex-col gap-3'>
             <div className='grid grid-cols-2 gap-2'>
               <StatBox
