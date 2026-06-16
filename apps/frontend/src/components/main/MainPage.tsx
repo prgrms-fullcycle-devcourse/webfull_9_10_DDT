@@ -2,11 +2,6 @@
 
 import { Button } from '@/components/ui/button';
 import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from '@/components/ui/input-otp';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -14,6 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { RoomCodeDialog } from '@/components/main/RoomCodeDialog';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -73,7 +69,6 @@ export const MainPage = () => {
   const { me, logout, isLoggedIn, isLoading } = useAuth();
   const [showCodeDialog, setShowCodeDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const [roomCode, setRoomCode] = useState('');
   const { room: activeRoom, isLoading: isRoomLoading } = useActiveRoom();
 
   const handleRestore = () => {
@@ -104,15 +99,6 @@ export const MainPage = () => {
       return;
     }
     router.push('/room');
-  };
-
-  // 방 코드는 nanoid(8) 8자리 → 8자가 채워져야 입장 버튼을 활성화한다.
-  const isCodeValid = roomCode.trim().length === 8;
-
-  const handleEnterByCode = () => {
-    const code = roomCode.trim();
-    if (code.length !== 8) return;
-    router.push(`/room/${code}`);
   };
 
   return (
@@ -166,13 +152,7 @@ export const MainPage = () => {
       </div>
 
       <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
-        <Image
-          src={logoImg}
-          alt='감옥'
-          width={160}
-          height={81}
-          priority
-        />
+        <Image src={logoImg} alt='감옥' width={160} height={81} priority />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
           남들이 딴짓할때
@@ -186,7 +166,7 @@ export const MainPage = () => {
           {/* 슬로건 뒤에 겹쳐 깔리는 black/10 배경 박스 (z축 한 단계 아래) */}
           <span
             aria-hidden='true'
-            className='absolute inset-0 rounded-md bg-black/40'
+            className='absolute inset-0 rounded-md bg-black/50'
           />
           <span className='relative z-10 inline-block rounded-md bg-white/10 px-3 py-2 text-sm font-medium text-white/75'>
             서명하고 집중하고 벌칙으로 마무리한다.
@@ -251,55 +231,7 @@ export const MainPage = () => {
         )}
       </div>
 
-      <Dialog open={showCodeDialog} onOpenChange={setShowCodeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>방 코드로 입장</DialogTitle>
-            <DialogDescription>
-              입장하실 방 코드를 입력해주세요.
-            </DialogDescription>
-          </DialogHeader>
-          <div className='flex flex-col gap-2 py-2'>
-            {/* 방 코드는 nanoid(8) 기본 알파벳(대소문자·숫자·-·_)을 사용하므로 대소문자를 구분하고 허용 문자에 -, _를 포함한다. */}
-            <InputOTP
-              maxLength={8}
-              pattern='^[A-Za-z0-9_-]*$'
-              value={roomCode}
-              onChange={(value) => setRoomCode(value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleEnterByCode();
-              }}
-              containerClassName='w-full'
-            >
-              <InputOTPGroup className='w-full justify-between gap-1.5'>
-                {Array.from({ length: 8 }, (_, i) => (
-                  <InputOTPSlot
-                    key={i}
-                    index={i}
-                    className='h-12 flex-1 rounded-md border border-white/15 bg-black/40 shadow-none first:rounded-l-md last:rounded-r-md data-[active=true]:ring-2 data-[active=true]:ring-ring/30 dark:bg-black/40'
-                  />
-                ))}
-              </InputOTPGroup>
-            </InputOTP>
-          </div>
-          <DialogFooter>
-            <Button
-              variant='secondary'
-              className='flex-1 h-12 rounded-lg'
-              onClick={() => setShowCodeDialog(false)}
-            >
-              취소
-            </Button>
-            <Button
-              disabled={!isCodeValid}
-              onClick={handleEnterByCode}
-              className='flex-1 h-12 rounded-lg font-bold'
-            >
-              입장하기
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RoomCodeDialog open={showCodeDialog} onOpenChange={setShowCodeDialog} />
 
       <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
         <DialogContent>

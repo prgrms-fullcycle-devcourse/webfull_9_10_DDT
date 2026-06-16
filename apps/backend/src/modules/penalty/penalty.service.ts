@@ -84,6 +84,11 @@ export class PenaltyService {
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
 
+    // 탈옥자의 '남은시간'은 실제 종료가 아니라 '예정된 종료'까지로 산정한다.
+    // (마지막 인원이 탈옥하면 실제 종료시각이 탈옥시각과 같아져 남은시간이 0이 되는 문제 방지)
+    const plannedEndMs =
+      (room.startedAt?.getTime() ?? sessionStartMs) + plannedDurationMs;
+
     // 전체 집중 시간을 계산합니다. (최대치 상한용)
     const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
@@ -127,7 +132,7 @@ export class PenaltyService {
         if (member.gaveUpAt) {
           intervals.push({
             start: member.gaveUpAt.getTime(),
-            end: sessionEndedAt.getTime(),
+            end: plannedEndMs,
           });
         }
 
@@ -267,6 +272,10 @@ export class PenaltyService {
 
     const sessionStartMs = room.startedAt?.getTime() ?? Date.now();
 
+    // 탈옥자의 '남은시간'은 실제 종료가 아니라 '예정된 종료'까지로 산정한다.
+    const plannedEndMs =
+      (room.startedAt?.getTime() ?? sessionStartMs) + plannedDurationMs;
+
     // 전체 집중 시간을 계산합니다. (최대치 상한용)
     const totalFocusMsConst = focusMin * rounds * 60 * 1000;
 
@@ -306,7 +315,7 @@ export class PenaltyService {
       if (member.gaveUpAt) {
         intervals.push({
           start: member.gaveUpAt.getTime(),
-          end: sessionEndedAt.getTime(),
+          end: plannedEndMs,
         });
       }
 

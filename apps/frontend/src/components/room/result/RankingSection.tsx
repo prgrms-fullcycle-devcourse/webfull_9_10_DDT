@@ -78,7 +78,7 @@ export function RankingSection({
                   ? formatEscapeTime(member.totalEscapeMs)
                   : !isNoDisruption && member.penalties.totalCount > 0
                     ? `벌칙 ${member.penalties.totalCount}개`
-                    : '-'}
+                    : ''}
               </span>
             </div>
           );

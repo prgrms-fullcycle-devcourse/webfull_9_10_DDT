@@ -240,8 +240,8 @@ describe('PenaltyService.calculateAndSave (give-up 종료 시 재산정)', () =>
     service = new PenaltyService(prismaMock as unknown as PrismaService);
   });
 
-  it('조기 종료 시 give-up 멤버를 실제 종료 anchor로 재산정(update)하고 벌칙은 보존한다', async () => {
-    const ENDED_AT = T0 + 40 * 60 * 1000; // 계획 115분이나 40분에 강제 종료
+  it('조기 종료여도 give-up 멤버의 잔여는 예정 종료 anchor로 산정(update)하고 벌칙은 보존한다', async () => {
+    const ENDED_AT = T0 + 40 * 60 * 1000; // 계획 115분이나 40분에 조기 종료
     roomFindUnique.mockResolvedValue({
       code: ROOM_CODE,
       startedAt: new Date(T0),
@@ -260,12 +260,13 @@ describe('PenaltyService.calculateAndSave (give-up 종료 시 재산정)', () =>
 
     await service.calculateAndSave(ROOM_CODE);
 
-    // 잔여 [10,40]∩focus = R0[10,25]15 + R1[30,40]10 = 25분 → 25% → tier 2.
-    // (포기 시점 계획 anchor였다면 90분/tier3이었을 값을 실제 종료로 보정)
-    const residualMs = 25 * 60 * 1000; // 1,500,000
+    // 잔여는 실제 종료(40분)가 아니라 '예정 종료(115분)' anchor 기준으로 산정한다.
+    // [10,115]∩focus = R0[10,25]15 + R1 25 + R2 25 + R3 25 = 90분 → 90% → tier 3.
+    // (조기 종료로 줄어들지 않음 — 탈옥 직후 즉시 산정값과 동일하게 유지)
+    const residualMs = GIVEUP_RESIDUAL_MS; // 5,400,000 (90분)
     expect(tx.roomResult.update).toHaveBeenCalledWith({
       where: { roomMemberId: MEMBER_ID },
-      data: { totalEscapeMs: residualMs, penaltyTier: 2 },
+      data: { totalEscapeMs: residualMs, penaltyTier: 3 },
     });
     // 벌칙 행(개수=최대)은 재생성/재롤링 없이 보존
     expect(tx.roomResult.create).not.toHaveBeenCalled();
