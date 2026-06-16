@@ -1,5 +1,5 @@
+import { TotalResult } from '@/components/room/result/TotalResult';
 import { Metadata } from 'next';
-import { TotalResult } from '@/components/room/TotalResult';
 
 export async function generateMetadata({
   params,
