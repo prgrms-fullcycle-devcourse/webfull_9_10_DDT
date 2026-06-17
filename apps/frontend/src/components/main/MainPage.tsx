@@ -151,7 +151,7 @@ export const MainPage = () => {
         )}
       </div>
 
-      <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
+      <main className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image src={logoImg} alt='감옥' width={160} height={81} priority />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
@@ -229,7 +229,7 @@ export const MainPage = () => {
             </Button>
           </div>
         )}
-      </div>
+      </main>
 
       <RoomCodeDialog open={showCodeDialog} onOpenChange={setShowCodeDialog} />
 
