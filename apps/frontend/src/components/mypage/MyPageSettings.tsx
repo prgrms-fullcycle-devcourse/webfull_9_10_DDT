@@ -32,7 +32,7 @@ export const MyPageSettings = forwardRef<HTMLDivElement, MyPageSettingsProps>(
         <Settings size={24} strokeWidth={1.8} />
       </button>
       {isOpen ? (
-        <div className='absolute right-0 top-full z-20 mt-3 min-w-[160px] overflow-hidden rounded-[22px] border border-white/10 bg-[#141A2B] text-white shadow-2xl'>
+        <div className='absolute right-0 top-full z-20 mt-3 min-w-40 overflow-hidden rounded-[22px] border border-white/10 bg-[#141A2B] text-white shadow-2xl'>
           <Link
             href='/mypage/edit'
             className='flex items-center gap-2 px-4 py-3 text-sm text-white transition hover:bg-white/5'

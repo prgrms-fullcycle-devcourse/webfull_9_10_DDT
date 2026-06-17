@@ -23,7 +23,7 @@ export const RouletteHistory = forwardRef<HTMLDivElement, RouletteHistoryProps>(
         {history.map((penalty, idx) => (
           <div
             key={`${penalty}-${idx}`}
-            className='flex items-center gap-3 rounded-xl border border-[var(--roulette-history-border)] bg-[var(--roulette-history)] p-4'
+            className='flex items-center gap-3 rounded-xl border border-(--roulette-history-border) bg-(--roulette-history) p-4'
           >
             <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground'>
               {idx + 1}

@@ -7,7 +7,7 @@ const PenaltyRoulette = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className='mx-auto aspect-square w-full max-w-[320px] rounded-full border-2 border-[var(--roulette-panel-border)] bg-[var(--roulette-wheel-center)]' />
+      <div className='mx-auto aspect-square w-full max-w-[320px] rounded-full border-2 border-(--roulette-panel-border) bg-(--roulette-wheel-center)' />
     ),
   },
 );
@@ -44,7 +44,7 @@ export function RouletteWheel({
   errors,
 }: RouletteWheelProps) {
   return (
-    <div className='flex w-full min-w-0 flex-col items-center rounded-[14px] border border-[var(--roulette-card-border)] bg-[var(--roulette-card)] px-4 py-6'>
+    <div className='flex w-full min-w-0 flex-col items-center rounded-[14px] border border-(--roulette-card-border) bg-(--roulette-card) px-4 py-6'>
       <h2 className='mb-6 text-lg font-bold'>오늘의 벌칙 뽑기</h2>
       <PenaltyRoulette
         mustStartSpinning={isSpinning}

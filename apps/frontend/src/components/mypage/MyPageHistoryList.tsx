@@ -98,7 +98,7 @@ export const MyPageHistoryList = ({
             key={item.roomCode}
             href={`/room/${item.roomCode}/total-result`}
             onClick={handleClick}
-            className='flex min-h-[95px] items-center justify-between rounded-md bg-[#1D1C31] px-3.5 py-4 transition hover:bg-[#24223A] active:scale-[0.98]'
+            className='flex min-h-23.75 items-center justify-between rounded-md bg-[#1D1C31] px-3.5 py-4 transition hover:bg-[#24223A] active:scale-[0.98]'
           >
             <div className='min-w-0'>
               <p className='mb-1 text-[12px] font-medium text-[#747281]'>

@@ -40,7 +40,7 @@ export function RouletteTimer({
   }, [isExpired, onExpiredChange]);
 
   return (
-    <div className='rounded-[14px] border border-[var(--roulette-panel-border)] bg-[var(--roulette-panel)] p-4 text-center'>
+    <div className='rounded-[14px] border border-(--roulette-panel-border) bg-(--roulette-panel) p-4 text-center'>
       {isDrawDone ? (
         <div className='text-sm font-bold text-foreground'>
           벌칙을 다 뽑았어요.
