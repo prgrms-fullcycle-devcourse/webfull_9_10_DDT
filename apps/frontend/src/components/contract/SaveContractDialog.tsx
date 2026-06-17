@@ -19,7 +19,7 @@ import { queryKeys } from '@/lib/queryKeys';
 interface SaveContractDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (title: string) => Promise<void>;
+  onSave: (title: string) => Promise<boolean>;
 }
 
 interface SavedRuleMeta {
@@ -37,7 +37,7 @@ const TITLE_MAX_LENGTH = 30;
  *
  * @param open - 다이얼로그 열림 상태
  * @param onClose - 닫기 콜백
- * @param onSave - 제목을 받아 저장을 수행하는 비동기 콜백. 실패 시 throw하면 다이얼로그가 닫히지 않음
+ * @param onSave - 제목을 받아 저장을 수행하는 비동기 콜백. false를 반환하면 다이얼로그가 닫히지 않음
  */
 export function SaveContractDialog({
   open,
@@ -81,8 +81,8 @@ export function SaveContractDialog({
     }
     setIsSaving(true);
     try {
-      await onSave(trimmedTitle);
-      onClose();
+      const ok = await onSave(trimmedTitle);
+      if (ok) onClose();
     } finally {
       setIsSaving(false);
     }

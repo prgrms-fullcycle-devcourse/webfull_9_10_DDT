@@ -182,9 +182,9 @@ export function LoadContractDialog({
   // 전체 선택 여부 (전체 선택/해제 버튼용)
   const allChecked = options.fields && options.tiers && options.penalties;
 
-  // 벌칙이 없는 계약서는 펼치지 않음 (선택·옵션 표시는 가능)
+  // 현재 선택된 각서 (목록에서 조회)
   const selectedRule = list?.find((r) => r.ruleId === selectedId);
-  // 벌칙이 없는 각서는 아코디언을 펼치지 않음 (목록이 비어있으므로)
+  // 벌칙이 없는 각서는 펼칠 내용이 없어 아코디언을 닫아 둔다
   const expandedValue =
     selectedRule && selectedRule.penalties.length > 0
       ? selectedRule.ruleId
