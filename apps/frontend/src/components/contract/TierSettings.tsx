@@ -15,6 +15,7 @@ import { useRoomStore } from '@/store/useRoomStore';
 import { Tier, UseContractYjsReturn } from '@/types/yjs';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
+import { blockNonInteger } from './utils';
 
 interface TierSettingsProps {
   yjs: Pick<
@@ -31,15 +32,8 @@ interface TierSettingsProps {
 }
 
 // 단계가 아직 시드되지 않았을 때(비호스트가 동기화 전 진입 등) 모두에게 보여줄 기본 단계.
-// yjs 문서에는 쓰지 않고 화면 표시용으로만 사용한다. (동시 시드로 인한 단계 중복 방지)
+// Yjs 문서에는 쓰지 않고 화면 표시용으로만 사용한다. (동시 시드로 인한 단계 중복 방지)
 const DEFAULT_TIER: Tier = { tier: 1, minPct: 0, maxPct: null, count: 0 };
-
-// 자연수만 허용: 소수점(.), 부호(+/-), 지수(e/E) 키 입력을 차단한다.
-function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>): void {
-  if (['e', 'E', '+', '-', '.'].includes(e.key)) {
-    e.preventDefault();
-  }
-}
 
 interface PenaltyCountInputProps {
   value: number;
@@ -49,8 +43,18 @@ interface PenaltyCountInputProps {
   onCommit: (value: number) => void;
 }
 
-// 입력 중에는 로컬 문자열로 자유롭게 편집(0 지우기 가능)하고,
-// 포커스가 없을 때만 외부(yjs) 값을 반영한다. (숫자에 묶이면 "0"이 안 지워지는 문제 방지)
+/**
+ * 벌칙 개수 입력 컴포넌트.
+ * 입력 중에는 로컬 문자열로 자유 편집(0 지우기 가능)하고,
+ * 포커스가 없을 때만 외부 Yjs 값을 반영합니다.
+ * focus 시 값을 비워 새로 입력할 수 있게 하고, blur 시 유효하지 않으면 이전 값으로 복원합니다.
+ *
+ * @param value - Yjs에서 받은 현재 벌칙 개수
+ * @param disabled - 편집 불가 여부 (권한 없거나 다른 유저가 편집 중)
+ * @param onFocus - Yjs awareness 포커스 등록 콜백
+ * @param onBlur - Yjs awareness 포커스 해제 콜백
+ * @param onCommit - 유효한 값 확정 시 Yjs에 동기화하는 콜백
+ */
 function PenaltyCountInput({
   value,
   disabled,
@@ -112,8 +116,18 @@ interface TierPctInputProps {
   onCommit: (value: number) => void;
 }
 
-// 종료%(maxPct) 입력. 입력 중에는 로컬 문자열로 자유 편집하고,
-// 포커스가 없을 때만 외부(yjs) 값을 반영한다. blur 시 minPct 초과 & 1~99로 보정.
+/**
+ * 벌칙 등급 종료 퍼센트(maxPct) 입력 컴포넌트.
+ * minPct 초과 ~ 99 이하만 허용하며, blur 시 범위 밖이면 자동 보정합니다.
+ * 마지막 등급은 100% 고정이므로 이 컴포넌트 대신 텍스트를 표시합니다.
+ *
+ * @param value - 현재 종료 퍼센트. null이면 최상위 등급 (100%)
+ * @param minPct - 이 등급의 시작 퍼센트 (입력 하한)
+ * @param disabled - 편집 불가 여부
+ * @param onFocus - Yjs awareness 포커스 등록 콜백
+ * @param onBlur - Yjs awareness 포커스 해제 콜백
+ * @param onCommit - 유효한 값 확정 시 Yjs에 동기화하는 콜백
+ */
 function TierPctInput({
   value,
   minPct,
@@ -170,6 +184,14 @@ function TierPctInput({
   );
 }
 
+/**
+ * 벌칙 등급(단계) 설정 카드 컴포넌트.
+ * 이탈 시간 비율 구간별 벌칙 개수를 설정합니다.
+ * 등급 추가/삭제, 구간 경계(%) 조정, 벌칙 개수 입력을 지원합니다.
+ * 마지막 등급의 시작%가 99% 이상이면 더 이상 추가할 수 없습니다.
+ *
+ * @param yjs - useYjsContract에서 반환된 등급 관련 함수/상태
+ */
 export default function TierSettings({ yjs }: TierSettingsProps) {
   const me = useAuth().me;
   const myMember = useRoomStore((state) =>
@@ -191,10 +213,11 @@ export default function TierSettings({ yjs }: TierSettingsProps) {
   const canEdit = myMember?.canEdit ?? false;
   const myNickname = myMember?.nickname ?? me.nickname;
 
-  // 단계가 비어있으면 모두에게 기본 0~100 단계를 보여준다(표시 전용).
+  // 단계가 비어있으면 모두에게 기본 0~100% 단계를 보여준다 (표시 전용, Yjs에 쓰지 않음)
   const isFallback = tiers.length === 0;
   const displayTiers = isFallback ? [DEFAULT_TIER] : tiers;
 
+  // 단계 추가 가능 여부: 편집 권한 + 마지막 등급의 시작%가 99 미만이어야 분할 가능
   const canAddTier = (() => {
     if (!canEdit) {
       return false;

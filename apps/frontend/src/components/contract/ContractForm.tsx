@@ -39,6 +39,11 @@ interface ContractFormValues {
   rounds: number;
 }
 
+/**
+ * 계약서(각서) 작성 페이지의 메인 컴포넌트.
+ * Yjs를 통한 실시간 협업 편집, 타이머/벌칙/등급 설정, 멤버 서명, 세션 시작을 관리합니다.
+ * 전원 서명 완료 시 "감금 시작", 미서명 멤버 존재 시 "강제 시작"(자동 강퇴) 버튼을 표시합니다.
+ */
 const ContractForm = () => {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -52,12 +57,15 @@ const ContractForm = () => {
   );
   const phase = useRoomStore((s) => s.phase);
   const noSleepRef = useRef<NoSleep | null>(null);
+  // NoSleep은 렌더 중 생성하지 않고 lazy getter로 필요 시 1회 생성 (React 원칙 준수)
   const getNoSleep = () => {
     if (!noSleepRef.current) noSleepRef.current = new NoSleep();
     return noSleepRef.current;
   };
 
   const isHost = me?.id === hostId;
+  // contract/lobby 페이즈에서만 Yjs 동기화를 활성화한다.
+  // timer 이후에는 계약서 편집이 불필요하므로 연결을 끊는다.
   const yjsEnabled =
     !!me && (phase === null || phase === 'contract' || phase === 'lobby');
 
@@ -123,6 +131,10 @@ const ContractForm = () => {
     },
   });
 
+  /**
+   * 일반 시작 핸들러.
+   * 각서 규칙 생성(createRoomRule) → 타이머 시작(startTimer) 순으로 호출합니다.
+   */
   const handleStartFocus = async () => {
     try {
       const dto = toBackendFormat(fields, tiers, penalties);
@@ -138,6 +150,10 @@ const ContractForm = () => {
     }
   };
 
+  /**
+   * 강제 시작 핸들러.
+   * NoSleep 활성화 → 각서 규칙 생성 → 강제 타이머 시작(미서명 멤버 자동 강퇴) 순으로 호출합니다.
+   */
   const handleForceStartFocus = async () => {
     try {
       getNoSleep().enable();
@@ -156,6 +172,7 @@ const ContractForm = () => {
     }
   };
 
+  // phase 변경 감지: timer로 전환되면 타이머 페이지로, result면 결과 페이지로 이동
   useEffect(() => {
     if (phase === 'timer') {
       router.replace(`/room/${room.code}/timer`);
@@ -164,6 +181,11 @@ const ContractForm = () => {
     }
   }, [phase, room.code, router]);
 
+  /**
+   * 방 퇴장 핸들러.
+   * 방장이면 방 폭파 경고, 일반 멤버면 퇴장 확인을 거칩니다.
+   * 게스트 토큰이면 쿠키 삭제 + 쿼리 캐시 초기화 후 홈으로 이동합니다.
+   */
   const handleLeaveRoom = async () => {
     const ok = await confirm({
       title: isHost
@@ -187,6 +209,10 @@ const ContractForm = () => {
     }
   };
 
+  /**
+   * 강제 시작 버튼 핸들러.
+   * 방장 여부 + 본인 서명 여부를 검증한 뒤 확인 다이얼로그를 띄웁니다.
+   */
   const handleForceStart = async () => {
     if (!isHost) {
       return;

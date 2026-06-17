@@ -44,6 +44,15 @@ interface PenaltyInputProps extends Omit<
   onUpdate: (val: string) => void;
 }
 
+/**
+ * 벌칙 항목의 Yjs 실시간 협업 입력 컴포넌트.
+ * 한글 IME 조합(composition) 중에는 Yjs 동기화를 지연하여 커서 이동을 방지합니다.
+ * 편집 중이 아닐 때만 외부 Yjs 값(다른 유저의 수정)을 로컬 draft에 반영합니다.
+ * focus 시 placeholder를 비우고 blur 시 복원합니다.
+ *
+ * @param content - Yjs에서 받은 현재 벌칙 내용
+ * @param onUpdate - 값 변경 시 Yjs에 동기화하는 콜백
+ */
 const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
   ({ content, onUpdate, onFocus, onBlur, placeholder, ...props }, ref) => {
     const [draft, setDraft] = useState(content ?? '');
@@ -101,6 +110,14 @@ const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
 );
 PenaltyInput.displayName = 'PenaltyInput';
 
+/**
+ * 벌칙 목록 카드 컴포넌트.
+ * Yjs를 통해 실시간 협업으로 벌칙을 추가/수정/삭제합니다.
+ * 편집 권한(canEdit)이 없으면 입력 비활성화 + 추가/삭제 버튼 숨김.
+ * 다른 유저가 편집 중인 필드는 OwnerIndicator로 표시됩니다.
+ *
+ * @param yjs - useYjsContract에서 반환된 벌칙 관련 함수/상태 (addPenalty, penalties 등)
+ */
 export default function PenaltyList({ yjs }: PenaltyListProps) {
   const me = useAuth().me;
   const myMember = useRoomStore((state) =>
@@ -121,11 +138,16 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
   const prevLengthRef = useRef(penalties.length);
   const shouldFocusRef = useRef(false);
 
+  /**
+   * 벌칙 추가 핸들러.
+   * 빈 항목을 추가한 뒤, 렌더 완료 후 마지막 입력에 자동 포커스합니다.
+   */
   const handleAddPenalty = () => {
     shouldFocusRef.current = true;
     addPenalty('');
   };
 
+  // 벌칙이 새로 추가됐을 때(길이 증가 + shouldFocus 플래그) 마지막 입력에 포커스
   useEffect(() => {
     if (penalties.length > prevLengthRef.current && shouldFocusRef.current) {
       lastInputRef.current?.focus();
