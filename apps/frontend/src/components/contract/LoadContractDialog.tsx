@@ -16,6 +16,7 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { toYjsFormat, type SavedRule } from '@/lib/contractTransform';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Checkbox } from '../ui/checkbox';
 import { ApplyData, ApplyOptions } from '@/types/yjs';
 import {
   Accordion,
@@ -26,6 +27,7 @@ import {
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { queryKeys } from '@/lib/queryKeys';
+import { getErrorMessage } from '@/lib/error';
 
 interface LoadContractDialogProps {
   open: boolean;
@@ -33,21 +35,11 @@ interface LoadContractDialogProps {
   onLoad: (rule: ApplyData) => void;
 }
 
-// 가져오기 옵션 토글 칩 (선택 시 보라 채움)
-const chipClass = (active: boolean) =>
-  `inline-flex w-full justify-center items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer select-none transition-colors ${
-    active
-      ? 'border-primary bg-primary text-primary-foreground'
-      : 'border-border bg-accent/40 text-muted-foreground hover:bg-accent/70'
-  }`;
-
-// 적용 방식 세그먼트 (덮어쓰기 / 추가)
-const segClass = (active: boolean) =>
-  `flex-1 rounded-md px-3 py-1.5 text-xs text-center cursor-pointer select-none transition-colors ${
-    active
-      ? 'bg-primary text-primary-foreground'
-      : 'text-muted-foreground hover:text-foreground'
-  }`;
+// 벌칙 목록 적용 방식 라디오 옵션 (덮어쓰기 / 추가)
+const PENALTY_MODE_OPTIONS = [
+  { value: 'replace', label: '덮어쓰기' },
+  { value: 'append', label: '추가하기' },
+] as const;
 
 /**
  * 저장된 각서 불러오기 다이얼로그.
@@ -137,7 +129,7 @@ export function LoadContractDialog({
     }
 
     onLoad(applyData);
-    onClose();
+    handleOpenChange(false);
     toast.success(`"${selected.title}"을(를) 불러왔어요.`);
   };
 
@@ -166,8 +158,8 @@ export function LoadContractDialog({
         setSelectedId(null);
       }
       toast.success('삭제 성공');
-    } catch {
-      toast.error('삭제 실패');
+    } catch (err) {
+      toast.error(getErrorMessage(err, '삭제 실패'));
     }
   };
 
@@ -204,9 +196,7 @@ export function LoadContractDialog({
         <DialogHeader className='shrink-0'>
           <DialogTitle>저장된 각서 불러오기</DialogTitle>
           <DialogDescription className='text-xs'>
-            현재 작성된 내용이 덮어씌워지고,
-            <br />
-            다른 멤버에게도 즉시 반영돼요.
+            기존 내용을 덮어쓰며, 모두에게 즉시 반영돼요.
           </DialogDescription>
         </DialogHeader>
 
@@ -256,7 +246,7 @@ export function LoadContractDialog({
                       >
                         <Trash2 className='w-4 h-4 text-destructive' />
                       </Button>
-                      <div className='flex items-start gap-2 pr-9'>
+                      <div className='flex items-start gap-2'>
                         <RadioGroupItem
                           value={item.ruleId}
                           aria-label={`${item.title} 선택`}
@@ -265,13 +255,12 @@ export function LoadContractDialog({
                         <div className='min-w-0 flex-1'>
                           <AccordionTrigger className='w-full min-w-0 p-0 hover:no-underline **:data-[slot=accordion-trigger-icon]:hidden'>
                             <div className='min-w-0 flex-1 text-left'>
-                              <p className='min-w-0 truncate font-medium'>
+                              <p className='min-w-0 line-clamp-2 wrap-break-word pr-9 font-medium'>
                                 {item.title}
                               </p>
-                              <DialogDescription className='mt-1 text-xs'>
-                                집중 {item.focusMin}분 · 휴식 {item.breakMin}분
-                                · {item.rounds}회 · 벌칙 {item.penalties.length}
-                                개
+                              <DialogDescription className='mt-1 whitespace-nowrap text-xs'>
+                                집중 {item.focusMin}분, 휴식 {item.breakMin}분,{' '}
+                                {item.rounds}회, 벌칙 {item.penalties.length}개
                               </DialogDescription>
                             </div>
                           </AccordionTrigger>
@@ -281,7 +270,7 @@ export function LoadContractDialog({
 
                     <AccordionContent className='px-3 pb-3'>
                       <div className='space-y-2 pt-2 border-t border-border/50'>
-                        <ul className='flex flex-wrap text-sm space-y-1 p-1 gap-1.5'>
+                        <ul className='flex flex-wrap text-sm p-1 gap-1.5'>
                           {item.penalties.map((p) => (
                             <li
                               key={p.itemId}
@@ -301,7 +290,7 @@ export function LoadContractDialog({
         </div>
 
         {selectedId && (
-          <div className='space-y-2 mt-3 pt-3 border-t shrink-0'>
+          <div className='space-y-2 mt-3  shrink-0'>
             {/* 헤더 줄: 라벨 + 전체 선택/해제 */}
             <div className='flex items-center justify-between'>
               <DialogDescription>가져오기 옵션</DialogDescription>
@@ -314,68 +303,83 @@ export function LoadContractDialog({
               </button>
             </div>
 
-            {/* 토글 칩 한 줄: 시간 · 강도 · 벌칙 */}
-            <div className='flex flex-row w-full gap-2'>
-              <button
-                type='button'
-                aria-pressed={options.fields}
-                onClick={() => setOptions((o) => ({ ...o, fields: !o.fields }))}
-                className={chipClass(options.fields)}
-              >
-                시간 설정
-              </button>
-              <button
-                type='button'
-                aria-pressed={options.tiers}
-                onClick={() => setOptions((o) => ({ ...o, tiers: !o.tiers }))}
-                className={chipClass(options.tiers)}
-              >
-                벌칙 단계
-              </button>
-              <button
-                type='button'
-                aria-pressed={options.penalties}
-                onClick={() =>
-                  setOptions((o) => ({ ...o, penalties: !o.penalties }))
-                }
-                className={chipClass(options.penalties)}
-              >
-                벌칙 목록
-              </button>
-            </div>
+            {/* 가져오기 옵션: 박스형 체크박스 (탭 영역=박스 전체, 모바일 터치영역 확보) */}
+            <div className='space-y-2'>
+              {/* 시간 설정 · 벌칙 단계 (2열) */}
+              <div className='grid grid-cols-2 gap-2'>
+                <label className='flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-3 cursor-pointer select-none'>
+                  <Checkbox
+                    checked={options.fields}
+                    onCheckedChange={(c) =>
+                      setOptions((o) => ({ ...o, fields: c === true }))
+                    }
+                    className='shrink-0'
+                  />
+                  <span className='text-sm'>시간 설정</span>
+                </label>
 
-            {/* 적용 방식 세그먼트 (높이 고정: 벌칙 OFF여도 자리만 유지, 시각적 미노출) */}
-            <div
-              aria-hidden={!options.penalties}
-              className={`flex items-center gap-2 ${
-                options.penalties ? '' : 'invisible'
-              }`}
-            >
-              <div className='flex flex-1 rounded-lg border border-border bg-accent/40 p-0.5'>
-                <button
-                  type='button'
-                  disabled={!options.penalties}
-                  tabIndex={options.penalties ? 0 : -1}
-                  aria-pressed={options.penaltyMode === 'replace'}
-                  onClick={() =>
-                    setOptions((o) => ({ ...o, penaltyMode: 'replace' }))
-                  }
-                  className={segClass(options.penaltyMode === 'replace')}
-                >
-                  덮어쓰기
-                </button>
-                <button
-                  type='button'
-                  disabled={!options.penalties}
-                  tabIndex={options.penalties ? 0 : -1}
-                  aria-pressed={options.penaltyMode === 'append'}
-                  onClick={() =>
-                    setOptions((o) => ({ ...o, penaltyMode: 'append' }))
-                  }
-                  className={segClass(options.penaltyMode === 'append')}
-                >
-                  추가하기
-                </button>
+                <label className='flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-3 cursor-pointer select-none'>
+                  <Checkbox
+                    checked={options.tiers}
+                    onCheckedChange={(c) =>
+                      setOptions((o) => ({ ...o, tiers: c === true }))
+                    }
+                    className='shrink-0'
+                  />
+                  <span className='text-sm'>벌칙 단계</span>
+                </label>
+              </div>
+
+              {/* 벌칙 목록 + 적용 방식: 하나의 박스로 감싸 그룹화. 라디오는 좌측 여백(pl-9)으로 하위 항목 표시 */}
+              <div className='rounded-lg bg-muted/40'>
+                <label className='flex items-center gap-2 px-3 py-3 cursor-pointer select-none'>
+                  <Checkbox
+                    checked={options.penalties}
+                    onCheckedChange={(c) =>
+                      setOptions((o) => ({ ...o, penalties: c === true }))
+                    }
+                    className='shrink-0'
+                  />
+                  <span className='text-sm'>벌칙 목록</span>
+                </label>
+
+                {options.penalties && (
+                  <>
+                    {/* 벌칙 목록과 하위 적용 방식 구분선 (다른 화면과 동일한 회색 라인) */}
+                    <div className='mx-3 border-t border-border/50' />
+                    <RadioGroup
+                      value={options.penaltyMode}
+                      onValueChange={(val) =>
+                        setOptions((o) => ({
+                          ...o,
+                          penaltyMode: val as ApplyOptions['penaltyMode'],
+                        }))
+                      }
+                      className='grid grid-cols-2 gap-2 pl-9 pr-3'
+                    >
+                      {PENALTY_MODE_OPTIONS.map((opt) => (
+                        <label
+                          key={opt.value}
+                          className='flex items-center gap-2 py-2.5 cursor-pointer select-none'
+                        >
+                          <RadioGroupItem
+                            value={opt.value}
+                            className='shrink-0'
+                          />
+                          <span
+                            className={`text-sm transition-colors ${
+                              options.penaltyMode === opt.value
+                                ? 'font-medium text-foreground'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {opt.label}
+                          </span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -385,7 +389,7 @@ export function LoadContractDialog({
           <Button
             type='button'
             variant='secondary'
-            onClick={onClose}
+            onClick={() => handleOpenChange(false)}
             className='flex-1 h-12 rounded-lg'
           >
             취소

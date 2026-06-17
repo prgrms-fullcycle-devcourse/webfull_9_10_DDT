@@ -61,8 +61,8 @@ export function toYjsFormat(rule: SavedRule): {
       breakMin: rule.breakMin,
       rounds: rule.rounds,
     },
-    tiers: rule.tierConfig.tiers,
-    penalties: rule.penalties.map((p) => ({
+    tiers: rule.tierConfig?.tiers ?? [],
+    penalties: (rule.penalties ?? []).map((p) => ({
       id: p.itemId,
       content: p.content,
     })),

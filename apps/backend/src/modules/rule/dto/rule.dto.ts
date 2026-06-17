@@ -52,7 +52,7 @@ export class CreateRoomRuleDto {
   @ApiProperty({ example: 5 })
   @IsInt()
   @Min(1)
-  @Max(60)
+  @Max(120)
   breakMin!: number;
 
   @ApiProperty({ example: 4 })
@@ -78,5 +78,6 @@ export class SaveRuleTemplateDto extends CreateRoomRuleDto {
   @ApiProperty({ example: '지옥의 뽀모도로' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(30)
   title!: string;
 }

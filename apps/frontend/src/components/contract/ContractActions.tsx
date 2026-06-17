@@ -12,6 +12,7 @@ import { SaveContractDialog } from './SaveContractDialog';
 import { LoadContractDialog } from './LoadContractDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/queryKeys';
+import { getErrorMessage } from '@/lib/error';
 
 interface ContractActionsProps {
   fields: UseContractYjsReturn['fields'];
@@ -60,7 +61,9 @@ export function ContractActions({
     const payload = toBackendFormat(fields, tiers, penalties);
 
     try {
-      const cached = queryClient.getQueryData<SavedRule[]>(['saved-rules']);
+      const cached = queryClient.getQueryData<SavedRule[]>(
+        queryKeys.rules.saved(),
+      );
       const existing = cached?.find((r) => r.title === title);
 
       if (existing) {
@@ -77,8 +80,8 @@ export function ContractActions({
 
       queryClient.invalidateQueries({ queryKey: queryKeys.rules.saved() });
       toast.success(`"${title}" 저장 성공`);
-    } catch {
-      toast.error('저장 실패');
+    } catch (err) {
+      toast.error(getErrorMessage(err, '저장 실패'));
       throw new Error();
     }
   };
