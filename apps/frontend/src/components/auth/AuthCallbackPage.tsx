@@ -19,6 +19,11 @@ import { setAccessTokenCookie } from '@/lib/authToken';
 const getApiUrl = () =>
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
+/**
+ * 모바일 OAuth 리다이렉트 콜백 화면. (팝업을 못 쓰는 모바일에서 같은 탭으로 돌아올 때)
+ * URL 쿼리의 token으로 쿠키를 설정하고, 보류 중이던 약관 동의를 서버에 전송한 뒤
+ * 원래 가려던 경로(returnTo)로 이동한다. 처리 동안 로딩 화면을 보여준다.
+ */
 export const AuthCallbackPage = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -44,11 +49,13 @@ export const AuthCallbackPage = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          // 409(이미 동의함)는 정상으로 간주한다. 재진입·중복 호출 시에도 실패로 처리하지 않기 위함.
           validateStatus: (status) =>
             (status >= 200 && status < 300) || status === 409,
         });
       }
 
+      // 방 만들기로 가는 흐름이면, 도착 화면에서 뒤로가기로 약관/로그인에 되돌아가지 않도록 플래그를 남긴다.
       if (returnTo === '/room') {
         sessionStorage.setItem('justLoggedIn', 'true');
       }

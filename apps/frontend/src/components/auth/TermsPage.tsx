@@ -16,6 +16,8 @@ import {
   type TermsAgreement,
 } from '@/lib/authTerms';
 
+// OAuth를 시작했다가 뒤로가기로 약관 화면에 되돌아온 경우, 이전 동의 체크를 초기화해야 하는지 판단한다.
+// (OAuth 시작 플래그가 남아 있으면 = 중간에 돌아온 것 → 보류 동의를 비운다)
 const resetAgreementAfterOAuthBack = () => {
   if (typeof window === 'undefined') return false;
 
@@ -41,6 +43,13 @@ const resetAgreementAfterReload = () => {
   return true;
 };
 
+/**
+ * 약관 동의 화면. 필수 3개 약관(서비스·개인정보·만 14세)에 모두 동의해야 구글 로그인을 시작할 수 있다.
+ * 데스크탑은 팝업으로 열리며(isPopup), 동의 상태를 부모 창에 postMessage로 전달하고 OAuth로 이동한다.
+ * 약관 전문 페이지 왕복·새로고침·OAuth 중도 복귀 시 동의 상태를 적절히 복원/초기화한다.
+ *
+ * @param isPopup - 팝업 창으로 열렸는지 여부 (true면 뒤로가기 버튼 숨김)
+ */
 export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
   const [agreement, setAgreement] = useState<TermsAgreement>(() => {
     if (
@@ -107,6 +116,8 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
 
     sessionStorage.setItem(PENDING_TERMS_KEY, JSON.stringify(agreement));
     sessionStorage.setItem(TERMS_OAUTH_STARTED_KEY, 'true');
+    // OAuth로 이동하기 전에 동의 내용을 부모 창(OAuthMessageHandler)에 먼저 전달해둔다.
+    // 로그인 성공 메시지가 오면 부모가 이 동의를 함께 서버로 전송한다.
     window.opener?.postMessage(
       { type: 'TERMS_AGREEMENT_READY', agreement },
       window.location.origin,

@@ -5,6 +5,12 @@ import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
 import type { LegalDocumentData } from '@/lib/termsContent';
 
+/**
+ * 약관/개인정보 등 법적 문서를 제목·개정일·섹션 구조로 렌더하는 공용 화면.
+ * 이용약관·개인정보 처리방침 등 termsContent의 데이터를 그대로 받아 표시한다.
+ *
+ * @param document - 표시할 법적 문서 데이터 (title·updatedAt·sections)
+ */
 export function LegalDocument({ document }: { document: LegalDocumentData }) {
   return (
     <MobileLayout

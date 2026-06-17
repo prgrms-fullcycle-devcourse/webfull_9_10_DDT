@@ -18,6 +18,14 @@ interface ForfeitDialogProps {
   isPending: boolean;
 }
 
+/**
+ * "탈옥하기"(중도 포기) 버튼과 확인 다이얼로그. 확인 시 남은 시간이 전부 이탈로 처리됨을 안내한다.
+ *
+ * @param isOpen - 다이얼로그 열림 여부
+ * @param onOpenChange - 열림 상태 변경 핸들러
+ * @param onForfeit - 탈옥 확정 핸들러
+ * @param isPending - 탈옥 처리 진행 중 여부 (버튼 비활성/문구 전환)
+ */
 export function ForfeitDialog({
   isOpen,
   onOpenChange,

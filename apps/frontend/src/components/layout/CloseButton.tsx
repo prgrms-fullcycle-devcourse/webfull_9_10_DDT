@@ -12,6 +12,12 @@ type CloseButtonProps = Omit<
   iconSize?: number;
 };
 
+/**
+ * 헤더 우측에 고정되는 X(닫기) 아이콘 버튼. onClick 등 Button 속성을 그대로 받는다.
+ *
+ * @param iconSize - X 아이콘 픽셀 크기 (기본 24)
+ * @param aria-label - 접근성 라벨 (기본 '닫기')
+ */
 export function CloseButton({
   className,
   iconSize = 24,

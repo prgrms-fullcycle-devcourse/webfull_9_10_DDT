@@ -23,6 +23,11 @@ import { ForfeitDialog } from './ForfeitDialog';
 import { usePushSubscription } from './usePushSubscription';
 import { useFocusEscapeTracking } from './useFocusEscapeTracking';
 
+/**
+ * 집중 세션 타이머 화면. 서버 기준 경과 시간으로 현재 회차·집중/휴식 단계·남은 시간을 계산해 표시하고,
+ * 1초 주기 갱신·5초 주기 heartbeat·포커스 이탈 추적·화면 꺼짐 방지·중도 포기(탈옥)를 처리한다.
+ * phase 변화나 단계 만료 시 계약서/중간결과/통합결과 등 적절한 경로로 이동한다.
+ */
 export default function Timer() {
   useBlockBrowserBack();
 
@@ -72,6 +77,7 @@ export default function Timer() {
     }
   }, [phase, room.code, router]);
 
+  // 5초마다 heartbeat를 보내 서버가 "접속 중"으로 인식하게 한다. (끊기면 이탈/정리 대상이 됨)
   useEffect(() => {
     if (!socket || !sessionInfo) return;
     const interval = window.setInterval(() => {
@@ -114,6 +120,8 @@ export default function Timer() {
     giveUpMutation.mutate();
   };
 
+  // 클라이언트 시계를 serverOffset으로 보정해 서버 기준 경과 시간(elapsed)을 구한다.
+  // 한 사이클 = 집중 + 휴식. 마지막 회차는 휴식이 없으므로 총 시간에서 breakMs를 (회차-1)만 더한다.
   const adjustedNow = now + (sessionInfo?.serverOffset ?? 0);
   const elapsed = adjustedNow - (sessionInfo?.startedAt ?? adjustedNow);
   const focusMs = (sessionInfo?.focusMin ?? 0) * 60 * 1000;
@@ -123,6 +131,7 @@ export default function Timer() {
   const totalMs =
     focusMs * totalRounds + breakMs * Math.max(0, totalRounds - 1);
 
+  // 경과를 [0, 전체] 범위로 클램프하고, 마지막 회차 진입 여부로 현재 회차·단계(집중/휴식)를 판정한다.
   const clampedElapsed = Math.min(Math.max(0, elapsed), totalMs);
   const lastRoundStartMs = cycleMs * Math.max(0, totalRounds - 1);
   const isLastRound = cycleMs > 0 ? clampedElapsed >= lastRoundStartMs : true;
@@ -145,6 +154,8 @@ export default function Timer() {
   const focusDurationSec = (sessionInfo?.focusMin ?? 0) * 60;
   const breakDurationSec = (sessionInfo?.breakMin ?? 0) * 60;
 
+  // 세션이 끝났는지 서버 phase로 확인해 결과/통합결과 화면으로 보낸다.
+  // 중복 호출을 ref로 가드하고, 방이 사라진 경우(404)는 통합결과로 간주해 이동시킨다.
   const syncEndedSessionRoute = useCallback(async () => {
     if (!sessionInfo || isCheckingRoomPhaseRef.current) return;
 
