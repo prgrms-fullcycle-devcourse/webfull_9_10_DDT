@@ -14,6 +14,7 @@ import {
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface SaveContractDialogProps {
   open: boolean;
@@ -55,7 +56,7 @@ export function SaveContractDialog({
 
   // 입력한 제목과 동일한 기존 각서가 있으면 덮어쓰기 모드로 전환
   const { data: list } = useQuery({
-    queryKey: ['saved-rules'],
+    queryKey: queryKeys.rules.saved(),
     queryFn: async () => {
       const res = await getRuleApi().ruleControllerGetSavedRules();
       return res.data as unknown as SavedRuleMeta[];

@@ -13,12 +13,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { cn, urlBase64ToUint8Array } from '@/lib/utils';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { MemberTagBadges } from '../common/MemberTagBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { useShallow } from 'zustand/react/shallow';
+import { getToken } from '@/lib/getToken';
+import axios from 'axios';
+import { useRoom } from '@/contexts/RoomContext';
 
 /** 1×1 투명 PNG. 프로필 이미지 로딩 중 blur placeholder로 사용 */
 const BLUR_PLACEHOLDER =
@@ -32,6 +35,7 @@ const BLUR_PLACEHOLDER =
  */
 export default function MemberSignList() {
   const socket = useSocket();
+  const room = useRoom();
   const me = useAuth().me;
   const { members, hostId } = useRoomStore(
     useShallow((s) => ({ members: s.members, hostId: s.hostId })),
@@ -66,6 +70,33 @@ export default function MemberSignList() {
       await Notification.requestPermission();
     }
     socket?.emit('member:sign', { signed: newSigned });
+
+    if (newSigned && Notification.permission === 'granted') {
+      void (async () => {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (vapidKey) {
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidKey),
+              });
+            }
+          }
+          if (subscription) {
+            await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+              { subscription, platform: 'web' },
+              { headers: { Authorization: `Bearer ${getToken() ?? ''}` } },
+            );
+          }
+        } catch {
+          // 구독 실패해도 서명 흐름은 계속 진행
+        }
+      })();
+    }
   };
 
   /**

@@ -7,6 +7,7 @@ import {
   getUnrevealedPenaltyCount,
   useRouletteData,
 } from './useRouletteData';
+import { setResultFrom } from '@/lib/navigation';
 
 const SKIP_THRESHOLD = 5;
 const SPOTLIGHT_DURATION_MS = 2400;
@@ -120,7 +121,7 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
     if (finishTarget === '/') {
       data.clearGuestSession();
     } else {
-      sessionStorage.setItem('totalResultFrom', 'room');
+      setResultFrom('room');
     }
     router.replace(finishTarget);
   }, [data, finishTarget, router]);
