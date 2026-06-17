@@ -16,16 +16,6 @@ interface RankingSectionProps {
   showEscapeTime?: boolean;
 }
 
-/**
- * 멤버 이탈 시간 순위 또는 참여 멤버 목록을 표시하는 섹션.
- * TotalResult에서는 이탈 시간 순위로, SemiResult에서는 벌칙 개수로 표시됩니다.
- * 이탈 0명(isNoDisruption)이면 순위 대신 전원 엄지척 아이콘을 표시합니다.
- *
- * @param members - 순위 정렬된 결과 멤버 배열
- * @param me - 현재 로그인한 사용자 정보 (본인 하이라이트용)
- * @param isNoDisruption - 이탈자 0명 여부. true이면 순위 대신 "참여 멤버" 표시
- * @param showEscapeTime - 이탈 시간 표시 여부. false이면 벌칙 개수로 대체
- */
 export function RankingSection({
   members,
   me,
@@ -42,7 +32,7 @@ export function RankingSection({
           const isMe = isMeMember(me, member);
           const profileImageSrc = getProfileImageSrc(member.profileImage);
           const showGaveUp = !!member.gaveUpAt && !isNoDisruption;
-          // 이탈 시간이 0초 초과이면 강조(bold/흰75%), 0분 00초이면 기본 스타일로 구분
+          // 이탈 시간 강조: 0초 초과면 bold/흰75%, 0분 00초면 regular
           const escapeTimeClass = !showEscapeTime
             ? 'font-medium text-slate-400'
             : member.totalEscapeMs > 0

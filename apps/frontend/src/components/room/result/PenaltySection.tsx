@@ -13,23 +13,9 @@ interface PenaltySectionProps {
   me: { id: string; role: string } | null;
 }
 
-/**
- * 멤버별 벌칙 결과를 아코디언 형태로 표시하는 섹션.
- * 벌칙이 있는 멤버만 필터하여 목록을 구성합니다.
- * 미공개 벌칙이 남아있으면 "벌칙 결정 중"으로, 전부 공개되면 벌칙 내용 × 개수를 표시합니다.
- *
- * @param members - 순위 정렬된 결과 멤버 배열
- * @param me - 현재 로그인한 사용자 정보 (본인 하이라이트용)
- */
 export function PenaltySection({ members, me }: PenaltySectionProps) {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
-  /**
-   * 멤버 카드의 펼침/접힘을 토글합니다.
-   * useCallback으로 메모이제이션하여 자식 리렌더를 방지합니다.
-   *
-   * @param memberId - 토글할 멤버 ID
-   */
   const toggle = useCallback((memberId: string) => {
     setExpandedIds((prev) =>
       prev.includes(memberId)
@@ -63,7 +49,7 @@ export function PenaltySection({ members, me }: PenaltySectionProps) {
                   type='button'
                   onClick={() => toggle(member.memberId)}
                   aria-expanded={isExpanded}
-                  className='flex w-full items-center gap-2.5 px-4 py-2.25 text-left transition-colors hover:bg-white/3'
+                  className='flex w-full items-center gap-2.5 px-4 py-[9px] text-left transition-colors hover:bg-white/[0.03]'
                 >
                   <Avatar className='h-9 w-9 shrink-0 border border-white/10 bg-[#2a2a3e]'>
                     {profileImageSrc ? (

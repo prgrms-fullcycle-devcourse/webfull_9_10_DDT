@@ -16,12 +16,6 @@ import { RankingSection } from './RankingSection';
 import { formatSessionTime } from './utils';
 import type { ResultResponse } from './types';
 
-/**
- * 세션 종료 직후 표시되는 중간 결과 화면.
- * 총 수감 시간, 완료한 반복 횟수, 벌칙 대상자 수와 이탈 순위를 보여줍니다.
- * 이탈자가 0명이면 축하 메시지를, 아니면 순위표를 표시합니다.
- * 벌칙 룰렛이 필요한 멤버는 룰렛 페이지로, 아니면 최종 결과 페이지로 이동합니다.
- */
 export function SemiResult() {
   useBlockBrowserBack();
 
@@ -59,11 +53,6 @@ export function SemiResult() {
     ? `${result.completedRounds ?? 0} / ${result.rule.rounds}`
     : '-';
 
-  /**
-   * "다음" 버튼 핸들러.
-   * 룰렛이 필요하면 룰렛 페이지로, 아니면 TotalResult로 이동합니다.
-   * 룰렛이 불필요한 경우에만 결과 진입 경로를 저장합니다 (뒤로가기 목적지 결정용).
-   */
   const handleNext = () => {
     if (!shouldShowRoulette) setResultFrom('room');
     router.push(

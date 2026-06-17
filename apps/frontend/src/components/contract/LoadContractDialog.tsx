@@ -49,16 +49,6 @@ const segClass = (active: boolean) =>
       : 'text-muted-foreground hover:text-foreground'
   }`;
 
-/**
- * 저장된 각서 불러오기 다이얼로그.
- * 저장된 각서 목록을 라디오 + 아코디언으로 표시하며,
- * 가져오기 옵션(시간 설정/벌칙 단계/벌칙 목록)과 적용 방식(덮어쓰기/추가)을 선택할 수 있습니다.
- * 선택한 각서는 Yjs 형식으로 변환되어 실시간 반영됩니다.
- *
- * @param open - 다이얼로그 열림 상태
- * @param onClose - 닫기 콜백
- * @param onLoad - 선택된 각서 데이터를 부모(ContractActions)에 전달하는 콜백
- */
 export function LoadContractDialog({
   open,
   onClose,
@@ -75,9 +65,6 @@ export function LoadContractDialog({
 
   const { confirm, confirmProps } = useConfirm();
 
-  /**
-   * 다이얼로그 닫힘 시 선택 상태와 옵션을 초기화합니다.
-   */
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setSelectedId(null);
@@ -100,10 +87,6 @@ export function LoadContractDialog({
     enabled: open,
   });
 
-  /**
-   * 선택된 각서를 옵션에 따라 Yjs 형식으로 변환하고 부모에 전달합니다.
-   * 적용 항목이 하나도 선택되지 않으면 toast로 안내합니다.
-   */
   const handleLoad = () => {
     if (!selectedId) {
       return;
@@ -141,14 +124,6 @@ export function LoadContractDialog({
     toast.success(`"${selected.title}"을(를) 불러왔어요.`);
   };
 
-  /**
-   * 저장된 각서를 삭제합니다.
-   * 확인 다이얼로그를 거친 후 API 호출 → 쿼리 캐시 무효화.
-   * 현재 선택된 각서를 삭제하면 선택 상태도 초기화합니다.
-   *
-   * @param ruleId - 삭제할 각서 ID
-   * @param title - 확인 다이얼로그에 표시할 각서 제목
-   */
   const handleDelete = async (ruleId: string, title: string) => {
     const ok = await confirm({
       title: `${title}을 삭제하시겠어요?`,
@@ -171,11 +146,6 @@ export function LoadContractDialog({
     }
   };
 
-  /**
-   * 가져오기 옵션(시간/단계/벌칙) 전체 선택/해제를 토글합니다.
-   *
-   * @param checked - true면 전체 선택, false면 전체 해제
-   */
   const handleToggleAll = (checked: boolean) => {
     setOptions((o) => ({
       ...o,
@@ -192,7 +162,6 @@ export function LoadContractDialog({
 
   // 벌칙이 없는 계약서는 펼치지 않음 (선택·옵션 표시는 가능)
   const selectedRule = list?.find((r) => r.ruleId === selectedId);
-  // 벌칙이 없는 각서는 아코디언을 펼치지 않음 (목록이 비어있으므로)
   const expandedValue =
     selectedRule && selectedRule.penalties.length > 0
       ? selectedRule.ruleId

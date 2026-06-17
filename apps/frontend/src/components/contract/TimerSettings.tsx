@@ -17,7 +17,6 @@ import { CONTRACT_INPUT_FOCUS } from './inputStyles';
 import OwnerIndicator from './OwnerIndicator';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
-import { blockNonInteger } from './utils';
 
 interface TimerSettingsProps {
   yjs: Pick<
@@ -26,18 +25,19 @@ interface TimerSettingsProps {
   >;
 }
 
-/**
- * 분 단위 시간을 "X시간 Y분" 형식으로 변환합니다.
- *
- * @param minutes - 총 분
- * @returns 포맷된 시간 문자열
- */
 function formatTime(minutes: number): string {
   if (minutes === 0) return '0분';
   if (minutes < 60) return `${minutes}분`;
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins === 0 ? `${hours}시간` : `${hours}시간 ${mins}분`;
+}
+
+// 자연수만 허용: 소수점(.), 부호(+/-), 지수(e/E) 키 입력을 차단한다.
+function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>): void {
+  if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+    e.preventDefault();
+  }
 }
 
 interface TimerNumberInputProps {
@@ -54,23 +54,8 @@ interface TimerNumberInputProps {
   onCommit: (value: number) => void;
 }
 
-/**
- * 타이머 설정용 숫자 입력 컴포넌트.
- * focus 시 값을 비워 새로 입력할 수 있게 하고, 입력 즉시 min/max로 clamp합니다.
- * blur 시 빈 값이면 이전 값으로 복원합니다.
- * 편집 중이 아닐 때만 외부 Yjs 값(다른 유저의 수정)을 로컬 draft에 반영합니다.
- *
- * @param id - input HTML id (label 연결용)
- * @param value - Yjs에서 받은 현재 값
- * @param min - 입력 최솟값
- * @param max - 입력 최댓값 (동적 계산됨)
- * @param disabled - 편집 불가 여부 (권한 없거나 다른 유저가 편집 중)
- * @param isOwned - 다른 유저가 이 필드를 편집 중인지 여부 (아웃라인 표시용)
- * @param ownerColor - 편집 중인 유저의 고유 색상
- * @param onFocus - Yjs awareness 포커스 등록 콜백
- * @param onBlur - Yjs awareness 포커스 해제 콜백
- * @param onCommit - 유효한 값 확정 시 Yjs에 동기화하는 콜백
- */
+// 입력 중에는 로컬 문자열로 자유롭게 편집(기존 값 지우기 가능)하고,
+// 포커스가 없을 때만 외부(yjs) 값을 반영한다. blur 시 min/max로 보정.
 function TimerNumberInput({
   id,
   value,
@@ -141,14 +126,6 @@ function TimerNumberInput({
   );
 }
 
-/**
- * 타이머 시간 설정 카드 컴포넌트.
- * 집중 시간, 휴식 시간, 반복 횟수를 설정합니다.
- * 총 세션 시간이 10시간(600분)을 넘지 않도록 각 필드의 최댓값을 동적으로 계산합니다.
- * rounds가 1이면 휴식이 없으므로 breakMin 입력을 비활성화합니다.
- *
- * @param yjs - useYjsContract에서 반환된 타이머 설정 관련 함수/상태
- */
 export default function TimerSettings({ yjs }: TimerSettingsProps) {
   const me = useAuth().me;
   const myMember = useRoomStore((state) =>
@@ -164,11 +141,9 @@ export default function TimerSettings({ yjs }: TimerSettingsProps) {
   const { focusMin, breakMin, rounds } = fields;
   const totalMin = focusMin * rounds + breakMin * Math.max(0, rounds - 1);
 
-  /** 총 세션 시간 상한 (10시간 = 600분). 백엔드 MAX_TOTAL_MIN과 동일 */
   const MAX_TOTAL_MIN = 600;
 
-  // 각 필드의 동적 최대값: 다른 두 필드의 현재 값을 기반으로
-  // 총 세션 시간이 600분을 넘지 않는 범위 내에서 계산
+  // 각 필드별 동적 최대값
   const maxFocusMin = Math.max(
     1,
     Math.floor((MAX_TOTAL_MIN - breakMin * Math.max(0, rounds - 1)) / rounds),

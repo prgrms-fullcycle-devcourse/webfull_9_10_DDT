@@ -7,15 +7,6 @@ interface RoomTitleProps {
   isConnected: boolean;
 }
 
-/**
- * 방 제목 + Yjs 연결 상태 + 방 코드를 표시하는 카드 컴포넌트.
- * 계약서(각서) 페이지 상단에 배치됩니다.
- * 연결 상태에 따라 "실시간 연결됨"(초록) 또는 "연결 시도 중..."(빨강) 뱃지를 표시합니다.
- *
- * @param title - 방 제목
- * @param code - 방 코드 (사용자에게 표시)
- * @param isConnected - Yjs WebSocket 연결 여부
- */
 export default function RoomTitle({
   title,
   code,

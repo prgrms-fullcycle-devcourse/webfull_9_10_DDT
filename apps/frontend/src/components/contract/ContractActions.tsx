@@ -19,16 +19,6 @@ interface ContractActionsProps {
   applyAll: UseContractYjsReturn['applyAll'];
 }
 
-/**
- * 계약서(각서) 저장/불러오기 버튼 + 다이얼로그를 관리하는 컴포넌트.
- * 로그인 유저만 표시되며, 게스트는 렌더링하지 않습니다.
- * 불러오기 버튼은 편집 권한(canEdit)이 있을 때만 표시됩니다.
- *
- * @param fields - 현재 Yjs 타이머 설정값 (focusMin, breakMin, rounds)
- * @param tiers - 현재 Yjs 벌칙 등급 배열
- * @param penalties - 현재 Yjs 벌칙 목록 배열
- * @param applyAll - 불러온 템플릿 데이터를 Yjs에 일괄 적용하는 함수
- */
 export function ContractActions({
   fields,
   tiers,
@@ -47,14 +37,6 @@ export function ContractActions({
   const [saveOpen, setSaveOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
 
-  /**
-   * 각서 저장 핸들러.
-   * 동일 제목의 템플릿이 캐시에 있으면 덮어쓰기(update), 없으면 신규 생성(save).
-   * 성공 시 saved-rules 쿼리 캐시를 무효화하여 목록을 갱신합니다.
-   *
-   * @param title - 저장할 각서 제목
-   * @throws 저장 실패 시 toast.error 표시 후 Error throw (다이얼로그 닫힘 방지)
-   */
   const handleSave = async (title: string) => {
     const payload = toBackendFormat(fields, tiers, penalties);
 
@@ -82,12 +64,6 @@ export function ContractActions({
     }
   };
 
-  /**
-   * 각서 불러오기 핸들러.
-   * LoadContractDialog에서 선택한 템플릿 데이터를 Yjs에 일괄 적용합니다.
-   *
-   * @param data - 적용할 템플릿 데이터 (fields, tiers, penalties)
-   */
   const handleLoad = (data: ApplyData) => {
     applyAll(data);
   };

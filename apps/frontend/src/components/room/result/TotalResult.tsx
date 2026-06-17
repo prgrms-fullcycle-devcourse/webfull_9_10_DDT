@@ -27,17 +27,8 @@ import { formatSessionTime, getUnknownPenaltyCount } from './utils';
 import type { ResultResponse } from './types';
 import axios from 'axios';
 
-/**
- * 세션 최종 결과 화면.
- * 전체 통계, 이탈 시간 순위, 멤버별 벌칙 결과, 각서 확인을 표시합니다.
- * 미공개 벌칙이 있으면 3초 폴링으로 자동 갱신하며,
- * 방이 아직 진행 중(403)이면 "진행 중" 안내 화면을 표시합니다.
- * 게스트 토큰은 페이지 이탈 시 삭제합니다 (refetch 401 방지).
- */
 export function TotalResult() {
-  // 결과 진입 경로를 페이지 로드 시 1회 읽어 고정 (이후 sessionStorage 변경에 영향받지 않음)
   const [closeTarget] = useState(getCloseTarget);
-  // 룰렛에서 진입했는지 여부. 뒤로가기 방지(useBlockBrowserBack) 활성화에 사용
   const [isFromRoulette] = useState(() => getResultFrom() === 'room');
   useBlockBrowserBack({ redirectTo: '/', enabled: isFromRoulette });
 
@@ -61,15 +52,12 @@ export function TotalResult() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     staleTime: 5_000,
-    // 미공개 벌칙이 있는 멤버가 있으면 3초마다 폴링하여 룰렛 완료 시 자동 반영
     refetchInterval: (query) => {
       const data = query.state.data as ResultResponse | undefined;
       return data?.members.some((m) => getUnknownPenaltyCount(m) > 0)
         ? 3000
         : false;
     },
-    // 403은 방이 아직 timer 페이즈인 경우 (중도포기자가 마이페이지에서 조기 접근)
-    // 재시도 없이 즉시 "진행 중" 안내를 표시한다
     retry: (failureCount, err) => {
       if (axios.isAxiosError(err) && err.response?.status === 403) return false;
       return failureCount < 3;
@@ -92,11 +80,6 @@ export function TotalResult() {
   const isRoomInProgress =
     isError && axios.isAxiosError(error) && error.response?.status === 403;
 
-  /**
-   * 결과 화면 닫기 핸들러.
-   * 진입 경로 플래그 정리 → 게스트 토큰 삭제 → 진입 출처에 따라 라우팅.
-   * 마이페이지 계열에서 왔으면 router.back(), 그 외는 router.push().
-   */
   const handleClose = () => {
     clearResultFrom();
     if (isGuestAccessToken()) clearAccessTokenCookie();
@@ -107,11 +90,6 @@ export function TotalResult() {
     }
   };
 
-  /**
-   * 결과 공유 핸들러.
-   * 모바일이면 Web Share API, 데스크탑이면 클립보드 복사를 시도합니다.
-   * 중복 호출 방지를 위해 isSharingRef로 가드합니다.
-   */
   const handleShare = async () => {
     if (isSharingRef.current) return;
     isSharingRef.current = true;
@@ -224,7 +202,11 @@ export function TotalResult() {
                 completedSessions={completedSessions}
                 penaltyMemberCount={result.penaltyMemberCount ?? 0}
               />
-              <RankingSection members={rankedMembers} me={me} showEscapeTime />
+              <RankingSection
+                members={rankedMembers}
+                me={me}
+                showEscapeTime
+              />
               <PenaltySection members={rankedMembers} me={me} />
             </>
           )}
