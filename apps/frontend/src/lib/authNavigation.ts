@@ -10,6 +10,14 @@ const getCurrentPath = () => {
   return `${window.location.pathname}${window.location.search}`;
 };
 
+/**
+ * 약관 동의 → 구글 로그인 플로우를 시작한다.
+ * 로그인 성공 후 돌아올 경로(returnTo)를 sessionStorage에 저장하고,
+ * 모바일/태블릿은 같은 탭으로 이동, 데스크탑은 팝업 창으로 약관 화면을 연다.
+ *
+ * @param redirect - 라우터 이동 함수 (모바일에서 사용, 예: router.push)
+ * @param returnTo - 로그인 후 복귀 경로 (생략 시 현재 경로)
+ */
 export const startTermsAgreementLogin = (
   redirect: (path: string) => void,
   returnTo?: string,

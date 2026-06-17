@@ -61,6 +61,16 @@ async function fetchMe(): Promise<Me | null> {
   }
 }
 
+/**
+ * 현재 로그인 사용자(me)를 조회하고 로그인 상태·로그아웃·갱신을 제공하는 훅.
+ * 게스트는 토큰 payload로 즉시 구성하고, 회원은 /users/me API로 조회한다. (React Query로 캐시)
+ *
+ * @returns `me` - 현재 사용자 정보 (없으면 null)
+ * @returns `isLoggedIn` - 로그인 여부
+ * @returns `isLoading` - me 조회 로딩 여부
+ * @returns `logout` - 토큰 쿠키 제거 + me 캐시 초기화
+ * @returns `refetchMe` - me 쿼리를 무효화해 다시 불러오기 (로그인/프로필 변경 후 호출)
+ */
 export function useAuth() {
   const queryClient = useQueryClient();
 
