@@ -1,6 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 
+// 룰렛 휠은 canvas·window에 의존하므로 ssr:false로 클라이언트에서만 로드한다. (로딩 중엔 빈 원 표시)
 const PenaltyRoulette = dynamic(
   () => import('@/components/ui/custom-roulette'),
   {
@@ -21,6 +22,18 @@ interface RouletteWheelProps {
   errors: string[];
 }
 
+/**
+ * 벌칙 룰렛 휠 카드. 동적 로드된 PenaltyRoulette를 감싸 라벨·당첨 인덱스·스핀 제어를 넘기고 에러를 표시한다.
+ * 자동 결정(isAutoDraw) 시에는 스핀을 매우 빠르게 돌린다.
+ *
+ * @param isSpinning - 스핀 시작 여부
+ * @param targetIndex - 당첨 칸 인덱스
+ * @param rouletteLabels - 휠에 표시할 벌칙명 목록
+ * @param onStopSpinning - 스핀 정지 콜백
+ * @param isAutoDraw - 시간 초과 자동 결정 여부 (스핀 속도 가속)
+ * @param isDrawDone - 모든 벌칙 결정 완료 여부
+ * @param errors - 표시할 에러 메시지 목록
+ */
 export function RouletteWheel({
   isSpinning,
   targetIndex,

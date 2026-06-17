@@ -4,6 +4,12 @@ interface SpotlightOverlayProps {
   label: string;
 }
 
+/**
+ * 벌칙이 확정된 순간 화면 전체를 어둡게 덮고 스포트라이트 연출로 당첨 벌칙명을 강조하는 오버레이.
+ * 시각 효과 전용이라 포인터 이벤트를 받지 않는다(pointer-events-none).
+ *
+ * @param label - 강조해 보여줄 확정 벌칙명
+ */
 export function SpotlightOverlay({ label }: SpotlightOverlayProps) {
   return (
     <div

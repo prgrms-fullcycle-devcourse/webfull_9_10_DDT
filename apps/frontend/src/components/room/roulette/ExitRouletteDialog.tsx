@@ -16,6 +16,14 @@ interface ExitRouletteDialogProps {
   isPending: boolean;
 }
 
+/**
+ * 아직 뽑을 벌칙이 남았는데 나가려 할 때, 자동 결정 안내와 함께 확인을 받는 다이얼로그.
+ *
+ * @param isOpen - 다이얼로그 열림 여부
+ * @param onOpenChange - 열림 상태 변경 핸들러
+ * @param onExit - 나가기 확정 핸들러 (남은 벌칙 자동 결정)
+ * @param isPending - 나가기 처리 진행 중 여부
+ */
 export function ExitRouletteDialog({
   isOpen,
   onOpenChange,

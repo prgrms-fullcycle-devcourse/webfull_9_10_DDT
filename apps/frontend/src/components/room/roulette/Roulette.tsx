@@ -11,6 +11,10 @@ import { useRouletteLogic } from './useRouletteLogic';
 import { SpotlightOverlay } from './SpotlightOverlay';
 import { ExitRouletteDialog } from './ExitRouletteDialog';
 
+/**
+ * 벌칙 룰렛 화면. 타이머·휠·확정 내역·나가기 다이얼로그·확정 스포트라이트를 조합한 컨테이너.
+ * 모든 상태/동작은 useRouletteLogic이 제공하며, URL의 `from=giveup`이면 중도 포기자 전용 룰렛으로 동작한다.
+ */
 export function Roulette() {
   useBlockBrowserBack();
 
