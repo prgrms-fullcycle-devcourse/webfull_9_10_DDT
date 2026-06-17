@@ -13,6 +13,15 @@ interface ProfileImagePickerProps {
 
 const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+/**
+ * 기본 프로필 이미지(PROFILE_IMAGE_OPTIONS)를 5열 그리드로 보여주고 하나를 고르는 선택기.
+ * 선택된 항목은 보라색 테두리 + 체크 표시로 강조한다. 값은 옵션 배열의 인덱스로 관리한다.
+ *
+ * @param selectedProfile - 현재 선택된 옵션 인덱스
+ * @param onSelectProfile - 선택 시 해당 인덱스를 전달하는 콜백
+ * @param label - 상단 라벨 (기본 '프로필 이미지')
+ * @param description - 라벨 우측 보조 설명 (선택)
+ */
 export function ProfileImagePicker({
   selectedProfile,
   onSelectProfile,

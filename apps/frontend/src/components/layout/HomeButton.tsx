@@ -13,6 +13,13 @@ type HomeButtonProps = Omit<
   iconSize?: number;
 };
 
+/**
+ * 헤더의 홈(집) 아이콘 버튼. onClick을 주지 않으면 기본으로 메인('/')으로 이동한다.
+ *
+ * @param onClick - 커스텀 클릭 핸들러 (생략 시 router.push('/'))
+ * @param iconSize - 홈 아이콘 픽셀 크기 (기본 22)
+ * @param aria-label - 접근성 라벨 (기본 '홈으로 이동')
+ */
 export function HomeButton({
   className,
   onClick,

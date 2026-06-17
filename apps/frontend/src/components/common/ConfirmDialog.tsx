@@ -25,6 +25,16 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * useConfirm 훅과 짝을 이루는 확인 다이얼로그 UI. (보통 `{...confirmProps}`로 펼쳐 사용)
+ * options가 null이면 렌더하지 않으며, variant='destructive'면 버튼 순서를 뒤집고 강조색을 입힌다.
+ *
+ * @param open - 다이얼로그 열림 여부
+ * @param options - 표시할 내용(title·description·버튼 텍스트·variant), null이면 미표시
+ * @param onConfirm - 확인 버튼 클릭 핸들러
+ * @param onCancel - 취소 버튼 클릭 핸들러
+ * @param onOpenChange - 열림 상태 변경(바깥클릭·ESC 등) 핸들러
+ */
 export function ConfirmDialog({
   open,
   options,

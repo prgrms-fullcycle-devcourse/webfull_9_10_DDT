@@ -23,6 +23,17 @@ import { v4 as uuid } from 'uuid';
 import { getToken } from '@/lib/getToken';
 import { useSocket } from '@/contexts/SocketContext';
 
+/**
+ * 계약서(타이머 설정·벌칙·강도 단계)를 Yjs + WebSocket으로 실시간 공동 편집하는 훅.
+ * y-websocket으로 방별 문서에 연결해 fields/tiers/penalties를 동기화하고,
+ * awareness로 다른 참가자가 어떤 필드를 편집 중인지(focusedField) 공유한다.
+ *
+ * @param roomCode - 연결할 방 코드 (Yjs 문서 식별자)
+ * @param enabled - true일 때만 연결/동기화 수행 (예: 계약서 단계에서만)
+ * @param isHost - 방장 여부. 최초 sync 시 기본 1단계 시드 등 방장 전용 초기화에 사용
+ * @returns 동기화된 fields·tiers·penalties, 편집 권한 표시용 fieldOwners, 연결 상태(isConnected),
+ *          그리고 각 항목을 갱신하는 핸들러(updateField·addTier·addPenalty 등)와 포커스 핸들러
+ */
 export function useYjsContract(
   roomCode: string,
   enabled: boolean,
@@ -50,6 +61,8 @@ export function useYjsContract(
   const yjsTiersRef = useRef<Y.Array<Tier> | null>(null);
   const yjsPenaltiesRef = useRef<Y.Array<Penalty> | null>(null);
 
+  // enabled가 켜진 직후 바로 연결하지 않고 150ms 디바운스한다.
+  // 짧은 순간 enabled가 깜빡(마운트/언마운트·리렌더)일 때 WebSocket 연결을 즉시 맺었다 끊는 낭비를 막는다.
   useEffect(() => {
     if (!enabled) return;
     const timer = setTimeout(() => setDebouncedEnabled(true), 150);
@@ -92,6 +105,8 @@ export function useYjsContract(
     const provider = new WebsocketProvider(serverUrl, '', doc);
     const awareness = provider.awareness;
 
+    // awareness: 누가 어떤 필드를 편집 중인지 공유한다. 내 클라이언트(clientID)는 제외하고
+    // 다른 참가자들의 focusedField만 모아 "필드별 점유자(owners)" 맵으로 만든다. (편집 중 표시·잠금용)
     const handleAwarenessChange = () => {
       const owners: Record<string, FocusedField> = {};
 
@@ -116,6 +131,7 @@ export function useYjsContract(
       setIsConnected(status === 'connected');
     });
 
+    // 최초 동기화 완료 시점: 서버에 쌓여 있던 문서 내용을 로컬 state로 한 번 끌어온다.
     provider.on('sync', (isSynced: boolean) => {
       if (!isSynced) return;
 
@@ -132,6 +148,8 @@ export function useYjsContract(
       if (yjsPenaltiesRef.current) {
         setPenalties(yjsPenaltiesRef.current.toArray());
       }
+      // 빈 문서에 기본 1단계(0~100%)를 시드한다. 방장만 1회 수행해, 모든 참가자가 동시에
+      // 시드를 push 해 단계가 중복 생성되는 것을 막는다. (문서는 동기화되므로 다른 참가자는 받기만 함)
       if (
         yjsTiersRef.current &&
         yjsTiersRef.current.length === 0 &&
@@ -150,6 +168,9 @@ export function useYjsContract(
       }
     });
 
+    // 문서 변경을 구독해 로컬 state에 반영한다. (내 편집·원격 편집 모두)
+    // transaction.local일 때만 'contract:edited'를 emit한다 — 내가 바꾼 경우에만 서버에 알려
+    // 원격 변경을 다시 알림으로 되쏘는 무한 루프를 막는다. (tiers·penalties observe도 동일 패턴)
     yjsFieldsRef.current.observe((event) => {
       if (yjsFieldsRef.current) {
         if (event.transaction.local) {

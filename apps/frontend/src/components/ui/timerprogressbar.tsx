@@ -12,6 +12,19 @@ interface TimerProgressBarProps {
   breakDuration: number;
 }
 
+/**
+ * 전체 세션 진행 상황을 회차별 가로 막대(집중=primary, 휴식=success)로 보여주는 진행바.
+ * 각 회차 칸의 너비는 집중·휴식 시간 비율(flexGrow)로 잡고, 현재 회차만 진행률(currentRatio)만큼 채운다.
+ * 지난 회차는 100%, 이후 회차는 0%. 마지막 회차에는 휴식 막대가 없다.
+ *
+ * @param mode - 현재 단계 ('FOCUS' | 'BREAK')
+ * @param currentSession - 현재 회차 (1부터)
+ * @param totalSessions - 총 회차
+ * @param timeLeft - 현재 단계 남은 시간(초)
+ * @param totalDuration - 현재 단계 전체 시간(초) (진행률 분모)
+ * @param focusDuration - 집중 시간(초) — 칸 너비 비율 계산용
+ * @param breakDuration - 휴식 시간(초) — 칸 너비 비율 계산용
+ */
 export function TimerProgressBar({
   mode,
   currentSession,

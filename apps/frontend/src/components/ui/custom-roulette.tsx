@@ -39,6 +39,12 @@ const LABEL_MAX_LENGTH_TIERS = [
 
 const DEFAULT_LABEL_MAX_LENGTH = 8;
 
+/**
+ * 휠 칸 수(count)에 맞춰 칸 라벨의 최대 글자 수를 정한다. 칸이 많을수록 짧게 잘라 겹침을 막는다.
+ *
+ * @param count - 휠 칸(벌칙) 개수
+ * @returns 라벨 최대 글자 수
+ */
 const getLabelMaxLength = (count: number) =>
   LABEL_MAX_LENGTH_TIERS.find((tier) => count >= tier.minCount)?.maxLen ??
   DEFAULT_LABEL_MAX_LENGTH;
@@ -57,6 +63,13 @@ const CONTINUE_SPINNING_TIME = 750;
 const STOP_SPINNING_TIME = 8000;
 const PREVIEW_FULL_LOOPS = 4;
 
+/**
+ * CSS cubic-bezier(x1,y1,x2,y2)와 동일한 이징 함수를 만든다.
+ * 프리뷰 텍스트 룰렛이 실제 휠과 같은 가속/감속 곡선으로 인덱스를 진행하도록 쓴다.
+ * 뉴턴법으로 x→t를 풀고, 실패 시 이분탐색으로 보정한다.
+ *
+ * @returns 진행률 x(0~1)를 받아 이징된 y(0~1)를 반환하는 함수
+ */
 const cubicBezier = (x1: number, y1: number, x2: number, y2: number) => {
   const cx = 3 * x1;
   const bx = 3 * (x2 - x1) - cx;
@@ -106,6 +119,17 @@ interface RoulettePreviewProps {
   isDrawDone: boolean;
 }
 
+/**
+ * 휠 위쪽의 텍스트 프리뷰 바. 실제 휠과 동일한 이징으로 벌칙명을 빠르게 넘기다가
+ * 멈출 때 당첨 항목으로 고정한다. (휠 라벨이 작아 잘 안 보이는 것을 보완)
+ * requestAnimationFrame으로 가속→등속→감속착지 3구간을 직접 시뮬레이션한다.
+ *
+ * @param items - 벌칙 후보 목록
+ * @param isSpinning - 스핀 진행 여부
+ * @param targetIndex - 최종 당첨 인덱스
+ * @param spinDuration - 스핀 속도 배율
+ * @param isDrawDone - 뽑기 완료 여부 (대기 문구 분기)
+ */
 const RoulettePreview = React.memo(function RoulettePreview({
   items,
   isSpinning,
@@ -230,6 +254,14 @@ const readWheelAngle = (wrapper: HTMLDivElement | null): number | null => {
   return (Math.atan2(b, a) * 180) / Math.PI;
 };
 
+/**
+ * 휠 테두리를 따라 도는 장식용 점 링. 실제 휠 캔버스의 회전각을 transform 행렬에서 읽어
+ * 같은 각도로 함께 돌고, 정지 시에는 칸 경계에 정확히 스냅한다.
+ *
+ * @param count - 칸(벌칙) 개수 (= 점 개수)
+ * @param isSpinning - 스핀 진행 여부
+ * @param wheelWrapperRef - 회전 휠을 담은 래퍼 ref (각도 측정 대상)
+ */
 const RimDots = React.memo(function RimDots({
   count,
   isSpinning,
@@ -356,6 +388,18 @@ const RimDots = React.memo(function RimDots({
   );
 });
 
+/**
+ * 벌칙 룰렛 휠. react-custom-roulette 위에 텍스트 프리뷰·장식 점 링·중앙 아이콘·정지 위치 고정을 얹은 컴포넌트.
+ * 라벨은 칸 수에 맞춰 잘라 표시하고, 색상은 CSS 변수 테마에서 가져온다.
+ * 스핀이 멈춘 직후 마지막 회전 위치를 캡처해 다시 그려질 때 튀지 않도록 고정한다.
+ *
+ * @param mustStartSpinning - true가 되면 스핀 시작
+ * @param targetIndex - 최종 당첨 칸 인덱스
+ * @param onStopSpinning - 스핀 정지 시 콜백
+ * @param items - 벌칙 후보 목록 (비면 '준비중' 한 칸)
+ * @param spinDuration - 스핀 속도 배율 (기본 0.3)
+ * @param isDrawDone - 뽑기 완료 여부 (프리뷰 대기 문구 분기)
+ */
 export const PenaltyRoulette = React.memo(function PenaltyRoulette({
   mustStartSpinning,
   targetIndex,

@@ -36,6 +36,12 @@ const isTermsAgreement = (value: unknown): value is TermsAgreement => {
   );
 };
 
+/**
+ * 데스크탑 팝업 OAuth 흐름을 처리하는 핸들러 컴포넌트. (렌더링 없음)
+ * 약관 팝업/구글 로그인 팝업이 부모 창으로 보내는 postMessage를 수신해,
+ * 약관 동의(TERMS_AGREEMENT_READY)를 보관했다가 로그인 성공(OAUTH_SUCCESS) 시
+ * 토큰 저장 → 약관 전송 → me 갱신 → 원래 경로로 이동을 수행한다.
+ */
 export function OAuthMessageHandler() {
   const router = useRouter();
   const fetchMe = useAuth().refetchMe;
@@ -57,8 +63,10 @@ export function OAuthMessageHandler() {
     };
 
     const handleMessage = (event: MessageEvent) => {
+      // 허용된 origin(내 앱·API 서버)에서 온 메시지만 신뢰한다. (postMessage 보안)
       if (!allowedOrigins.has(event.origin)) return;
 
+      // 로그인 성공 메시지보다 먼저 도착하는 약관 동의 데이터를 보관해뒀다가, 성공 시 함께 전송한다.
       if (event.data?.type === 'TERMS_AGREEMENT_READY') {
         if (isTermsAgreement(event.data.agreement)) {
           pendingTermsRef.current = event.data.agreement;

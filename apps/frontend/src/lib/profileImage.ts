@@ -59,17 +59,35 @@ const legacyToActiveProfileKey = Object.entries(activeToLegacyProfileKey).reduce
   {} as Record<string, string>,
 );
 
+/**
+ * 프로필 이미지 키를 실제 이미지 경로(src)로 변환한다. 현재 키와 레거시 키를 모두 지원한다.
+ *
+ * @param key - 프로필 이미지 키 (현재/레거시)
+ * @returns 이미지 경로, 매칭 없거나 key가 없으면 undefined
+ */
 export const getProfileImageSrc = (key?: string | null) => {
   if (!key) return undefined;
   const option = PROFILE_IMAGE_OPTIONS.find((item) => item.key === key);
   return option?.src ?? legacyProfileImageMap[key];
 };
 
+/**
+ * 현재 키(basic_image_key_NN)를 백엔드 저장용 레거시 키(AVATAR_*)로 변환한다.
+ *
+ * @param key - 현재 프로필 키
+ * @returns 대응하는 레거시 키, 매핑 없으면 입력값 그대로
+ */
 export const getLegacyProfileImageKey = (key?: string | null) => {
   if (!key) return undefined;
   return activeToLegacyProfileKey[key] ?? key;
 };
 
+/**
+ * 임의의(현재/레거시) 키를 PROFILE_IMAGE_OPTIONS의 현재 키로 정규화한다. (선택 인덱스 매칭용)
+ *
+ * @param key - 현재 또는 레거시 프로필 키
+ * @returns 정규화된 현재 키, 매칭 없으면 undefined
+ */
 export const getProfileImageOptionKey = (key?: string | null) => {
   if (!key) return undefined;
   if (PROFILE_IMAGE_OPTIONS.some((item) => item.key === key)) return key;

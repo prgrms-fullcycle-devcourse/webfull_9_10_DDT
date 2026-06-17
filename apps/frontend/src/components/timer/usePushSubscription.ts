@@ -3,9 +3,16 @@ import axios from 'axios';
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { getToken } from '@/lib/getToken';
 
+/**
+ * 웹푸시 구독을 생성/조회해 서버에 등록하는 훅. (휴식 종료 1분 전 알림 등 발송용)
+ * 지원 환경 + 알림 권한이 허용된 경우에만 동작하며, 기존 구독이 있으면 재사용한다.
+ *
+ * @param roomCode - 구독을 등록할 방 코드
+ */
 export function usePushSubscription(roomCode: string) {
   useEffect(() => {
     async function subscribeToPush() {
+      // 서비스워커·PushManager 미지원이거나 알림 권한이 없으면 조용히 건너뛴다.
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       try {
         if (Notification.permission !== 'granted') return;

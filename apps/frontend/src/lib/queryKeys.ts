@@ -1,3 +1,5 @@
+// React Query 키를 한곳에서 관리하는 팩토리. 캐시 키의 오타·불일치를 막고
+// 무효화(invalidate) 시 동일한 키를 재사용하기 위해 모든 쿼리 키를 여기서 생성한다.
 export const queryKeys = {
   auth: {
     all: () => ['auth'] as const,
