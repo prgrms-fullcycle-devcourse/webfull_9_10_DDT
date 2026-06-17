@@ -22,6 +22,7 @@ import { EscapeStatsCard } from './EscapeStatsCard';
 import { ForfeitDialog } from './ForfeitDialog';
 import { usePushSubscription } from './usePushSubscription';
 import { useFocusEscapeTracking } from './useFocusEscapeTracking';
+import { setResultFrom } from '@/lib/navigation';
 
 /**
  * 집중 세션 타이머 화면. 서버 기준 경과 시간으로 현재 회차·집중/휴식 단계·남은 시간을 계산해 표시하고,
@@ -167,12 +168,12 @@ export default function Timer() {
       if (data.phase === 'result') {
         router.replace(`/room/${room.code}/semi-result`);
       } else if (data.phase === 'closed') {
-        sessionStorage.setItem('totalResultFrom', 'room');
+        setResultFrom('room');
         router.replace(`/room/${room.code}/total-result`);
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        sessionStorage.setItem('totalResultFrom', 'room');
+        setResultFrom('room');
         router.replace(`/room/${room.code}/total-result`);
       }
     } finally {
@@ -258,4 +259,3 @@ export default function Timer() {
     </MobileLayout>
   );
 }
-

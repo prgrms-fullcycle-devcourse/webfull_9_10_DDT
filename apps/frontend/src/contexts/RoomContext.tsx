@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRoomApi } from '@/api/generated/room-api/room-api';
 import { RoomNotFound } from '@/components/room/RoomNotFound';
 import { RoomLoading } from '@/components/room/RoomLoading';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface RoomContextValue {
   code: string;
@@ -30,7 +31,7 @@ export function RoomProvider({
   children: ReactNode;
 }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['room', code],
+    queryKey: queryKeys.room.detail(code),
     queryFn: async () => {
       const res = await getRoomApi().roomControllerFindById(code);
       return res.data as {

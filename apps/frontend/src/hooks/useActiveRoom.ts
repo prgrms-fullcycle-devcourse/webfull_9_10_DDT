@@ -49,7 +49,10 @@ export function getActiveRoomPath(room: ActiveRoomDetail): string {
  * 2) /rooms/:code(find) 로 이름/멤버수/상태/방장여부 상세 조회
  * 게스트인데 활성 방이 없으면 게스트 토큰을 정리한다.
  */
-export function useActiveRoom(): { room: ActiveRoomDetail | null; isLoading: boolean } {
+export function useActiveRoom(): {
+  room: ActiveRoomDetail | null;
+  isLoading: boolean;
+} {
   const queryClient = useQueryClient();
   const { isLoggedIn, me } = useAuth();
 
@@ -74,7 +77,7 @@ export function useActiveRoom(): { room: ActiveRoomDetail | null; isLoading: boo
   const activeCode = activeRoom?.code;
 
   const { data: roomDetail, isLoading: isDetailLoading } = useQuery({
-    queryKey: ['room', 'active-detail', activeCode],
+    queryKey: queryKeys.room.detail(activeCode!),
     queryFn: async () => {
       const res = await getRoomApi().roomControllerFindById(activeCode!);
       return (res as unknown as { data: ActiveRoomDetail }).data;

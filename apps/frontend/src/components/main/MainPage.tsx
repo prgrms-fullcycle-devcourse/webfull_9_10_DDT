@@ -113,7 +113,7 @@ export const MainPage = () => {
         className='object-cover'
       />
 
-      <div className='absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80' />
+      <div className='absolute inset-0 bg-linear-to-b from-black/40 via-transparent to-black/80' />
 
       <div className='absolute right-0 top-0 z-20 p-4'>
         {isLoading ? (
@@ -177,7 +177,7 @@ export const MainPage = () => {
 
         {isLoading || isRoomLoading ? (
           <div className='flex w-full flex-col gap-3'>
-            <div className='flex items-center justify-center h-[140px]'>
+            <div className='flex items-center justify-center h-35'>
               <div className='size-8 animate-spin rounded-full border-4 border-white/20 border-t-white' />
             </div>
           </div>

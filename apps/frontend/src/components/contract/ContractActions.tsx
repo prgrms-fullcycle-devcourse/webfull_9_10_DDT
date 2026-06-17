@@ -11,6 +11,7 @@ import { Button } from '../ui/button';
 import { SaveContractDialog } from './SaveContractDialog';
 import { LoadContractDialog } from './LoadContractDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface ContractActionsProps {
   fields: UseContractYjsReturn['fields'];
@@ -74,7 +75,7 @@ export function ContractActions({
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: ['saved-rules'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rules.saved() });
       toast.success(`"${title}" 저장 성공`);
     } catch {
       toast.error('저장 실패');
