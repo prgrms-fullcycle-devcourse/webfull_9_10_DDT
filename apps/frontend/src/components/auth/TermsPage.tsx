@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
@@ -43,6 +43,9 @@ const resetAgreementAfterReload = () => {
   return true;
 };
 
+// 약관 전문 페이지에서 돌아왔을 때, 어떤 '전문 보기' 링크로 포커스를 되돌릴지 표시하는 sessionStorage 키.
+const TERMS_FOCUS_RETURN_KEY = 'terms_focus_return';
+
 /**
  * 약관 동의 화면. 필수 3개 약관(서비스·개인정보·만 14세)에 모두 동의해야 구글 로그인을 시작할 수 있다.
  * 데스크탑은 팝업으로 열리며(isPopup), 동의 상태를 부모 창에 postMessage로 전달하고 OAuth로 이동한다.
@@ -63,6 +66,21 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
       : (readPendingTerms() ?? EMPTY_TERMS_AGREEMENT);
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  // '전문 보기' 링크 ref. 상세 페이지에서 돌아왔을 때 눌렀던 링크로 포커스를 복원한다.
+  const serviceLinkRef = useRef<HTMLAnchorElement>(null);
+  const privacyLinkRef = useRef<HTMLAnchorElement>(null);
+
+  // 상세 페이지에서 복귀한 경우, 직전에 클릭한 '전문 보기' 링크로 포커스를 되돌린다. (키보드 사용성)
+  useEffect(() => {
+    const target = sessionStorage.getItem(TERMS_FOCUS_RETURN_KEY);
+    if (!target) return;
+    sessionStorage.removeItem(TERMS_FOCUS_RETURN_KEY); // 1회성 소비
+
+    const linkRef = target === 'privacy' ? privacyLinkRef : serviceLinkRef;
+    // 네비게이션 직후 스크롤/렌더 리셋에 밀리지 않도록 다음 프레임에 포커스한다.
+    requestAnimationFrame(() => linkRef.current?.focus());
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -108,6 +126,19 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
   const updateAgreement = (key: keyof TermsAgreement, value: boolean) => {
     setAgreement((current) => ({ ...current, [key]: value }));
   };
+
+  // role='button'인 동의 토글 영역을 키보드(Enter/Space)로도 조작할 수 있게 한다.
+  // (Space는 기본 스크롤 동작을 막기 위해 preventDefault)
+  const handleToggleKeyDown =
+    (toggle: () => void) => (event: KeyboardEvent<HTMLDivElement>) => {
+      // 내부 '전문 보기' 링크에서 버블링된 키 입력은 무시한다.
+      // (여기서 preventDefault하면 링크의 Enter 기본 이동까지 막혀 키보드로 상세가 안 열림)
+      if (event.target !== event.currentTarget) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggle();
+      }
+    };
 
   const handleGoogleLogin = () => {
     if (!allChecked) return;
@@ -155,8 +186,11 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
         <div className='flex flex-col gap-3 w-full'>
           <div
             role='button'
+            tabIndex={0}
+            aria-pressed={allChecked}
             onClick={handleAllCheck}
-            className='flex items-center p-4 pb-4.5 bg-white/5 h-[58px] rounded-[16px] border border-white/10 cursor-pointer'
+            onKeyDown={handleToggleKeyDown(handleAllCheck)}
+            className='flex items-center p-4 pb-4.5 bg-white/5 h-[58px] rounded-[16px] border border-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
           >
             <Checkbox
               id='all'
@@ -172,10 +206,15 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
           <div className='flex flex-col gap-3'>
             <div
               role='button'
+              tabIndex={0}
+              aria-pressed={agreement.termsOfService}
               onClick={() =>
                 updateAgreement('termsOfService', !agreement.termsOfService)
               }
-              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+              onKeyDown={handleToggleKeyDown(() =>
+                updateAgreement('termsOfService', !agreement.termsOfService),
+              )}
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
             >
               <div className='flex items-center'>
                 <Checkbox
@@ -191,9 +230,13 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
                 </span>
               </div>
               <Link
+                ref={serviceLinkRef}
                 href='/terms/service'
                 aria-label='서비스 이용약관 전문 보기'
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sessionStorage.setItem(TERMS_FOCUS_RETURN_KEY, 'service');
+                }}
                 className='rounded-full p-1 text-muted-foreground hover:text-white'
               >
                 <ChevronRight />
@@ -202,10 +245,15 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
 
             <div
               role='button'
+              tabIndex={0}
+              aria-pressed={agreement.privacyPolicy}
               onClick={() =>
                 updateAgreement('privacyPolicy', !agreement.privacyPolicy)
               }
-              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+              onKeyDown={handleToggleKeyDown(() =>
+                updateAgreement('privacyPolicy', !agreement.privacyPolicy),
+              )}
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
             >
               <div className='flex items-center'>
                 <Checkbox
@@ -221,9 +269,13 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
                 </span>
               </div>
               <Link
+                ref={privacyLinkRef}
                 href='/terms/privacy'
                 aria-label='개인정보 처리방침 전문 보기'
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sessionStorage.setItem(TERMS_FOCUS_RETURN_KEY, 'privacy');
+                }}
                 className='rounded-full p-1 text-muted-foreground hover:text-white'
               >
                 <ChevronRight />
@@ -232,10 +284,15 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
 
             <div
               role='button'
+              tabIndex={0}
+              aria-pressed={agreement.ageVerification}
               onClick={() =>
                 updateAgreement('ageVerification', !agreement.ageVerification)
               }
-              className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+              onKeyDown={handleToggleKeyDown(() =>
+                updateAgreement('ageVerification', !agreement.ageVerification),
+              )}
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
             >
               <div className='flex items-center'>
                 <Checkbox

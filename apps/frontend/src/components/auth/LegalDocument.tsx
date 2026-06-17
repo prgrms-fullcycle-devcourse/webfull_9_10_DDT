@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { BackButton } from '@/components/layout/BackButton';
 import { HeaderTitle } from '@/components/layout/HeaderTitle';
 import { MobileLayout } from '@/components/layout/mobileLayout';
@@ -12,11 +13,22 @@ import type { LegalDocumentData } from '@/lib/termsContent';
  * @param document - 표시할 법적 문서 데이터 (title·updatedAt·sections)
  */
 export function LegalDocument({ document }: { document: LegalDocumentData }) {
+  const router = useRouter();
+
+  // 약관 상세는 항상 약관 동의 페이지에서 진입한다. router.back()(popstate)은
+  // 데스크탑 팝업 창이나 전역 뒤로가기 가드 때문에 막힐 수 있어, 동의 페이지로 명시적으로 이동한다.
+  const handleBack = () => {
+    const isPopup =
+      typeof window !== 'undefined' &&
+      (window.opener != null || window.name === 'Terms Agreement');
+    router.push(isPopup ? '/terms?mode=popup' : '/terms');
+  };
+
   return (
     <MobileLayout
       header={
         <>
-          <BackButton />
+          <BackButton onClick={handleBack} />
           <HeaderTitle>{document.title}</HeaderTitle>
         </>
       }
