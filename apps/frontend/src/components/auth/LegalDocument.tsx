@@ -15,13 +15,18 @@ import type { LegalDocumentData } from '@/lib/termsContent';
 export function LegalDocument({ document }: { document: LegalDocumentData }) {
   const router = useRouter();
 
-  // 약관 상세는 항상 약관 동의 페이지에서 진입한다. router.back()(popstate)은
-  // 데스크탑 팝업 창이나 전역 뒤로가기 가드 때문에 막힐 수 있어, 동의 페이지로 명시적으로 이동한다.
+  // 약관 상세는 항상 약관 동의 페이지에서 진입한다.
+  // PC는 약관을 팝업 창으로 띄우는데, 팝업에선 router.back()(popstate)이 막혀 동의 페이지로 명시 이동시킨다.
+  // 모바일/PWA는 같은 탭이라 back이 정상 동작하므로 원래대로 router.back()을 써서 히스토리·스크롤을 자연 복원한다.
   const handleBack = () => {
     const isPopup =
       typeof window !== 'undefined' &&
       (window.opener != null || window.name === 'Terms Agreement');
-    router.push(isPopup ? '/terms?mode=popup' : '/terms');
+    if (isPopup) {
+      router.push('/terms?mode=popup');
+    } else {
+      router.back();
+    }
   };
 
   return (
