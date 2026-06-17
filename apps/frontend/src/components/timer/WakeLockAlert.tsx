@@ -4,6 +4,12 @@ interface WakeLockAlertProps {
   isSupported: boolean;
 }
 
+/**
+ * 화면 꺼짐 방지를 활성화할 수 없는 기기에서 안내 문구를 보여주는 컴포넌트.
+ * 지원되는 환경이면 아무것도 렌더하지 않는다.
+ *
+ * @param isSupported - 화면 꺼짐 방지 지원 여부 (useWakeLock의 반환값)
+ */
 export function WakeLockAlert({ isSupported }: WakeLockAlertProps) {
   if (isSupported) return null;
 

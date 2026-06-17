@@ -62,6 +62,7 @@ export class RouletteController {
     description: '룰렛 정보가 없거나 해당 스핀의 벌칙이 없습니다.',
   })
   @ApiResponse({ status: 409, description: '이미 실행된 룰렛입니다.' })
+  /** spinIndex에 해당하는 벌칙을 공개한다. 회원·게스트 모두 JWT 인증 필요. */
   @Post(':roomCode/roulette/spin')
   @UseGuards(AuthGuard('jwt'))
   async spinRoulette(
@@ -103,6 +104,7 @@ export class RouletteController {
     status: 400,
     description: '멤버 정보를 찾을 수 없거나 이미 처리 완료되었습니다.',
   })
+  /** 룰렛 이탈(Rage-quit) 시 남은 벌칙을 일괄 자동 공개한다. JWT 인증 필요. */
   @Post(':roomCode/roulette/exit')
   @UseGuards(AuthGuard('jwt'))
   async exitRoulette(
@@ -144,6 +146,7 @@ export class RouletteController {
     status: 400,
     description: '중도포기한 유저가 아니거나 멤버 정보를 찾을 수 없습니다.',
   })
+  /** 중도포기(give-up)한 본인의 룰렛 화면 데이터를 phase 무관하게 조회한다. JWT 인증 필요. */
   @Get(':roomCode/roulette/give-up')
   @UseGuards(AuthGuard('jwt'))
   async getGiveUpResult(

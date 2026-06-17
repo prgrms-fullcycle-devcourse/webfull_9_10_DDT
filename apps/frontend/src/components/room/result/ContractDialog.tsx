@@ -18,6 +18,16 @@ interface ContractDialogProps {
   rule: ResultRule | null;
 }
 
+/**
+ * 완료된 세션의 각서(계약서) 내용을 확인하는 다이얼로그.
+ * 타이머 설정(집중/휴식/반복), 벌칙 목록, 벌칙 강도(등급별 이탈 구간 + 개수)를 표시합니다.
+ * TotalResult 화면의 "각서 확인하기" 버튼으로 열립니다.
+ *
+ * @param open - 다이얼로그 열림 상태
+ * @param onOpenChange - 열림 상태 변경 콜백
+ * @param roomTitle - 방 제목 (다이얼로그 타이틀에 표시)
+ * @param rule - 세션에 사용된 규칙 정보. null이면 각 섹션에 빈 상태 표시
+ */
 export function ContractDialog({
   open,
   onOpenChange,
@@ -28,7 +38,7 @@ export function ContractDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-[354px] overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-[18px] pt-12 text-left text-white/85'>
+      <DialogContent className='max-h-[82vh] w-[calc(100%-36px)] max-w-88.5 overflow-y-auto rounded-[18px] border border-white/10 bg-[#0f0d1a] p-4.5 pt-12 text-left text-white/85'>
         <DialogClose asChild>
           <Button
             type='button'
@@ -63,7 +73,7 @@ export function ContractDialog({
               ].map((item, i) => (
                 <div
                   key={item.label}
-                  className={`flex h-[61px] flex-col items-center justify-center gap-1 px-2.5 ${i < 2 ? 'border-r border-white/10' : ''}`}
+                  className={`flex h-15.25 flex-col items-center justify-center gap-1 px-2.5 ${i < 2 ? 'border-r border-white/10' : ''}`}
                 >
                   <span>{item.label}</span>
                   <strong className='text-base text-white/85'>
@@ -81,13 +91,13 @@ export function ContractDialog({
                 rule!.penalties.map((penalty, i) => (
                   <div
                     key={penalty.itemId}
-                    className={`flex min-h-[46px] items-center px-4 py-3.5 ${i > 0 ? 'border-t border-white/5' : ''}`}
+                    className={`flex min-h-11.5 items-center px-4 py-3.5 ${i > 0 ? 'border-t border-white/5' : ''}`}
                   >
                     {penalty.content}
                   </div>
                 ))
               ) : (
-                <div className='flex min-h-[46px] items-center px-4 py-3.5 text-white/50'>
+                <div className='flex min-h-11.5 items-center px-4 py-3.5 text-white/50'>
                   벌칙 목록이 없습니다.
                 </div>
               )}
@@ -103,8 +113,8 @@ export function ContractDialog({
                     key={`${tier.tier}-${tier.minPct}`}
                     className={`flex items-center gap-2 px-4 py-3.5 ${i > 0 ? 'border-t border-white/5' : ''}`}
                   >
-                    <div className='flex min-w-0 flex-1 items-center gap-[5px]'>
-                      <span className='flex h-[22px] w-[42.6px] shrink-0 items-center justify-center rounded-[20px] bg-[rgba(124,77,255,0.15)] text-[11px] font-bold leading-[120%] text-[#7c4dff]'>
+                    <div className='flex min-w-0 flex-1 items-center gap-1.25'>
+                      <span className='flex h-5.5 w-[42.6px] shrink-0 items-center justify-center rounded-[20px] bg-[rgba(124,77,255,0.15)] text-[11px] font-bold leading-[120%] text-[#7c4dff]'>
                         {tier.tier}단계
                       </span>
                       <span className='truncate'>
@@ -115,7 +125,7 @@ export function ContractDialog({
                   </div>
                 ))
               ) : (
-                <div className='flex min-h-[46px] items-center px-4 py-3.5 text-white/50'>
+                <div className='flex min-h-11.5 items-center px-4 py-3.5 text-white/50'>
                   벌칙 강도 설정이 없습니다.
                 </div>
               )}

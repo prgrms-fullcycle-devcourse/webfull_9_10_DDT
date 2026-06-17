@@ -7,6 +7,13 @@ interface EscapeStatsCardProps {
   myEscapeMs: number;
 }
 
+/**
+ * 휴식 시간에만 보이는 카드. 내 총 이탈 시간과 "1분 전 알림" 안내를 표시한다.
+ * 집중 시간에는 렌더하지 않는다.
+ *
+ * @param isFocus - 집중 시간 여부 (true면 미표시)
+ * @param myEscapeMs - 내 누적 이탈 시간(ms)
+ */
 export function EscapeStatsCard({ isFocus, myEscapeMs }: EscapeStatsCardProps) {
   if (isFocus) return null;
 

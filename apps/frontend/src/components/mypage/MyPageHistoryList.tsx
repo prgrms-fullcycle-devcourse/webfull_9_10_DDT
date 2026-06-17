@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { formatDateWithDots, formatDuration } from '@/lib/format';
+import { ResultFromSource, setResultFrom } from '@/lib/navigation';
 
 export type HistoryItem = {
   roomCode: string;
@@ -70,7 +71,7 @@ export const MyPageHistoryList = ({
   // 항목 클릭으로 통합 결과 화면에 진입하기 전, 출처를 저장해 결과 화면의 닫기/뒤로가기가 올바른 곳으로 돌아가게 한다.
   const handleClick = () => {
     if (from) {
-      sessionStorage.setItem('totalResultFrom', from);
+      setResultFrom(from as ResultFromSource);
       // 전체 참여 기록 → 통합결과 진입일 때만, 복귀 시 스크롤 복원용 1회성 플래그를 남긴다
       if (from === 'mypage-history') {
         sessionStorage.setItem('mypageHistoryScrollRestore', '1');
@@ -98,7 +99,7 @@ export const MyPageHistoryList = ({
             key={item.roomCode}
             href={`/room/${item.roomCode}/total-result`}
             onClick={handleClick}
-            className='flex min-h-[95px] items-center justify-between rounded-md bg-[#1D1C31] px-3.5 py-4 transition hover:bg-[#24223A] active:scale-[0.98]'
+            className='flex min-h-23.75 items-center justify-between rounded-md bg-[#1D1C31] px-3.5 py-4 transition hover:bg-[#24223A] active:scale-[0.98]'
           >
             <div className='min-w-0'>
               <p className='mb-1 text-[12px] font-medium text-[#747281]'>

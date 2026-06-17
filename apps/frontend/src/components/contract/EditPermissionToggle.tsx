@@ -7,6 +7,11 @@ import { useRoomStore } from '@/store/useRoomStore';
 import { Unlock, Lock } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 
+/**
+ * 각서 편집 권한 토글 컴포넌트. (방장 전용)
+ * ON이면 전체 멤버 편집 가능, OFF이면 방장만 편집 가능합니다.
+ * Socket.IO 'edit:all' 이벤트로 실시간 반영됩니다.
+ */
 const EditPermissionToggle = () => {
   const socket = useSocket();
   const me = useAuth().me;
@@ -16,12 +21,19 @@ const EditPermissionToggle = () => {
 
   const isHost = me?.id === hostId;
 
+  // 방장 외 멤버 중 canEdit=false인 멤버가 있으면 "방장만 편집" 모드
   const hostOnly = Object.values(members).some(
     (m) => !m.isHost && m.canEdit === false,
   );
 
   const allCanEdit = !hostOnly;
 
+  /**
+   * 편집 권한 토글 핸들러.
+   * Socket.IO로 'edit:all' 이벤트를 전송하여 전체 멤버의 canEdit을 일괄 변경합니다.
+   *
+   * @param checked - true면 전체 허용, false면 방장만
+   */
   const handleToggle = (checked: boolean) => {
     if (!socket || !isHost) {
       return;

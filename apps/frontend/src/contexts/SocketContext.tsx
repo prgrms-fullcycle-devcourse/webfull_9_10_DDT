@@ -25,6 +25,15 @@ interface SocketProviderProps {
   children: ReactNode;
 }
 
+/**
+ * 방별 Socket.IO 연결을 생성하고 서버 이벤트를 받아 전역 방 스토어(useRoomStore)에 반영하는 Provider.
+ * 멤버 입퇴장·서명·편집권한·세션 시작/종료·강퇴·방 종료 등 실시간 이벤트를 구독하며,
+ * 강제 종료/강퇴/방 종료 시에는 토스트 안내 후 게스트 세션 정리 + 적절한 경로로 리다이렉트한다.
+ *
+ * @param roomCode - 연결할 방 코드 (소켓 query로 전달)
+ * @param token - 인증 토큰 (소켓 auth로 전달)
+ * @param children - 소켓을 사용할 하위 트리
+ */
 export function SocketProvider({
   roomCode,
   token,
@@ -35,6 +44,7 @@ export function SocketProvider({
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  // 방에서 튕겨날 때 게스트 토큰을 정리하고 me 캐시를 비운다. (회원 토큰은 건드리지 않음)
   const clearGuestSession = useCallback(() => {
     if (clearGuestAccessToken()) {
       queryClient.setQueryData(queryKeys.auth.me(), null);
@@ -42,6 +52,7 @@ export function SocketProvider({
   }, [queryClient]);
 
   useEffect(() => {
+    // 이미 연결된 소켓이 있으면 중복 생성하지 않는다. (StrictMode 이중 마운트·리렌더 대비)
     if (socketRef.current?.connected) {
       return;
     }
@@ -64,6 +75,7 @@ export function SocketProvider({
       console.log('소켓 끊김: ', reason);
     });
 
+    // 서버가 입장을 거부/강제 종료할 때. reason별로 안내 후 적절히 이동시킨다.
     s.on('force-disconnect', (data) => {
       if (data.reason === 'not-a-member') {
         toast.error('방에 참여하지 않았어요.');
@@ -77,6 +89,8 @@ export function SocketProvider({
         clearGuestSession();
         router.replace('/');
       } else if (data.reason === 'duplicate-connection') {
+        // 같은 계정이 다른 곳에서 접속해 밀려난 경우. 자동 재연결을 끄지 않으면
+        // 끊기자마자 다시 붙어 또 밀려나는 핑퐁이 생기므로 reconnection을 비활성화한다.
         toast.error('다른 환경에서의 로그인이 감지되었어요.');
         s.io.opts.reconnection = false;
         sessionStorage.setItem('duplicate-kicked', roomCode);
@@ -168,6 +182,8 @@ export function SocketProvider({
         totalRounds: number;
         serverTime: string;
       }) => {
+        // 클라이언트 시계가 서버와 어긋날 수 있으므로 그 차이(serverOffset)를 저장해두고,
+        // 타이머 남은 시간을 서버 기준으로 보정 계산하게 한다.
         const clientNow = Date.now();
         const serverNow = new Date(data.serverTime).getTime();
 
@@ -201,6 +217,7 @@ export function SocketProvider({
     socketRef.current = s;
     setSocket(s);
 
+    // 언마운트(방 이탈) 시 리스너 제거·연결 종료·방 스토어 초기화로 다음 방에 상태가 새지 않게 한다.
     return () => {
       console.log('소켓 해제');
       s.removeAllListeners();
@@ -215,6 +232,11 @@ export function SocketProvider({
   );
 }
 
+/**
+ * 현재 방의 Socket.IO 인스턴스를 반환한다. (연결 전이거나 Provider 밖이면 null)
+ *
+ * @returns 소켓 인스턴스 또는 null
+ */
 export function useSocket() {
   const socket = useContext(SocketContext);
   return socket;

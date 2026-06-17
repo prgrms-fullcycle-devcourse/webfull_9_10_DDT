@@ -9,6 +9,16 @@ interface UseFocusEscapeTrackingProps {
   onFocusReturn: () => void;
 }
 
+/**
+ * 집중 시간 중 사용자가 탭/창을 벗어나는지(이탈) 감지해 소켓으로 escape:start/end를 보내는 훅.
+ * visibilitychange·window blur/focus를 종합해 판단하며, 이탈 시작 시 토스트로 경고한다.
+ * 화면 복귀 시에는 onFocusReturn으로 세션 종료 여부도 함께 동기화한다.
+ *
+ * @param socket - 이벤트를 보낼 소켓 (null이면 비활성)
+ * @param sessionInfo - 세션 정보 (없으면 비활성)
+ * @param isFocus - 현재 집중 시간인지 (휴식 중엔 이탈을 시작하지 않음)
+ * @param onFocusReturn - 화면/포커스 복귀 시 호출 (세션 종료 라우팅 동기화용)
+ */
 export function useFocusEscapeTracking({
   socket,
   sessionInfo,
@@ -17,11 +27,14 @@ export function useFocusEscapeTracking({
 }: UseFocusEscapeTrackingProps) {
   const isFocusRef = useRef(true);
   const isEscapingRef = useRef(false);
+  // 마운트 직후 첫 판단인지 (초기 진입·F5 시의 오경고 방지용)
   const isFirstRunRef = useRef(true);
+  // 직전 escape:start 시각. 짧은 시간 내 중복 발사를 막는 디바운스 기준.
   const lastEscapeStartRef = useRef<number>(0);
 
   const emitEscapeStart = useCallback(() => {
     const now = Date.now();
+    // 300ms 내 재호출은 무시한다. (blur+visibilitychange가 거의 동시에 발생해 이중 발사되는 것 방지)
     if (now - lastEscapeStartRef.current < 300) return;
 
     lastEscapeStartRef.current = now;

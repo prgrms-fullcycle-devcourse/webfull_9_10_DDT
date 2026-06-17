@@ -59,7 +59,7 @@ function CreateRoomComplete({
   return (
     <div className='flex flex-col gap-5 pt-2'>
       {/* 정보 카드 */}
-      <div className='bg-card border border-border rounded-[16px] px-4 py-5 flex flex-col gap-4'>
+      <div className='bg-card border border-border rounded-lg px-4 py-5 flex flex-col gap-4'>
         {/* 방 이름 & 최대 인원 */}
         <div className='flex gap-4'>
           <div className='flex-1 flex flex-col gap-1'>
@@ -72,7 +72,7 @@ function CreateRoomComplete({
           </div>
         </div>
 
-        <div className='border-t border-white/[0.08]' />
+        <div className='border-t border-white/8' />
 
         {/* 비밀번호 */}
         <div className='flex items-center justify-between gap-2'>
@@ -94,7 +94,7 @@ function CreateRoomComplete({
           </Button>
         </div>
 
-        <div className='border-t border-white/[0.08]' />
+        <div className='border-t border-white/8' />
 
         {/* 방 코드 */}
         <div className='flex items-center justify-between gap-2'>
@@ -116,7 +116,7 @@ function CreateRoomComplete({
           </Button>
         </div>
 
-        <div className='border-t border-white/[0.08]' />
+        <div className='border-t border-white/8' />
 
         {/* 멤버 초대 링크 */}
         <div className='flex items-center justify-between gap-2'>

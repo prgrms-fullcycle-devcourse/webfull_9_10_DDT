@@ -14,6 +14,11 @@ export const EMPTY_TERMS_AGREEMENT: TermsAgreement = {
   ageVerification: false,
 };
 
+/**
+ * 진행 중이던 약관 동의 상태를 sessionStorage에서 읽어온다. (구글 로그인 왕복 사이 보존용)
+ *
+ * @returns 저장된 동의 상태, 없거나 파싱 실패 시 null
+ */
 export const readPendingTerms = (): TermsAgreement | null => {
   if (typeof window === 'undefined') return null;
 
@@ -32,6 +37,12 @@ export const readPendingTerms = (): TermsAgreement | null => {
   }
 };
 
+/**
+ * 필수 약관 3가지(서비스·개인정보·연령)에 모두 동의했는지 판별하는 타입 가드.
+ *
+ * @param value - 약관 동의 상태 (또는 null)
+ * @returns 셋 다 true면 true (타입을 TermsAgreement로 좁힘)
+ */
 export const isCompleteTermsAgreement = (
   value: TermsAgreement | null,
 ): value is TermsAgreement =>

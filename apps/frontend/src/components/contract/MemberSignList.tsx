@@ -13,17 +13,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { cn, urlBase64ToUint8Array } from '@/lib/utils';
 import { useConfirm } from '@/hooks/useConfirm';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { MemberTagBadges } from '../common/MemberTagBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { useShallow } from 'zustand/react/shallow';
+import { getToken } from '@/lib/getToken';
+import axios from 'axios';
+import { useRoom } from '@/contexts/RoomContext';
 
-const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+/** 1×1 투명 PNG. 프로필 이미지 로딩 중 blur placeholder로 사용 */
+const BLUR_PLACEHOLDER =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+/**
+ * 멤버 서명 목록 컴포넌트.
+ * 본인 서명 토글 + 다른 멤버들의 서명 상태를 표시합니다.
+ * 방장에게는 멤버별 편집 권한 토글(잠금/해제)과 강제 퇴장 메뉴가 추가됩니다.
+ * 첫 서명 시 알림 권한을 요청합니다 (push 구독 등록을 위한 사전 동의).
+ */
 export default function MemberSignList() {
   const socket = useSocket();
+  const room = useRoom();
   const me = useAuth().me;
   const { members, hostId } = useRoomStore(
     useShallow((s) => ({ members: s.members, hostId: s.hostId })),
@@ -43,6 +55,11 @@ export default function MemberSignList() {
   const signedCount = memberList.filter(([, m]) => m.isSigned).length;
   const memberCount = memberList.length;
 
+  /**
+   * 본인 서명 토글 핸들러.
+   * 서명 시 알림 권한이 default(미응답)이면 requestPermission을 먼저 호출합니다.
+   * Socket.IO 'member:sign' 이벤트로 서명 상태를 전체 멤버에게 브로드캐스트합니다.
+   */
   const handleSignToggle = async () => {
     const newSigned = !isMeSigned;
     if (
@@ -53,8 +70,41 @@ export default function MemberSignList() {
       await Notification.requestPermission();
     }
     socket?.emit('member:sign', { signed: newSigned });
+
+    if (newSigned && Notification.permission === 'granted') {
+      void (async () => {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (vapidKey) {
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidKey),
+              });
+            }
+          }
+          if (subscription) {
+            await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/rooms/${room.code}/push-subscription`,
+              { subscription, platform: 'web' },
+              { headers: { Authorization: `Bearer ${getToken() ?? ''}` } },
+            );
+          }
+        } catch {
+          // 구독 실패해도 서명 흐름은 계속 진행
+        }
+      })();
+    }
   };
 
+  /**
+   * 멤버 강제 퇴장 핸들러. (방장 전용)
+   * 확인 다이얼로그를 거친 후 Socket.IO 'member:kick' 이벤트를 전송합니다.
+   *
+   * @param targetId - 강퇴할 멤버의 userId 또는 guestToken
+   */
   const handleKickMember = async (targetId: string) => {
     if (!isHost) {
       return;
@@ -73,6 +123,13 @@ export default function MemberSignList() {
     socket?.emit('member:kick', { targetId });
   };
 
+  /**
+   * 개별 멤버의 편집 권한을 토글합니다. (방장 전용)
+   * Socket.IO 'edit:member' 이벤트로 실시간 반영됩니다.
+   *
+   * @param targetId - 대상 멤버 ID
+   * @param canEdit - 편집 허용 여부
+   */
   const handleMemberEditToggle = (targetId: string, canEdit: boolean) => {
     socket?.emit('edit:member', { targetId, canEdit });
   };

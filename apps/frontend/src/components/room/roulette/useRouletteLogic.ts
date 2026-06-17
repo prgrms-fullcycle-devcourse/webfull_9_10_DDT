@@ -7,10 +7,20 @@ import {
   getUnrevealedPenaltyCount,
   useRouletteData,
 } from './useRouletteData';
+import { setResultFrom } from '@/lib/navigation';
 
 const SKIP_THRESHOLD = 5;
 const SPOTLIGHT_DURATION_MS = 2400;
 
+/**
+ * 룰렛 화면의 모든 UI 상태·흐름을 관리하는 핸들러 훅. (데이터 계층은 useRouletteData)
+ * 스핀 시작/정지·확정 내역 누적·스포트라이트·스킵(결과 바로보기)·시간 초과 자동 결정·나가기·완료 후 이동을 처리한다.
+ * 화면(Roulette)은 여기서 반환하는 data·state·actions·selectedPenaltyRef만 사용한다.
+ *
+ * @param code - 방 코드
+ * @param isGiveUpRoulette - 중도 포기자 전용 룰렛 여부
+ * @returns data(데이터 계층)·state(파생 상태)·actions(핸들러)·selectedPenaltyRef(확정 내역 스크롤 ref)
+ */
 export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
   const router = useRouter();
   const finishTarget = isGiveUpRoulette ? '/' : `/room/${code}/total-result`;
@@ -40,6 +50,8 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
   const autoDrawStartedRef = useRef(false);
 
   // ── Derived values ──
+  // 총 뽑기 횟수: 포기자는 미리 만든 스핀 목록 길이, 일반은 미공개 벌칙 수.
+  // 이미 뽑은 수(pickedSpins)와 남은 수(remainingChances)를 여기서 산출한다.
   const totalChances = isGiveUpRoulette
     ? data.giveUpSpinResults.length
     : getUnrevealedPenaltyCount(data.myResult);
@@ -59,6 +71,7 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
 
   const isCompleted =
     isAllCompleted || ((isExpired || isGiveUpExpired) && remainingChances <= 0);
+  // isDrawDone: 완료 + 휠이 멈춘 상태(문구 전환용). isAutoDraw: 시간 초과인데 아직 남은 벌칙이 있어 자동으로 돌려야 하는 상태.
   const isDrawDone = isCompleted && !isSpinning;
   const isAutoDraw = (isExpired || isGiveUpExpired) && remainingChances > 0;
 
@@ -108,7 +121,7 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
     if (finishTarget === '/') {
       data.clearGuestSession();
     } else {
-      sessionStorage.setItem('totalResultFrom', 'room');
+      setResultFrom('room');
     }
     router.replace(finishTarget);
   }, [data, finishTarget, router]);

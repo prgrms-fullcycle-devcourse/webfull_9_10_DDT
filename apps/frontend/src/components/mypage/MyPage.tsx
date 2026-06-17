@@ -50,7 +50,8 @@ const emptyStats: UserStats = {
   totalEscapeMs: 0,
 };
 
-const BLUR_PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+const BLUR_PLACEHOLDER =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 /**
  * 마이페이지 메인 화면. 프로필, 누적 통계(참여 방 수·집중/이탈 시간), 최근 참여 기록 3건을 보여주고
@@ -196,15 +197,15 @@ export const MyPage = () => {
       }
     >
       <section className='mb-5 flex items-center gap-4 pt-2'>
-        <div className='relative size-[62px] shrink-0 overflow-hidden rounded-full border-2 border-[#914CFF] bg-[#201E34]'>
+        <div className='relative size-15.5 shrink-0 overflow-hidden rounded-full border-2 border-[#914CFF] bg-[#201E34]'>
           {profileImageSrc ? (
             <Image
               src={profileImageSrc}
               alt={`${profile?.nickname ?? '사용자'} 프로필`}
               width={62}
               height={62}
-              placeholder='blur' 
-              blurDataURL={BLUR_PLACEHOLDER} 
+              placeholder='blur'
+              blurDataURL={BLUR_PLACEHOLDER}
               className='h-full w-full object-cover'
             />
           ) : null}
@@ -233,16 +234,16 @@ export const MyPage = () => {
 
       <Link
         href={roomButtonHref}
-        className='mb-4 flex h-[51px] w-full items-center justify-center rounded-[14px] border border-[#914CFF] bg-[#242136] text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640] active:scale-[0.98]'
+        className='mb-4 flex h-12.75 w-full items-center justify-center rounded-[14px] border border-[#914CFF] bg-[#242136] text-[15px] font-bold text-white/90 transition hover:bg-[#2A2640] active:scale-[0.98]'
       >
         {activeRoom ? '방 복귀하기' : '새로운 방 만들기'}
       </Link>
 
-      <section className='mb-12 grid h-[140px] grid-cols-2 grid-rows-2 gap-2'>
+      <section className='mb-12 grid h-35 grid-cols-2 grid-rows-2 gap-2'>
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className={`relative flex flex-col overflow-hidden rounded-[12px] px-3 py-4 ${
+            className={`relative flex flex-col overflow-hidden rounded-md px-3 py-4 ${
               card.icon ? '' : 'justify-center'
             } ${card.className}`}
           >
@@ -258,7 +259,7 @@ export const MyPage = () => {
             </p>
             {card.icon ? (
               <Clock3
-                className='absolute -bottom-[28px] left-1/2 size-[78px] -translate-x-1/2 text-white/10'
+                className='absolute -bottom-7 left-1/2 size-19.5 -translate-x-1/2 text-white/10'
                 strokeWidth={1.6}
               />
             ) : null}

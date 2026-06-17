@@ -113,7 +113,7 @@ export const MainPage = () => {
         className='object-cover'
       />
 
-      <div className='absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80' />
+      <div className='absolute inset-0 bg-linear-to-b from-black/40 via-transparent to-black/80' />
 
       <div className='absolute right-0 top-0 z-20 p-4'>
         {isLoading ? (
@@ -151,7 +151,7 @@ export const MainPage = () => {
         )}
       </div>
 
-      <div className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
+      <main className='relative z-10 flex min-h-dvh flex-col px-6 pb-8 pt-20'>
         <Image src={logoImg} alt='감옥' width={160} height={81} priority />
 
         <p className='mt-7 text-[26px] font-bold leading-snug'>
@@ -177,7 +177,7 @@ export const MainPage = () => {
 
         {isLoading || isRoomLoading ? (
           <div className='flex w-full flex-col gap-3'>
-            <div className='flex items-center justify-center h-[140px]'>
+            <div className='flex items-center justify-center h-35'>
               <div className='size-8 animate-spin rounded-full border-4 border-white/20 border-t-white' />
             </div>
           </div>
@@ -229,7 +229,7 @@ export const MainPage = () => {
             </Button>
           </div>
         )}
-      </div>
+      </main>
 
       <RoomCodeDialog open={showCodeDialog} onOpenChange={setShowCodeDialog} />
 

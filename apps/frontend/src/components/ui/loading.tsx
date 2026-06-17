@@ -9,6 +9,8 @@ interface LoadingProps {
   variant?: 'overlay' | 'contained';
 }
 
+// 클라이언트에서만 true를 반환한다. (서버 스냅샷 false / 클라 스냅샷 true)
+// createPortal은 document가 필요해 SSR에선 렌더하지 않으려고 이 값을 가드로 쓴다.
 function useIsClient() {
   return useSyncExternalStore(
     () => () => {},
@@ -49,6 +51,14 @@ function LoadingContent({ label }: { label: string }) {
   );
 }
 
+/**
+ * 핑(ripple) 스피너와 라벨로 구성된 로딩 인디케이터.
+ * - 'overlay'(기본): document.body로 portal해 뷰포트 전체를 덮는 fixed 오버레이. 다른 영역엔 inert를 걸어 상호작용을 막는다.
+ * - 'contained': portal 없이 absolute로 렌더해 가장 가까운 relative 조상(모바일 프레임) 안만 채운다.
+ *
+ * @param label - 스피너 아래 표시할 문구
+ * @param variant - 표시 방식 ('overlay' | 'contained')
+ */
 export default function Loading({
   label = '불러오는 중...',
   variant = 'overlay',

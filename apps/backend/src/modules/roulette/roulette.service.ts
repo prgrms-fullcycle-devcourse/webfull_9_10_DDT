@@ -3,6 +3,8 @@ import {
   BadRequestException,
   ConflictException,
   InternalServerErrorException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import type { Prisma } from '@prisma/client';
@@ -54,6 +56,24 @@ export class RouletteService {
   ) {}
 
   /**
+   * 룰렛 spin/exit는 result phase에서만 허용한다. 위반 시 423 LOCKED.
+   *
+   * @param {string} phase - 현재 방 phase
+   * @throws HttpException (423 LOCKED) result가 아닌 경우
+   */
+  private ensureResultPhase(phase: string) {
+    if (phase !== 'result') {
+      throw new HttpException(
+        {
+          message: '결과 단계에서만 룰렛을 이용할 수 있습니다.',
+          error: 'LOCKED',
+        },
+        HttpStatus.LOCKED,
+      );
+    }
+  }
+
+  /**
    * 한 번의 스핀을 처리해 해당 순번(spinIndex)의 벌칙 하나를 공개합니다.
    * 마지막 스핀에서 남은 벌칙을 전체 공개하고 방 전체에 브로드캐스트합니다.
    *
@@ -82,8 +102,9 @@ export class RouletteService {
       },
     });
 
-    if (!member || !member.result)
-      throw new BadRequestException('룰렛 정보가 없습니다.');
+    if (!member) throw new BadRequestException('룰렛 정보가 없습니다.');
+    this.ensureResultPhase(member.room.phase);
+    if (!member.result) throw new BadRequestException('룰렛 정보가 없습니다.');
 
     const penalties = member.result.penalties;
 
@@ -153,6 +174,7 @@ export class RouletteService {
     });
 
     if (!member) throw new BadRequestException('멤버 정보를 찾을 수 없습니다.');
+    this.ensureResultPhase(member.room.phase);
 
     // 미공개 목록 확보 + 일괄 공개를 트랜잭션으로 처리. count=0이면 동시 호출 패자로 차단.
     const unrevealed = await this.prisma.$transaction(async (tx) => {

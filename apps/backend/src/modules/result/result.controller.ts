@@ -32,6 +32,7 @@ export class ResultController {
     status: 500,
     description: '결과 데이터를 생성하는 중 오류가 발생했습니다.',
   })
+  /** 세션 종료 후 멤버별 이탈 시간·순위·벌칙 결과를 조회한다. (로그인 불필요) */
   @Get(':roomCode/result')
   async getResult(@Param('roomCode') roomCode: string) {
     const data = await this.resultService.getResult(roomCode);

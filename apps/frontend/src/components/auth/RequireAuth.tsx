@@ -16,6 +16,16 @@ interface RequireAuthProps {
   loadingVariant?: 'overlay' | 'contained';
 }
 
+/**
+ * 로그인 사용자만 children을 보여주는 가드 래퍼.
+ * 인증 확인 중이면 로딩 UI, 미로그인이면 안내 토스트 후 redirectTo로 이동시킨다.
+ * 단, 이번 마운트에서 로그인 상태였던 적이 있으면(=로그아웃으로 간주) 안내 토스트는 띄우지 않는다.
+ *
+ * @param children - 로그인 시 렌더할 보호 대상
+ * @param redirectTo - 미로그인 시 이동할 경로 (기본 '/')
+ * @param message - 미로그인 안내 토스트 문구
+ * @param loadingVariant - 로딩 UI 표시 방식. 'contained'면 모바일 프레임 안에 표시
+ */
 export function RequireAuth({
   children,
   redirectTo = '/',

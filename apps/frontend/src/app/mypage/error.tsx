@@ -35,7 +35,7 @@ export default function MyPageError({
         <div className='flex h-14 w-16 items-center justify-center rounded-full bg-destructive/15'>
           <AlertCircle className='h-8 w-8 text-destructive' />
         </div>
-        
+
         <div className='flex flex-col gap-2'>
           <h2 className='text-lg font-bold text-white'>
             기록을 불러오지 못했습니다
@@ -45,7 +45,7 @@ export default function MyPageError({
           </p>
         </div>
 
-        <div className='mt-4 flex w-full max-w-[240px] flex-col gap-3'>
+        <div className='mt-4 flex w-full max-w-60 flex-col gap-3'>
           <Button
             onClick={() => reset()}
             className='h-12 w-full rounded-xl font-bold'
