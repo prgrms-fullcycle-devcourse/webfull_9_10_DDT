@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
@@ -109,6 +109,16 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
     setAgreement((current) => ({ ...current, [key]: value }));
   };
 
+  // role='button'인 동의 토글 영역을 키보드(Enter/Space)로도 조작할 수 있게 한다.
+  // (Space는 기본 스크롤 동작을 막기 위해 preventDefault)
+  const handleToggleKeyDown =
+    (toggle: () => void) => (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggle();
+      }
+    };
+
   const handleGoogleLogin = () => {
     if (!allChecked) return;
 
@@ -155,8 +165,11 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
         <div className='flex flex-col gap-3 w-full'>
           <div
             role='button'
+            tabIndex={0}
+            aria-pressed={allChecked}
             onClick={handleAllCheck}
-            className='flex items-center p-4 pb-4.5 bg-white/5 h-[58px] rounded-[16px] border border-white/10 cursor-pointer'
+            onKeyDown={handleToggleKeyDown(handleAllCheck)}
+            className='flex items-center p-4 pb-4.5 bg-white/5 h-[58px] rounded-[16px] border border-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
           >
             <Checkbox
               id='all'
@@ -172,10 +185,15 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
           <div className='flex flex-col gap-3'>
             <div
               role='button'
+              tabIndex={0}
+              aria-pressed={agreement.termsOfService}
               onClick={() =>
                 updateAgreement('termsOfService', !agreement.termsOfService)
               }
-              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+              onKeyDown={handleToggleKeyDown(() =>
+                updateAgreement('termsOfService', !agreement.termsOfService),
+              )}
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
             >
               <div className='flex items-center'>
                 <Checkbox
@@ -202,10 +220,15 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
 
             <div
               role='button'
+              tabIndex={0}
+              aria-pressed={agreement.privacyPolicy}
               onClick={() =>
                 updateAgreement('privacyPolicy', !agreement.privacyPolicy)
               }
-              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+              onKeyDown={handleToggleKeyDown(() =>
+                updateAgreement('privacyPolicy', !agreement.privacyPolicy),
+              )}
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 pr-2 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
             >
               <div className='flex items-center'>
                 <Checkbox
@@ -232,10 +255,15 @@ export const TermsPage = ({ isPopup = false }: { isPopup?: boolean }) => {
 
             <div
               role='button'
+              tabIndex={0}
+              aria-pressed={agreement.ageVerification}
               onClick={() =>
                 updateAgreement('ageVerification', !agreement.ageVerification)
               }
-              className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer'
+              onKeyDown={handleToggleKeyDown(() =>
+                updateAgreement('ageVerification', !agreement.ageVerification),
+              )}
+              className='flex items-center justify-between h-[50px] p-4 pb-4.5 bg-white/5 rounded-[16px] border border-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50'
             >
               <div className='flex items-center'>
                 <Checkbox
