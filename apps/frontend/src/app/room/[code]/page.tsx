@@ -15,7 +15,7 @@ export async function generateMetadata({
       description: '초대받은 방에서 함께 집중해보세요!',
       images: [
         {
-          url: '/icons/icon-512x512.png',
+          url: '/images/og-room-join.png',
           width: 512,
           height: 512,
           alt: '감옥 로고',
