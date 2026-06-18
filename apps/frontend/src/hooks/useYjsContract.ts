@@ -46,9 +46,9 @@ export function useYjsContract(
 
   const [isConnected, setIsConnected] = useState(false);
   const [fields, setFields] = useState<ContractFields>({
-    focusMin: 1,
-    breakMin: 1,
-    rounds: 1,
+    focusMin: 25,
+    breakMin: 5,
+    rounds: 4,
   });
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [penalties, setPenalties] = useState<Penalty[]>([]);
@@ -137,9 +137,9 @@ export function useYjsContract(
 
       if (yjsFieldsRef.current) {
         setFields({
-          focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
-          breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
-          rounds: yjsFieldsRef.current.get('rounds') ?? 1,
+          focusMin: yjsFieldsRef.current.get('focusMin') ?? 25,
+          breakMin: yjsFieldsRef.current.get('breakMin') ?? 5,
+          rounds: yjsFieldsRef.current.get('rounds') ?? 4,
         });
       }
       if (yjsTiersRef.current) {
@@ -177,9 +177,9 @@ export function useYjsContract(
           socketRef.current?.emit('contract:edited');
         }
         setFields({
-          focusMin: yjsFieldsRef.current.get('focusMin') ?? 1,
-          breakMin: yjsFieldsRef.current.get('breakMin') ?? 1,
-          rounds: yjsFieldsRef.current.get('rounds') ?? 1,
+          focusMin: yjsFieldsRef.current.get('focusMin') ?? 25,
+          breakMin: yjsFieldsRef.current.get('breakMin') ?? 5,
+          rounds: yjsFieldsRef.current.get('rounds') ?? 4,
         });
       }
     });

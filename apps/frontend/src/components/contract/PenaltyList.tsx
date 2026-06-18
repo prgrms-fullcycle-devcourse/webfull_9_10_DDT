@@ -13,6 +13,7 @@ import OwnerIndicator from './OwnerIndicator';
 import { Input } from '../ui/input';
 import { cn } from '@/lib/utils';
 import { CONTRACT_INPUT_FOCUS } from './inputStyles';
+import { blurOnEnter } from './utils';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -54,7 +55,7 @@ interface PenaltyInputProps extends Omit<
  * @param onUpdate - 값 변경 시 Yjs에 동기화하는 콜백
  */
 const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
-  ({ content, onUpdate, onFocus, onBlur, placeholder, ...props }, ref) => {
+  ({ content, onUpdate, onFocus, onBlur, onKeyDown, placeholder, ...props }, ref) => {
     const [draft, setDraft] = useState(content ?? '');
     const isEditingRef = useRef(false);
     const isComposingRef = useRef(false);
@@ -97,13 +98,17 @@ const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
             onUpdate(val); // 한글 조합 중 아닐 때만 Yjs 동기화
           }
         }}
+        {...props}
+        onKeyDown={(e) => {
+          onKeyDown?.(e);
+          blurOnEnter(e);
+        }}
         onBlur={(e) => {
           setIsFocused(false);
           isEditingRef.current = false;
           onUpdate(draft); // blur 시 최종 값 Yjs 동기화
           onBlur?.(e);
         }}
-        {...props}
       />
     );
   },
@@ -204,6 +209,7 @@ export default function PenaltyList({ yjs }: PenaltyListProps) {
                     />
                     {canEdit && (
                       <Button
+                        type='button'
                         variant='ghost'
                         size='icon'
                         aria-label={`${i + 1}번째 벌칙 삭제`}

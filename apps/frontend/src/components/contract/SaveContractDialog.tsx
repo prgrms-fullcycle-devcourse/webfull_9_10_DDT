@@ -15,17 +15,21 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { queryKeys } from '@/lib/queryKeys';
+import { blurOnEnter } from './utils';
 
 interface SaveContractDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (title: string) => Promise<void>;
+  onSave: (title: string) => Promise<boolean>;
 }
 
 interface SavedRuleMeta {
   ruleId: string;
   title: string;
 }
+
+// 각서 제목 최대 글자 수 (백엔드 DTO @MaxLength와 동일하게 유지)
+const TITLE_MAX_LENGTH = 30;
 
 /**
  * 각서 저장 다이얼로그.
@@ -34,7 +38,7 @@ interface SavedRuleMeta {
  *
  * @param open - 다이얼로그 열림 상태
  * @param onClose - 닫기 콜백
- * @param onSave - 제목을 받아 저장을 수행하는 비동기 콜백. 실패 시 throw하면 다이얼로그가 닫히지 않음
+ * @param onSave - 제목을 받아 저장을 수행하는 비동기 콜백. false를 반환하면 다이얼로그가 닫히지 않음
  */
 export function SaveContractDialog({
   open,
@@ -78,8 +82,8 @@ export function SaveContractDialog({
     }
     setIsSaving(true);
     try {
-      await onSave(trimmedTitle);
-      onClose();
+      const ok = await onSave(trimmedTitle);
+      if (ok) onClose();
     } finally {
       setIsSaving(false);
     }
@@ -96,18 +100,26 @@ export function SaveContractDialog({
           placeholder='각서의 제목을 입력해주세요.'
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          maxLength={TITLE_MAX_LENGTH}
+          autoComplete='off'
           className='bg-background! h-12 w-full border border-white/20 rounded-sm!'
+          onKeyDown={blurOnEnter}
         />
-        <DialogDescription
-          className={cn(
-            'text-xs',
-            title.length > 0 && !willOverwrite && 'text-primary',
-          )}
-        >
-          {willOverwrite
-            ? '같은 제목의 각서가 있어요. 덮어쓰시겠어요?'
-            : '제목을 입력하고 저장하면 새 각서로 저장돼요.'}
-        </DialogDescription>
+        <div className='flex items-center justify-between gap-2'>
+          <DialogDescription
+            className={cn(
+              'text-xs',
+              title.length > 0 && !willOverwrite && 'text-primary',
+            )}
+          >
+            {willOverwrite
+              ? '같은 제목의 각서가 있어요. 덮어쓰시겠어요?'
+              : '제목을 입력하고 저장하면 새 각서로 저장돼요.'}
+          </DialogDescription>
+          <span className='shrink-0 text-xs text-muted-foreground tabular-nums'>
+            {String(title.length).padStart(2)}/{TITLE_MAX_LENGTH}
+          </span>
+        </div>
 
         <DialogFooter className='w-full flex'>
           <Button

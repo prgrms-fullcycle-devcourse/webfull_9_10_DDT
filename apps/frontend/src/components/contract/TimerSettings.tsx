@@ -17,7 +17,7 @@ import { CONTRACT_INPUT_FOCUS } from './inputStyles';
 import OwnerIndicator from './OwnerIndicator';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
-import { blockNonInteger } from './utils';
+import { blockNonInteger, blurOnEnter } from './utils';
 
 interface TimerSettingsProps {
   yjs: Pick<
@@ -97,10 +97,12 @@ function TimerNumberInput({
     <Input
       id={id}
       type='number'
+      inputMode='numeric'
       min={min}
       max={max}
       step={1}
       value={draft}
+      autoComplete='off'
       className={cn(
         CONTRACT_INPUT_FOCUS,
         isOwned && 'outline-2 outline-offset-1',
@@ -113,7 +115,10 @@ function TimerNumberInput({
         setDraft('');
         onFocus();
       }}
-      onKeyDown={blockNonInteger}
+      onKeyDown={(e) => {
+        blockNonInteger(e);
+        blurOnEnter(e);
+      }}
       onChange={(e) => {
         const raw = e.target.value;
         if (raw === '') {

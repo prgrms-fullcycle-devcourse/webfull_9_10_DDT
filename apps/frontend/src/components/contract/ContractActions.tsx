@@ -12,6 +12,7 @@ import { SaveContractDialog } from './SaveContractDialog';
 import { LoadContractDialog } from './LoadContractDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/queryKeys';
+import { getErrorMessage } from '@/lib/error';
 
 interface ContractActionsProps {
   fields: UseContractYjsReturn['fields'];
@@ -51,16 +52,18 @@ export function ContractActions({
   /**
    * 각서 저장 핸들러.
    * 동일 제목의 템플릿이 캐시에 있으면 덮어쓰기(update), 없으면 신규 생성(save).
-   * 성공 시 saved-rules 쿼리 캐시를 무효화하여 목록을 갱신합니다.
+   * 성공 시 저장된 각서 목록 캐시를 무효화하여 목록을 갱신합니다.
    *
    * @param title - 저장할 각서 제목
-   * @throws 저장 실패 시 toast.error 표시 후 Error throw (다이얼로그 닫힘 방지)
+   * @returns 저장 성공 여부. 실패 시 false를 반환해 다이얼로그가 닫히지 않도록 합니다.
    */
-  const handleSave = async (title: string) => {
+  const handleSave = async (title: string): Promise<boolean> => {
     const payload = toBackendFormat(fields, tiers, penalties);
 
     try {
-      const cached = queryClient.getQueryData<SavedRule[]>(['saved-rules']);
+      const cached = queryClient.getQueryData<SavedRule[]>(
+        queryKeys.rules.saved(),
+      );
       const existing = cached?.find((r) => r.title === title);
 
       if (existing) {
@@ -77,9 +80,10 @@ export function ContractActions({
 
       queryClient.invalidateQueries({ queryKey: queryKeys.rules.saved() });
       toast.success(`"${title}" 저장 성공`);
-    } catch {
-      toast.error('저장 실패');
-      throw new Error();
+      return true;
+    } catch (err) {
+      toast.error(getErrorMessage(err, '저장 실패'));
+      return false;
     }
   };
 

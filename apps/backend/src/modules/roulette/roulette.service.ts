@@ -103,7 +103,7 @@ export class RouletteService {
     });
 
     if (!member) throw new BadRequestException('룰렛 정보가 없습니다.');
-    this.ensureResultPhase(member.room.phase);
+    if (!member.gaveUpAt) this.ensureResultPhase(member.room.phase);
     if (!member.result) throw new BadRequestException('룰렛 정보가 없습니다.');
 
     const penalties = member.result.penalties;
@@ -174,7 +174,7 @@ export class RouletteService {
     });
 
     if (!member) throw new BadRequestException('멤버 정보를 찾을 수 없습니다.');
-    this.ensureResultPhase(member.room.phase);
+    if (!member.gaveUpAt) this.ensureResultPhase(member.room.phase);
 
     // 미공개 목록 확보 + 일괄 공개를 트랜잭션으로 처리. count=0이면 동시 호출 패자로 차단.
     const unrevealed = await this.prisma.$transaction(async (tx) => {

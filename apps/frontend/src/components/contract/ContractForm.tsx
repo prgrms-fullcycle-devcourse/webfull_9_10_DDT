@@ -278,7 +278,11 @@ const ContractForm = () => {
           />
           {isHost && <EditPermissionToggle />}
           <FormProvider {...methods}>
-            <form className='flex flex-col gap-5'>
+            <form
+              className='flex flex-col gap-5'
+              autoComplete='off'
+              onSubmit={(e) => e.preventDefault()}
+            >
               <TimerSettings
                 yjs={{
                   fields,

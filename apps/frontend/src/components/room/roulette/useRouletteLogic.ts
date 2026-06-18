@@ -8,6 +8,7 @@ import {
   useRouletteData,
 } from './useRouletteData';
 import { setResultFrom } from '@/lib/navigation';
+import * as Sentry from '@sentry/nextjs';
 
 const SKIP_THRESHOLD = 5;
 const SPOTLIGHT_DURATION_MS = 2400;
@@ -118,13 +119,25 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
 
   // ── Navigation ──
   const moveToFinishTarget = useCallback(() => {
+    if (isGiveUpRoulette) {
+      data.exitMutation.mutate(undefined, {
+        onError: (err) => {
+          const status = axios.isAxiosError(err)
+            ? err.response?.status
+            : undefined;
+          if (status === 400 || status === 409) return;
+          Sentry.captureException(err);
+        },
+      });
+    }
+
     if (finishTarget === '/') {
       data.clearGuestSession();
     } else {
       setResultFrom('room');
     }
     router.replace(finishTarget);
-  }, [data, finishTarget, router]);
+  }, [data, finishTarget, isGiveUpRoulette, router]);
 
   // ── Handlers ──
   const handleStartSpinning = useCallback(
@@ -200,6 +213,13 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
 
   // ── Exit/Skip handlers ──
   const handleExit = () => {
+    // 중도포기 룰렛은 exitRoulette 호출을 moveToFinishTarget에 위임한다.
+    // (여기서 직접 mutate하면 moveToFinishTarget의 호출과 이중이 되므로 분기로 분리)
+    if (isGiveUpRoulette) {
+      setIsDialogOpen(false);
+      moveToFinishTarget();
+      return;
+    }
     data.exitMutation.mutate(undefined, {
       onSuccess: () => {
         setIsDialogOpen(false);
