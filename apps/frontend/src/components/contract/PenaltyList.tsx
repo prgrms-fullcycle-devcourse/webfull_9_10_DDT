@@ -55,7 +55,7 @@ interface PenaltyInputProps extends Omit<
  * @param onUpdate - 값 변경 시 Yjs에 동기화하는 콜백
  */
 const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
-  ({ content, onUpdate, onFocus, onBlur, placeholder, ...props }, ref) => {
+  ({ content, onUpdate, onFocus, onBlur, onKeyDown, placeholder, ...props }, ref) => {
     const [draft, setDraft] = useState(content ?? '');
     const isEditingRef = useRef(false);
     const isComposingRef = useRef(false);
@@ -99,7 +99,10 @@ const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
           }
         }}
         {...props}
-        onKeyDown={blurOnEnter}
+        onKeyDown={(e) => {
+          onKeyDown?.(e);
+          blurOnEnter(e);
+        }}
         onBlur={(e) => {
           setIsFocused(false);
           isEditingRef.current = false;
