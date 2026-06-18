@@ -15,6 +15,7 @@ export function blockNonInteger(
 /**
  * Enter 키 입력 시 해당 input에서 포커스를 제거합니다.
  * 모바일에서 소프트 키보드가 내려가는 효과를 냅니다.
+ * 한글 등 IME 조합 중(isComposing)에는 동작하지 않습니다.
  *
  * @param e - 키보드 이벤트
  */

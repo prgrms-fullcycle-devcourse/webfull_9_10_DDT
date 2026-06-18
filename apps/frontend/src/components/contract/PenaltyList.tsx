@@ -13,6 +13,7 @@ import OwnerIndicator from './OwnerIndicator';
 import { Input } from '../ui/input';
 import { cn } from '@/lib/utils';
 import { CONTRACT_INPUT_FOCUS } from './inputStyles';
+import { blurOnEnter } from './utils';
 import { Separator } from '../ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -97,19 +98,14 @@ const PenaltyInput = forwardRef<HTMLInputElement, PenaltyInputProps>(
             onUpdate(val); // 한글 조합 중 아닐 때만 Yjs 동기화
           }
         }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
+        {...props}
+        onKeyDown={blurOnEnter}
         onBlur={(e) => {
           setIsFocused(false);
           isEditingRef.current = false;
           onUpdate(draft); // blur 시 최종 값 Yjs 동기화
           onBlur?.(e);
         }}
-        {...props}
       />
     );
   },
