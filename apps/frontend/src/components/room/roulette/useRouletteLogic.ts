@@ -200,6 +200,13 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
 
   // ── Exit/Skip handlers ──
   const handleExit = () => {
+    // giveup 룰렛은 FE 애니메이션 전용 — spin/exit API 호출하지 않음(spec)
+    // timer 페이즈에서 exitRoulette를 호출하면 423이 발생하므로 API 없이 이동
+    if (isGiveUpRoulette) {
+      setIsDialogOpen(false);
+      moveToFinishTarget();
+      return;
+    }
     data.exitMutation.mutate(undefined, {
       onSuccess: () => {
         setIsDialogOpen(false);
