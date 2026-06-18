@@ -171,6 +171,12 @@ export class PenaltyService {
               where: { roomMemberId: member.id },
               data: { totalEscapeMs, penaltyTier },
             });
+            // giveup 룰렛에서 이탈하거나 미완료한 경우 isRevealed: false가 남을 수 있음
+            // 세션 종료 시점에 탈옥 멤버의 미공개 벌칙을 일괄 공개
+            await tx.resultPenalty.updateMany({
+              where: { roomMemberId: member.id, isRevealed: false },
+              data: { isRevealed: true },
+            });
           } else {
             const { penaltyCount, isForceAll } = resolveForfeitTier(tiers);
             await tx.roomResult.create({
