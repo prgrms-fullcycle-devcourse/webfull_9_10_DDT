@@ -75,6 +75,7 @@ function PenaltyCountInput({
     <Input
       className={`bg-background! h-12 w-15 border-white/20 ${CONTRACT_INPUT_FOCUS}`}
       type='number'
+      inputMode='numeric'
       min={0}
       step={1}
       value={draft}
@@ -153,6 +154,7 @@ function TierPctInput({
     <Input
       className={`bg-background! h-12 w-15 border-white/20 ${CONTRACT_INPUT_FOCUS}`}
       type='number'
+      inputMode='numeric'
       min={minPct + 1}
       max={99}
       step={1}

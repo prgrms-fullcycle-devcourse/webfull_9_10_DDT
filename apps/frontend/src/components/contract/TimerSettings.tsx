@@ -97,6 +97,7 @@ function TimerNumberInput({
     <Input
       id={id}
       type='number'
+      inputMode='numeric'
       min={min}
       max={max}
       step={1}

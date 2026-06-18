@@ -280,6 +280,7 @@ const ContractForm = () => {
           <FormProvider {...methods}>
             <form
               className='flex flex-col gap-5'
+              autoComplete='off'
               onSubmit={(e) => e.preventDefault()}
             >
               <TimerSettings

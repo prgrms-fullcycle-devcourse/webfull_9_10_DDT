@@ -103,7 +103,7 @@ export function SaveContractDialog({
           autoComplete='off'
           className='bg-background! h-12 w-full border border-white/20 rounded-sm!'
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               e.preventDefault();
               (e.target as HTMLInputElement).blur();
             }
