@@ -8,6 +8,7 @@ import {
   useRouletteData,
 } from './useRouletteData';
 import { setResultFrom } from '@/lib/navigation';
+import * as Sentry from '@sentry/nextjs';
 
 const SKIP_THRESHOLD = 5;
 const SPOTLIGHT_DURATION_MS = 2400;
@@ -120,11 +121,16 @@ export function useRouletteLogic(code: string, isGiveUpRoulette: boolean) {
   const moveToFinishTarget = useCallback(() => {
     if (isGiveUpRoulette) {
       data.exitMutation.mutate(undefined, {
-        onError: () => {
-          // 이미 공개됨(400/409) 또는 네트워크 실패 — 무시 (백업 잡 존재)
+        onError: (err) => {
+          const status = axios.isAxiosError(err)
+            ? err.response?.status
+            : undefined;
+          if (status === 400 || status === 409) return;
+          Sentry.captureException(err);
         },
       });
     }
+
     if (finishTarget === '/') {
       data.clearGuestSession();
     } else {
